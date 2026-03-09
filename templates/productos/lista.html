@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% block title %}Productos{% endblock %}
+{% block page_title %}Inventario &rsaquo; Productos{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert alert-success alert-dismissible alert-auto-hide mb-3" role="alert">
+  <i class="bi bi-check-circle me-2"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible mb-3" role="alert">
+  <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1><i class="bi bi-box-seam me-2 text-primary"></i>Productos</h1>
+  <a href="/productos/nuevo" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="search-bar">
+  <form method="get" action="/productos" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label mb-1">Buscar</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" name="buscar" class="form-control" placeholder="Nombre o código..." value="{{ buscar }}">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label mb-1">Categoría</label>
+      <select name="categoria_id" class="form-select form-select-sm auto-submit">
+        <option value="">Todas las categorías</option>
+        {% for cat in categorias %}
+        <option value="{{ cat.id }}" {{ 'selected' if categoria_id == cat.id }}>{{ cat.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <div class="form-check mt-4">
+        <input class="form-check-input" type="checkbox" name="stock_bajo" value="true" id="cbStockBajo"
+               {{ 'checked' if stock_bajo }} onchange="this.form.submit()">
+        <label class="form-check-label fw-semibold text-danger" for="cbStockBajo">
+          Solo stock bajo
+        </label>
+      </div>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary btn-sm w-100">
+        <i class="bi bi-search me-1"></i>Buscar
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Tabla -->
+<div class="table-card">
+  <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+    <span class="text-muted" style="font-size:0.82rem">
+      <strong>{{ productos | length }}</strong> producto(s) encontrado(s)
+    </span>
+    <a href="/reportes/stock" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-file-earmark-bar-chart me-1"></i>Ver Reporte
+    </a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Producto</th>
+          <th>Categoría</th>
+          <th>Stock</th>
+          <th>Stock Mín.</th>
+          <th>P. Costo</th>
+          <th>P. Venta</th>
+          <th>Margen</th>
+          <th>Estado</th>
+          <th class="table-actions">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in productos %}
+        <tr>
+          <td><code class="text-primary">{{ p.codigo }}</code></td>
+          <td>
+            <div class="fw-medium">{{ p.nombre }}</div>
+            {% if p.descripcion %}
+            <small class="text-muted">{{ p.descripcion[:40] }}{% if p.descripcion|length > 40 %}...{% endif %}</small>
+            {% endif %}
+          </td>
+          <td>
+            {% if p.categoria %}
+            <span class="badge bg-light text-dark border">{{ p.categoria.nombre }}</span>
+            {% else %}<span class="text-muted">-</span>{% endif %}
+          </td>
+          <td>
+            <span class="fw-bold {{ 'text-danger' if p.stock_bajo else 'text-dark' }}">
+              {{ p.stock_actual | numero }}
+            </span>
+            <small class="text-muted">{{ p.unidad_medida }}</small>
+          </td>
+          <td class="text-muted">{{ p.stock_minimo | numero }}</td>
+          <td>{{ p.precio_costo | moneda }}</td>
+          <td>{{ p.precio_venta | moneda }}</td>
+          <td>
+            <span class="badge bg-light text-{{ 'success' if p.margen >= 0 else 'danger' }} border">
+              {{ p.margen }}%
+            </span>
+          </td>
+          <td>
+            {% if p.stock_bajo %}
+            <span class="badge badge-stock-low">BAJO</span>
+            {% else %}
+            <span class="badge badge-stock-ok">OK</span>
+            {% endif %}
+          </td>
+          <td class="table-actions">
+            <a href="/productos/{{ p.id }}/editar" class="btn btn-sm btn-outline-secondary" title="Editar">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <a href="/inventario/entrada?prod={{ p.id }}" class="btn btn-sm btn-outline-success" title="Registrar entrada">
+              <i class="bi bi-plus"></i>
+            </a>
+            <form method="post" action="/productos/{{ p.id }}/eliminar"
+                  class="d-inline form-delete" data-name="{{ p.nombre }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Desactivar">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="text-center text-muted py-5">
+            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+            No se encontraron productos
+            {% if buscar %} para "{{ buscar }}"{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

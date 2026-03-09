@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard &rsaquo; Resumen General{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h1>
+  <small class="text-muted">{{ fecha_hoy if fecha_hoy else "" }}</small>
+</div>
+
+<!-- Stats Row -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="stat-icon" style="background:#e8f4fd; color:#0d6efd">
+          <i class="bi bi-box-seam"></i>
+        </div>
+      </div>
+      <div class="stat-value">{{ total_productos }}</div>
+      <div class="stat-label">Productos Activos</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="stat-icon" style="background:#fde8e8; color:#dc3545">
+          <i class="bi bi-exclamation-triangle"></i>
+        </div>
+      </div>
+      <div class="stat-value text-{{ 'danger' if stock_bajo > 0 else 'success' }}">{{ stock_bajo }}</div>
+      <div class="stat-label">Stock Bajo</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="stat-icon" style="background:#e8f5e9; color:#198754">
+          <i class="bi bi-currency-dollar"></i>
+        </div>
+      </div>
+      <div class="stat-value" style="font-size:1.3rem">{{ valor_inventario | moneda }}</div>
+      <div class="stat-label">Valor Inventario</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex justify-content-between align-items-start mb-2">
+        <div class="stat-icon" style="background:#fff3e0; color:#fd7e14">
+          <i class="bi bi-arrow-left-right"></i>
+        </div>
+      </div>
+      <div class="stat-value">{{ movimientos_hoy }}</div>
+      <div class="stat-label">Movimientos Hoy</div>
+    </div>
+  </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="quick-actions mb-4">
+  <a href="/inventario/entrada" class="quick-action-btn text-success border-success">
+    <i class="bi bi-box-arrow-in-down"></i> Registrar Entrada
+  </a>
+  <a href="/inventario/salida" class="quick-action-btn text-danger border-danger">
+    <i class="bi bi-box-arrow-up"></i> Registrar Salida
+  </a>
+  <a href="/inventario/ajuste" class="quick-action-btn text-warning border-warning">
+    <i class="bi bi-pencil-square"></i> Ajuste de Stock
+  </a>
+  <a href="/productos/nuevo" class="quick-action-btn text-primary border-primary">
+    <i class="bi bi-plus-circle"></i> Nuevo Producto
+  </a>
+  <a href="/reportes/stock?solo_bajo=true" class="quick-action-btn text-secondary border-secondary">
+    <i class="bi bi-bar-chart-line"></i> Ver Reportes
+  </a>
+</div>
+
+<div class="row g-3">
+  <!-- Últimos movimientos -->
+  <div class="col-lg-7">
+    <div class="table-card">
+      <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>Últimos Movimientos</h6>
+        <a href="/inventario" class="btn btn-sm btn-outline-primary">Ver todos</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Producto</th>
+              <th>Tipo</th>
+              <th>Cantidad</th>
+              <th>Stock</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for mov in ultimos_movimientos %}
+            <tr>
+              <td class="fw-medium">{{ mov.producto.nombre[:28] if mov.producto else "-" }}</td>
+              <td>
+                <span class="badge badge-{{ mov.tipo.lower() }} px-2 py-1" style="font-size:0.75rem">
+                  {{ mov.tipo }}
+                </span>
+              </td>
+              <td>
+                {% if mov.tipo == "ENTRADA" %}<span class="text-success">+{% elif mov.tipo == "SALIDA" %}<span class="text-danger">-{% else %}<span class="text-warning">~{% endif %}
+                {{ mov.cantidad | numero }}
+                </span>
+              </td>
+              <td><span class="text-muted">{{ mov.stock_resultante | numero }}</span></td>
+              <td class="text-muted" style="font-size:0.78rem">{{ mov.fecha.strftime('%d/%m %H:%M') }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="text-center text-muted py-4">No hay movimientos registrados</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stock Bajo -->
+  <div class="col-lg-5">
+    <div class="table-card">
+      <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+        <h6 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle me-2 text-danger"></i>Stock Bajo / Agotado</h6>
+        <a href="/reportes/stock?solo_bajo=true" class="btn btn-sm btn-outline-danger">Ver todos</a>
+      </div>
+      {% if productos_stock_bajo %}
+      <div class="list-group list-group-flush">
+        {% for p in productos_stock_bajo %}
+        <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+          <div>
+            <div class="fw-medium" style="font-size:0.85rem">{{ p.nombre[:30] }}</div>
+            <small class="text-muted">{{ p.codigo }}</small>
+          </div>
+          <div class="text-end">
+            <span class="badge bg-danger">{{ p.stock_actual | numero }} {{ p.unidad_medida }}</span>
+            <br><small class="text-muted">Mín: {{ p.stock_minimo | numero }}</small>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center text-muted py-4">
+        <i class="bi bi-check-circle text-success fs-2 d-block mb-2"></i>
+        Todo el stock está en niveles óptimos
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

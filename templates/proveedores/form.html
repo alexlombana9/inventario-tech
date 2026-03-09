@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% block title %}{{ accion }} Proveedor{% endblock %}
+{% block page_title %}Proveedores &rsaquo; {{ accion }} Proveedor{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-truck me-2 text-primary"></i>{{ accion }} Proveedor</h1>
+  <a href="/proveedores" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
+
+<div class="form-card">
+  <form method="post" action="/proveedores/{{ proveedor.id ~ '/editar' if proveedor else 'nuevo' }}">
+    <div class="row g-3">
+
+      <div class="col-md-8">
+        <label class="form-label" for="nombre">Nombre del Proveedor <span class="text-danger">*</span></label>
+        <input type="text" id="nombre" name="nombre" class="form-control" required
+               value="{{ proveedor.nombre if proveedor else '' }}"
+               placeholder="Ej: Distribuidora TechParts S.A.">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label" for="nit_ruc">NIT / RUC</label>
+        <input type="text" id="nit_ruc" name="nit_ruc" class="form-control"
+               value="{{ proveedor.nit_ruc if proveedor else '' }}"
+               placeholder="Ej: 900.123.456-7">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label" for="contacto">Persona de Contacto</label>
+        <input type="text" id="contacto" name="contacto" class="form-control"
+               value="{{ proveedor.contacto if proveedor else '' }}"
+               placeholder="Nombre del contacto">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label" for="telefono">Teléfono</label>
+        <input type="text" id="telefono" name="telefono" class="form-control"
+               value="{{ proveedor.telefono if proveedor else '' }}"
+               placeholder="Ej: +57 310 123 4567">
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label" for="email">Correo Electrónico</label>
+        <input type="email" id="email" name="email" class="form-control"
+               value="{{ proveedor.email if proveedor else '' }}"
+               placeholder="contacto@proveedor.com">
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="direccion">Dirección</label>
+        <textarea id="direccion" name="direccion" class="form-control" rows="2"
+                  placeholder="Dirección completa del proveedor">{{ proveedor.direccion if proveedor else '' }}</textarea>
+      </div>
+
+    </div>
+
+    <hr class="my-4">
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="bi bi-check-lg me-1"></i>{{ 'Actualizar' if proveedor else 'Crear Proveedor' }}
+      </button>
+      <a href="/proveedores" class="btn btn-outline-secondary px-4">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

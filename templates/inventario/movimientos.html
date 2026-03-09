@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Movimientos{% endblock %}
+{% block page_title %}Inventario &rsaquo; Historial de Movimientos{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert alert-success alert-dismissible alert-auto-hide mb-3">
+  <i class="bi bi-check-circle me-2"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1><i class="bi bi-arrow-left-right me-2 text-primary"></i>Movimientos de Inventario</h1>
+  <div class="d-flex gap-2">
+    <a href="/inventario/entrada" class="btn btn-success btn-sm">
+      <i class="bi bi-box-arrow-in-down me-1"></i>Entrada
+    </a>
+    <a href="/inventario/salida" class="btn btn-danger btn-sm">
+      <i class="bi bi-box-arrow-up me-1"></i>Salida
+    </a>
+    <a href="/inventario/ajuste" class="btn btn-warning btn-sm">
+      <i class="bi bi-pencil-square me-1"></i>Ajuste
+    </a>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="search-bar">
+  <form method="get" action="/inventario" class="row g-2 align-items-end">
+    <div class="col-md-3">
+      <label class="form-label mb-1">Producto</label>
+      <select name="producto_id" class="form-select form-select-sm auto-submit">
+        <option value="">Todos los productos</option>
+        {% for p in productos %}
+        <option value="{{ p.id }}" {{ 'selected' if producto_id == p.id }}>{{ p.nombre[:35] }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label mb-1">Tipo</label>
+      <select name="tipo" class="form-select form-select-sm auto-submit">
+        <option value="">Todos</option>
+        <option value="ENTRADA" {{ 'selected' if tipo == 'ENTRADA' }}>Entrada</option>
+        <option value="SALIDA" {{ 'selected' if tipo == 'SALIDA' }}>Salida</option>
+        <option value="AJUSTE" {{ 'selected' if tipo == 'AJUSTE' }}>Ajuste</option>
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label mb-1">Desde</label>
+      <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label mb-1">Hasta</label>
+      <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+    </div>
+    <div class="col-md-3 d-flex gap-2">
+      <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+        <i class="bi bi-filter me-1"></i>Filtrar
+      </button>
+      <a href="/inventario" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-x-lg"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Tabla -->
+<div class="table-card">
+  <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+    <span class="text-muted" style="font-size:0.82rem">
+      <strong>{{ total }}</strong> movimiento(s) — Página {{ pagina }}/{{ total_paginas }}
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Producto</th>
+          <th>Tipo</th>
+          <th>Cantidad</th>
+          <th>Stock Ant.</th>
+          <th>Stock Res.</th>
+          <th>Precio Unit.</th>
+          <th>Proveedor</th>
+          <th>Referencia</th>
+          <th>Observaciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mov in movimientos %}
+        <tr>
+          <td style="white-space:nowrap; font-size:0.8rem">{{ mov.fecha.strftime('%d/%m/%Y') }}<br>
+            <span class="text-muted">{{ mov.fecha.strftime('%H:%M') }}</span>
+          </td>
+          <td>
+            <div class="fw-medium" style="font-size:0.83rem">{{ mov.producto.nombre[:30] if mov.producto else "-" }}</div>
+            {% if mov.producto %}<small class="text-muted">{{ mov.producto.codigo }}</small>{% endif %}
+          </td>
+          <td>
+            <span class="badge badge-{{ mov.tipo.lower() }} px-2 py-1">{{ mov.tipo }}</span>
+          </td>
+          <td class="fw-bold {{ 'text-success' if mov.tipo == 'ENTRADA' else 'text-danger' if mov.tipo == 'SALIDA' else 'text-warning' }}">
+            {% if mov.tipo == 'ENTRADA' %}+{% elif mov.tipo == 'SALIDA' %}-{% else %}~{% endif %}
+            {{ mov.cantidad | numero }}
+          </td>
+          <td class="text-muted">{{ mov.stock_anterior | numero }}</td>
+          <td class="fw-medium">{{ mov.stock_resultante | numero }}</td>
+          <td>{{ mov.precio_unitario | moneda if mov.precio_unitario else "-" }}</td>
+          <td>{{ mov.proveedor.nombre[:20] if mov.proveedor else "-" }}</td>
+          <td><code>{{ mov.numero_referencia or "-" }}</code></td>
+          <td class="text-muted" style="font-size:0.8rem">{{ mov.observaciones[:35] if mov.observaciones else "-" }}</td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="10" class="text-center text-muted py-5">
+            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+            No hay movimientos para los filtros seleccionados
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Paginación -->
+  {% if total_paginas > 1 %}
+  <div class="d-flex justify-content-center p-3">
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if pagina > 1 %}
+        <li class="page-item">
+          <a class="page-link" href="?pagina={{ pagina - 1 }}&tipo={{ tipo }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}">
+            <i class="bi bi-chevron-left"></i>
+          </a>
+        </li>
+        {% endif %}
+        {% for p in range(1, total_paginas + 1) %}
+        <li class="page-item {{ 'active' if p == pagina }}">
+          <a class="page-link" href="?pagina={{ p }}&tipo={{ tipo }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        {% if pagina < total_paginas %}
+        <li class="page-item">
+          <a class="page-link" href="?pagina={{ pagina + 1 }}&tipo={{ tipo }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}">
+            <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}{{ titulo }}{% endblock %}
+{% block page_title %}Inventario &rsaquo; {{ titulo }}{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible mb-3">
+  <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1>
+    {% if tipo == 'ENTRADA' %}
+    <i class="bi bi-box-arrow-in-down me-2 text-success"></i>
+    {% else %}
+    <i class="bi bi-box-arrow-up me-2 text-danger"></i>
+    {% endif %}
+    {{ titulo }}
+  </h1>
+  <div class="d-flex gap-2">
+    {% if tipo == 'ENTRADA' %}
+    <a href="/inventario/salida" class="btn btn-outline-danger btn-sm">Ir a Salida</a>
+    {% else %}
+    <a href="/inventario/entrada" class="btn btn-outline-success btn-sm">Ir a Entrada</a>
+    {% endif %}
+    <a href="/inventario" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Ver Historial
+    </a>
+  </div>
+</div>
+
+<div class="form-card">
+  <form method="post" action="/inventario/registrar">
+    <input type="hidden" name="tipo" value="{{ tipo }}">
+    <div class="row g-3">
+
+      <!-- Producto -->
+      <div class="col-12">
+        <label class="form-label" for="producto_id">Producto <span class="text-danger">*</span></label>
+        <select id="producto_id" name="producto_id" class="form-select" required>
+          <option value="">-- Seleccionar producto --</option>
+          {% for p in productos %}
+          <option value="{{ p.id }}"
+                  data-stock="{{ p.stock_actual }}"
+                  data-unidad="{{ p.unidad_medida }}"
+                  data-minimo="{{ p.stock_minimo }}"
+                  data-costo="{{ p.precio_costo }}">
+            [{{ p.codigo }}] {{ p.nombre }} — Stock: {{ p.stock_actual | round(2) }} {{ p.unidad_medida }}
+          </option>
+          {% endfor %}
+        </select>
+        <!-- Info de stock -->
+        <div id="stock-info" class="mt-2 d-none p-2 rounded" style="background:#f8f9fa; font-size:0.85rem; border:1px solid #dee2e6"></div>
+      </div>
+
+      <!-- Cantidad -->
+      <div class="col-md-3">
+        <label class="form-label" for="cantidad">
+          {% if tipo == 'ENTRADA' %}Cantidad Recibida{% else %}Cantidad a Sacar{% endif %}
+          <span class="text-danger">*</span>
+        </label>
+        <input type="number" id="cantidad" name="cantidad" class="form-control" required
+               min="0.01" step="0.01" placeholder="0.00">
+      </div>
+
+      <!-- Precio unitario -->
+      <div class="col-md-3">
+        <label class="form-label" for="precio_unitario">
+          {% if tipo == 'ENTRADA' %}Precio de Costo Unit.{% else %}Precio de Venta Unit.{% endif %}
+        </label>
+        <div class="input-group">
+          <span class="input-group-text">$</span>
+          <input type="number" id="precio_unitario" name="precio_unitario" class="form-control"
+                 min="0" step="0.01" value="0.00">
+        </div>
+      </div>
+
+      {% if tipo == 'ENTRADA' %}
+      <!-- Proveedor (solo en entradas) -->
+      <div class="col-md-6">
+        <label class="form-label" for="proveedor_id">Proveedor</label>
+        <select id="proveedor_id" name="proveedor_id" class="form-select">
+          <option value="">Sin proveedor</option>
+          {% for prov in proveedores %}
+          <option value="{{ prov.id }}">{{ prov.nombre }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" name="proveedor_id" value="">
+      {% endif %}
+
+      <!-- Número de referencia -->
+      <div class="col-md-4">
+        <label class="form-label" for="numero_referencia">
+          {% if tipo == 'ENTRADA' %}N° Factura / Remisión{% else %}N° Documento{% endif %}
+        </label>
+        <input type="text" id="numero_referencia" name="numero_referencia" class="form-control"
+               placeholder="Ej: FAC-0001">
+      </div>
+
+      <!-- Fecha -->
+      <div class="col-md-4">
+        <label class="form-label" for="fecha">Fecha y Hora</label>
+        <input type="datetime-local" id="fecha" name="fecha" class="form-control">
+        <small class="text-muted">Dejar vacío para usar fecha/hora actual</small>
+      </div>
+
+      <!-- Observaciones -->
+      <div class="col-12">
+        <label class="form-label" for="observaciones">Observaciones</label>
+        <textarea id="observaciones" name="observaciones" class="form-control" rows="2"
+                  placeholder="Notas adicionales sobre este movimiento..."></textarea>
+      </div>
+
+    </div>
+
+    <hr class="my-4">
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-{{ 'success' if tipo == 'ENTRADA' else 'danger' }} px-4">
+        <i class="bi bi-check-lg me-1"></i>Registrar {{ tipo.capitalize() }}
+      </button>
+      <a href="/inventario" class="btn btn-outline-secondary px-4">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

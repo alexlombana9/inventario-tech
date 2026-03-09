@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Detalle Proveedor{% endblock %}
+{% block page_title %}Proveedores &rsaquo; {{ proveedor.nombre }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-truck me-2 text-primary"></i>{{ proveedor.nombre }}</h1>
+  <div class="d-flex gap-2">
+    <a href="/proveedores/{{ proveedor.id }}/editar" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+    <a href="/proveedores" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-5">
+    <div class="form-card h-100">
+      <h6 class="fw-bold mb-3"><i class="bi bi-info-circle me-2 text-primary"></i>Información del Proveedor</h6>
+      <table class="table table-sm table-borderless mb-0">
+        <tr><td class="text-muted fw-semibold" style="width:130px">Nombre:</td><td class="fw-medium">{{ proveedor.nombre }}</td></tr>
+        <tr><td class="text-muted fw-semibold">NIT / RUC:</td><td>{{ proveedor.nit_ruc or "-" }}</td></tr>
+        <tr><td class="text-muted fw-semibold">Contacto:</td><td>{{ proveedor.contacto or "-" }}</td></tr>
+        <tr><td class="text-muted fw-semibold">Teléfono:</td><td>{{ proveedor.telefono or "-" }}</td></tr>
+        <tr><td class="text-muted fw-semibold">Email:</td><td>{{ proveedor.email or "-" }}</td></tr>
+        <tr><td class="text-muted fw-semibold">Dirección:</td><td>{{ proveedor.direccion or "-" }}</td></tr>
+        <tr><td class="text-muted fw-semibold">Registrado:</td><td>{{ proveedor.created_at.strftime('%d/%m/%Y') }}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="col-md-7">
+    <div class="form-card h-100">
+      <h6 class="fw-bold mb-3"><i class="bi bi-box-seam me-2 text-primary"></i>Productos Asociados ({{ productos | length }})</h6>
+      {% if productos %}
+      <div class="table-responsive">
+        <table class="table table-sm mb-0">
+          <thead><tr><th>Código</th><th>Producto</th><th>Stock</th><th>P. Venta</th></tr></thead>
+          <tbody>
+            {% for p in productos %}
+            <tr>
+              <td><code>{{ p.codigo }}</code></td>
+              <td>{{ p.nombre[:35] }}</td>
+              <td class="{{ 'text-danger fw-bold' if p.stock_bajo else '' }}">{{ p.stock_actual }} {{ p.unidad_medida }}</td>
+              <td>{{ p.precio_venta | moneda }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <p class="text-muted">No hay productos asociados a este proveedor.</p>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Últimas entradas -->
+<div class="table-card">
+  <div class="p-3 border-bottom">
+    <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>Últimas Entradas de este Proveedor</h6>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Fecha</th><th>Producto</th><th>Cantidad</th><th>Precio Unit.</th><th>Referencia</th><th>Observaciones</th></tr></thead>
+      <tbody>
+        {% for mov in movimientos %}
+        <tr>
+          <td>{{ mov.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>{{ mov.producto.nombre if mov.producto else "-" }}</td>
+          <td>{{ mov.cantidad }}</td>
+          <td>{{ mov.precio_unitario | moneda }}</td>
+          <td>{{ mov.numero_referencia or "-" }}</td>
+          <td>{{ mov.observaciones or "-" }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-3">Sin movimientos registrados</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

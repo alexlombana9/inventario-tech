@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Ajuste de Stock{% endblock %}
+{% block page_title %}Inventario &rsaquo; Ajuste de Stock{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible mb-3">
+  <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1><i class="bi bi-pencil-square me-2 text-warning"></i>Ajuste de Stock</h1>
+  <a href="/inventario" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Ver Historial
+  </a>
+</div>
+
+<div class="alert alert-warning mb-4">
+  <i class="bi bi-info-circle me-2"></i>
+  <strong>Ajuste manual:</strong> Usa esta opción para corregir el stock físico real del producto.
+  El sistema registrará la diferencia como un movimiento de ajuste.
+</div>
+
+<div class="form-card">
+  <form method="post" action="/inventario/ajuste/registrar">
+    <div class="row g-3">
+
+      <div class="col-md-8">
+        <label class="form-label" for="producto_id">Producto <span class="text-danger">*</span></label>
+        <select id="producto_id" name="producto_id" class="form-select" required>
+          <option value="">-- Seleccionar producto --</option>
+          {% for p in productos %}
+          <option value="{{ p.id }}"
+                  data-stock="{{ p.stock_actual }}"
+                  data-unidad="{{ p.unidad_medida }}"
+                  data-minimo="{{ p.stock_minimo }}">
+            [{{ p.codigo }}] {{ p.nombre }} — Stock actual: {{ p.stock_actual | round(2) }} {{ p.unidad_medida }}
+          </option>
+          {% endfor %}
+        </select>
+        <div id="stock-info" class="mt-2 d-none p-2 rounded" style="background:#f8f9fa; font-size:0.85rem; border:1px solid #dee2e6"></div>
+      </div>
+
+      <div class="col-md-4">
+        <label class="form-label" for="nuevo_stock">Nuevo Stock Real <span class="text-danger">*</span></label>
+        <input type="number" id="nuevo_stock" name="nuevo_stock" class="form-control" required
+               min="0" step="0.01" placeholder="Stock físico contado">
+        <small class="text-muted">Ingresa la cantidad real contada físicamente</small>
+      </div>
+
+      <div class="col-12">
+        <label class="form-label" for="observaciones">Motivo del Ajuste</label>
+        <textarea id="observaciones" name="observaciones" class="form-control" rows="2"
+                  placeholder="Ej: Conteo físico, producto dañado, error de registro..."></textarea>
+      </div>
+
+    </div>
+
+    <hr class="my-4">
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-warning px-4 text-dark fw-bold">
+        <i class="bi bi-check-lg me-1"></i>Aplicar Ajuste
+      </button>
+      <a href="/inventario" class="btn btn-outline-secondary px-4">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% block title %}Reporte de Movimientos{% endblock %}
+{% block page_title %}Reportes &rsaquo; Movimientos{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-graph-up me-2 text-primary"></i>Reporte de Movimientos</h1>
+  <div class="d-flex gap-2">
+    <a href="/reportes/stock" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-bar-chart-line me-1"></i>Ver Stock
+    </a>
+    <a href="/reportes/movimientos/pdf?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&tipo={{ tipo }}"
+       class="btn btn-danger btn-sm" target="_blank">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF
+    </a>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="search-bar">
+  <form method="get" action="/reportes/movimientos" class="row g-2 align-items-end">
+    <div class="col-md-2">
+      <label class="form-label mb-1">Desde</label>
+      <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label mb-1">Hasta</label>
+      <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+    </div>
+    <div class="col-md-2">
+      <label class="form-label mb-1">Tipo</label>
+      <select name="tipo" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        <option value="ENTRADA" {{ 'selected' if tipo == 'ENTRADA' }}>Entradas</option>
+        <option value="SALIDA" {{ 'selected' if tipo == 'SALIDA' }}>Salidas</option>
+        <option value="AJUSTE" {{ 'selected' if tipo == 'AJUSTE' }}>Ajustes</option>
+      </select>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label mb-1">Categoría</label>
+      <select name="categoria_id" class="form-select form-select-sm">
+        <option value="">Todas</option>
+        {% for cat in categorias %}
+        <option value="{{ cat.id }}" {{ 'selected' if categoria_id == cat.id }}>{{ cat.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-auto d-flex gap-2">
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="bi bi-filter me-1"></i>Filtrar
+      </button>
+      <a href="/reportes/movimientos" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-x-lg"></i>
+      </a>
+    </div>
+    <div class="col-12">
+      <small class="text-muted">Generado: {{ fecha_reporte.strftime('%d/%m/%Y %H:%M') }}</small>
+    </div>
+  </form>
+</div>
+
+<!-- Resumen del período -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card border-start border-success border-4">
+      <div class="stat-label mb-1">Total Entradas (Unidades)</div>
+      <div class="stat-value text-success">{{ total_entradas | numero }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card border-start border-danger border-4">
+      <div class="stat-label mb-1">Total Salidas (Unidades)</div>
+      <div class="stat-value text-danger">{{ total_salidas | numero }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card border-start border-success border-4">
+      <div class="stat-label mb-1">Valor Entradas</div>
+      <div class="stat-value text-success" style="font-size:1.3rem">{{ valor_entradas | moneda }}</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card border-start border-danger border-4">
+      <div class="stat-label mb-1">Valor Salidas</div>
+      <div class="stat-value text-danger" style="font-size:1.3rem">{{ valor_salidas | moneda }}</div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla -->
+<div class="table-card">
+  <div class="p-3 border-bottom">
+    <span class="text-muted" style="font-size:0.82rem">
+      <strong>{{ movimientos | length }}</strong> movimiento(s) en el período
+      <strong>{{ fecha_desde }}</strong> al <strong>{{ fecha_hasta }}</strong>
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Producto</th>
+          <th>Categoría</th>
+          <th>Tipo</th>
+          <th>Cantidad</th>
+          <th>Stock Ant.</th>
+          <th>Stock Res.</th>
+          <th>Precio Unit.</th>
+          <th>Valor Total</th>
+          <th>Proveedor</th>
+          <th>Referencia</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for mov in movimientos %}
+        <tr>
+          <td style="white-space:nowrap; font-size:0.8rem">
+            {{ mov.fecha.strftime('%d/%m/%Y') }}<br>
+            <span class="text-muted">{{ mov.fecha.strftime('%H:%M') }}</span>
+          </td>
+          <td>
+            <div class="fw-medium" style="font-size:0.83rem">{{ mov.producto.nombre[:28] if mov.producto else "-" }}</div>
+            {% if mov.producto %}<small class="text-muted">{{ mov.producto.codigo }}</small>{% endif %}
+          </td>
+          <td>
+            {% if mov.producto and mov.producto.categoria %}
+            <span class="badge bg-light text-dark border" style="font-size:0.72rem">{{ mov.producto.categoria.nombre }}</span>
+            {% else %}-{% endif %}
+          </td>
+          <td>
+            <span class="badge badge-{{ mov.tipo.lower() }} px-2 py-1">{{ mov.tipo }}</span>
+          </td>
+          <td class="fw-bold {{ 'text-success' if mov.tipo == 'ENTRADA' else 'text-danger' if mov.tipo == 'SALIDA' else 'text-warning' }}">
+            {% if mov.tipo == 'ENTRADA' %}+{% elif mov.tipo == 'SALIDA' %}-{% else %}~{% endif %}
+            {{ mov.cantidad | numero }}
+          </td>
+          <td class="text-muted">{{ mov.stock_anterior | numero }}</td>
+          <td>{{ mov.stock_resultante | numero }}</td>
+          <td>{{ mov.precio_unitario | moneda if mov.precio_unitario else "-" }}</td>
+          <td class="fw-medium">
+            {% if mov.precio_unitario %}{{ (mov.cantidad * mov.precio_unitario) | moneda }}{% else %}-{% endif %}
+          </td>
+          <td>{{ mov.proveedor.nombre[:18] if mov.proveedor else "-" }}</td>
+          <td><code>{{ mov.numero_referencia or "-" }}</code></td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="11" class="text-center text-muted py-5">
+            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
+            No hay movimientos en este período
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

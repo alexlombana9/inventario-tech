@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+{% block title %}Categorías{% endblock %}
+{% block page_title %}Inventario &rsaquo; Categorías{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert alert-success alert-dismissible alert-auto-hide mb-3">
+  <i class="bi bi-check-circle me-2"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible mb-3">
+  <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1><i class="bi bi-tags me-2 text-primary"></i>Categorías</h1>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNueva">
+    <i class="bi bi-plus-lg me-1"></i>Nueva Categoría
+  </button>
+</div>
+
+<div class="row g-3">
+  <!-- Lista de categorías -->
+  <div class="col-md-7">
+    <div class="table-card">
+      <div class="p-3 border-bottom">
+        <span class="text-muted" style="font-size:0.82rem"><strong>{{ categorias | length }}</strong> categoría(s)</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Descripción</th>
+              <th>Productos</th>
+              <th class="table-actions">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for cat in categorias %}
+            <tr>
+              <td class="fw-medium">{{ cat.nombre }}</td>
+              <td class="text-muted">{{ cat.descripcion or "-" }}</td>
+              <td>
+                <span class="badge bg-light text-dark border">{{ cat.productos | length }}</span>
+              </td>
+              <td class="table-actions">
+                <button class="btn btn-sm btn-outline-secondary btn-edit-categoria"
+                        data-id="{{ cat.id }}"
+                        data-nombre="{{ cat.nombre }}"
+                        data-descripcion="{{ cat.descripcion or '' }}"
+                        data-bs-toggle="modal" data-bs-target="#modalEditar">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <form method="post" action="/categorias/{{ cat.id }}/eliminar"
+                      class="d-inline form-delete" data-name="{{ cat.nombre }}">
+                  <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="bi bi-trash"></i>
+                  </button>
+                </form>
+              </td>
+            </tr>
+            {% else %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-4">
+                No hay categorías. ¡Crea la primera!
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info / Tip -->
+  <div class="col-md-5">
+    <div class="form-card">
+      <h6 class="fw-bold mb-3"><i class="bi bi-lightbulb me-2 text-warning"></i>Categorías sugeridas para tienda tech</h6>
+      <div class="d-flex flex-wrap gap-2">
+        {% set sugeridas = ['Laptops', 'Computadores', 'Monitores', 'Teclados y Mouse', 'Impresoras',
+                            'Componentes PC', 'Almacenamiento', 'Redes / WiFi', 'Cables y Adaptadores',
+                            'Audio / Video', 'Celulares', 'Accesorios', 'Software / Licencias', 'UPS / Fuentes'] %}
+        {% for s in sugeridas %}
+        <form method="post" action="/categorias/nueva" class="d-inline">
+          <input type="hidden" name="nombre" value="{{ s }}">
+          <input type="hidden" name="descripcion" value="">
+          <button type="submit" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-plus me-1"></i>{{ s }}
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+      <p class="text-muted mt-3 mb-0" style="font-size:0.8rem">
+        Haz clic en cualquier categoría sugerida para crearla directamente.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Nueva categoría -->
+<div class="modal fade" id="modalNueva" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" action="/categorias/nueva">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Nueva Categoría</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <div class="mb-3">
+            <label class="form-label" for="new-cat-nombre">Nombre <span class="text-danger">*</span></label>
+            <input type="text" id="new-cat-nombre" name="nombre" class="form-control" required
+                   placeholder="Ej: Laptops">
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="new-cat-desc">Descripción</label>
+            <textarea id="new-cat-desc" name="descripcion" class="form-control" rows="2"
+                      placeholder="Descripción opcional"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Crear Categoría</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar categoría -->
+<div class="modal fade" id="modalEditar" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <form method="post" id="edit-cat-form" action="">
+        <div class="modal-header">
+          <h5 class="modal-title fw-bold">Editar Categoría</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <input type="hidden" id="edit-cat-id" name="id">
+          <div class="mb-3">
+            <label class="form-label">Nombre <span class="text-danger">*</span></label>
+            <input type="text" id="edit-cat-nombre" name="nombre" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Descripción</label>
+            <textarea id="edit-cat-descripcion" name="descripcion" class="form-control" rows="2"></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

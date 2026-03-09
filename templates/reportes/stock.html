@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}Reporte de Stock{% endblock %}
+{% block page_title %}Reportes &rsaquo; Stock Actual{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-bar-chart-line me-2 text-primary"></i>Reporte de Stock</h1>
+  <div class="d-flex gap-2">
+    <a href="/reportes/movimientos" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-graph-up me-1"></i>Ver Movimientos
+    </a>
+    <a href="/reportes/stock/pdf{{ '?solo_bajo=true' if solo_bajo }}{{ '&categoria_id=' ~ categoria_id if categoria_id }}"
+       class="btn btn-danger btn-sm" target="_blank">
+      <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF
+    </a>
+  </div>
+</div>
+
+<!-- Resumen -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon mb-2" style="background:#e8f4fd; color:#0d6efd"><i class="bi bi-boxes"></i></div>
+      <div class="stat-value">{{ productos | length }}</div>
+      <div class="stat-label">Productos en lista</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon mb-2" style="background:#fde8e8; color:#dc3545"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="stat-value text-danger">{{ total_bajo }}</div>
+      <div class="stat-label">Con Stock Bajo</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon mb-2" style="background:#e8f5e9; color:#198754"><i class="bi bi-currency-dollar"></i></div>
+      <div class="stat-value" style="font-size:1.2rem">{{ valor_total | moneda }}</div>
+      <div class="stat-label">Valor al Costo</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="stat-card">
+      <div class="stat-icon mb-2" style="background:#fff3e0; color:#fd7e14"><i class="bi bi-shop"></i></div>
+      <div class="stat-value" style="font-size:1.2rem">{{ valor_venta | moneda }}</div>
+      <div class="stat-label">Valor al Precio Venta</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="search-bar">
+  <form method="get" action="/reportes/stock" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <label class="form-label mb-1">Categoría</label>
+      <select name="categoria_id" class="form-select form-select-sm auto-submit">
+        <option value="">Todas las categorías</option>
+        {% for cat in categorias %}
+        <option value="{{ cat.id }}" {{ 'selected' if categoria_id == cat.id }}>{{ cat.nombre }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-3">
+      <div class="form-check mt-4">
+        <input class="form-check-input" type="checkbox" name="solo_bajo" value="true"
+               id="cbSoloBajo" {{ 'checked' if solo_bajo }} onchange="this.form.submit()">
+        <label class="form-check-label fw-semibold text-danger" for="cbSoloBajo">
+          Solo stock bajo / agotado
+        </label>
+      </div>
+    </div>
+    <div class="col-auto">
+      <small class="text-muted d-block">Generado: {{ fecha_reporte.strftime('%d/%m/%Y %H:%M') }}</small>
+    </div>
+  </form>
+</div>
+
+<!-- Tabla -->
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Código</th>
+          <th>Producto</th>
+          <th>Categoría</th>
+          <th>Stock Actual</th>
+          <th>Mínimo</th>
+          <th>U.M.</th>
+          <th>P. Costo</th>
+          <th>P. Venta</th>
+          <th>Margen</th>
+          <th>Valor Stock</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in productos %}
+        <tr class="{{ 'table-danger' if p.stock_actual == 0 else 'table-warning' if p.stock_bajo else '' }}">
+          <td><code>{{ p.codigo }}</code></td>
+          <td class="fw-medium">{{ p.nombre }}</td>
+          <td>
+            {% if p.categoria %}
+            <span class="badge bg-light text-dark border">{{ p.categoria.nombre }}</span>
+            {% else %}-{% endif %}
+          </td>
+          <td class="fw-bold {{ 'text-danger' if p.stock_bajo else '' }}">
+            {{ p.stock_actual | numero }}
+          </td>
+          <td class="text-muted">{{ p.stock_minimo | numero }}</td>
+          <td>{{ p.unidad_medida }}</td>
+          <td>{{ p.precio_costo | moneda }}</td>
+          <td>{{ p.precio_venta | moneda }}</td>
+          <td>
+            <span class="badge bg-light text-{{ 'success' if p.margen >= 0 else 'danger' }} border">
+              {{ p.margen }}%
+            </span>
+          </td>
+          <td class="fw-medium">{{ (p.stock_actual * p.precio_costo) | moneda }}</td>
+          <td>
+            {% if p.stock_actual == 0 %}
+            <span class="badge bg-danger">AGOTADO</span>
+            {% elif p.stock_bajo %}
+            <span class="badge badge-stock-low">BAJO</span>
+            {% else %}
+            <span class="badge badge-stock-ok">OK</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="11" class="text-center text-muted py-5">
+            <i class="bi bi-inbox fs-2 d-block mb-2"></i>No hay productos para mostrar
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      {% if productos %}
+      <tfoot>
+        <tr class="fw-bold" style="background:#f8f9fa">
+          <td colspan="9" class="text-end">TOTALES:</td>
+          <td>{{ valor_total | moneda }}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+      {% endif %}
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}{{ accion }} Producto{% endblock %}
+{% block page_title %}Productos &rsaquo; {{ accion }} Producto{% endblock %}
+
+{% block content %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible mb-3" role="alert">
+  <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1><i class="bi bi-box-seam me-2 text-primary"></i>{{ accion }} Producto</h1>
+  <a href="/productos" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Volver
+  </a>
+</div>
+
+<div class="form-card">
+  <form method="post" action="/productos/{{ producto.id ~ '/editar' if producto else 'nuevo' }}">
+    <div class="row g-3">
+
+      <!-- Código -->
+      <div class="col-md-3">
+        <label class="form-label" for="codigo">Código <span class="text-danger">*</span></label>
+        <input type="text" id="codigo" name="codigo" class="form-control" required
+               value="{{ producto.codigo if producto else '' }}"
+               placeholder="Ej: LAPTOP-001" style="text-transform:uppercase">
+        <small class="text-muted">Identificador único del producto</small>
+      </div>
+
+      <!-- Nombre -->
+      <div class="col-md-6">
+        <label class="form-label" for="nombre">Nombre del Producto <span class="text-danger">*</span></label>
+        <input type="text" id="nombre" name="nombre" class="form-control" required
+               value="{{ producto.nombre if producto else '' }}"
+               placeholder="Ej: Laptop Dell Inspiron 15">
+      </div>
+
+      <!-- Unidad de medida -->
+      <div class="col-md-3">
+        <label class="form-label" for="unidad_medida">Unidad de Medida</label>
+        <select id="unidad_medida" name="unidad_medida" class="form-select">
+          {% set um = producto.unidad_medida if producto else 'UND' %}
+          <option value="UND" {{ 'selected' if um == 'UND' }}>UND - Unidad</option>
+          <option value="PAR" {{ 'selected' if um == 'PAR' }}>PAR - Par</option>
+          <option value="KIT" {{ 'selected' if um == 'KIT' }}>KIT - Kit</option>
+          <option value="MTS" {{ 'selected' if um == 'MTS' }}>MTS - Metros</option>
+          <option value="CJA" {{ 'selected' if um == 'CJA' }}>CJA - Caja</option>
+        </select>
+      </div>
+
+      <!-- Categoría -->
+      <div class="col-md-4">
+        <label class="form-label" for="categoria_id">Categoría</label>
+        <select id="categoria_id" name="categoria_id" class="form-select">
+          <option value="">Sin categoría</option>
+          {% for cat in categorias %}
+          <option value="{{ cat.id }}"
+            {{ 'selected' if producto and producto.categoria_id == cat.id }}>
+            {{ cat.nombre }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Proveedor principal -->
+      <div class="col-md-5">
+        <label class="form-label" for="proveedor_id">Proveedor Principal</label>
+        <select id="proveedor_id" name="proveedor_id" class="form-select">
+          <option value="">Sin proveedor</option>
+          {% for prov in proveedores %}
+          <option value="{{ prov.id }}"
+            {{ 'selected' if producto and producto.proveedor_id == prov.id }}>
+            {{ prov.nombre }}
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <!-- Descripción -->
+      <div class="col-12">
+        <label class="form-label" for="descripcion">Descripción</label>
+        <textarea id="descripcion" name="descripcion" class="form-control" rows="2"
+                  placeholder="Descripción del producto, especificaciones, etc.">{{ producto.descripcion if producto else '' }}</textarea>
+      </div>
+
+      <!-- Precios -->
+      <div class="col-12 mt-2">
+        <div class="fw-bold text-muted mb-2" style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px">
+          <i class="bi bi-currency-dollar me-1"></i>Precios
+        </div>
+        <div class="row g-3">
+          <div class="col-md-3">
+            <label class="form-label" for="precio_costo">Precio de Costo</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" id="precio_costo" name="precio_costo" class="form-control"
+                     min="0" step="0.01" value="{{ '%.2f' | format(producto.precio_costo) if producto else '0.00' }}">
+            </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="precio_venta">Precio de Venta</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" id="precio_venta" name="precio_venta" class="form-control"
+                     min="0" step="0.01" value="{{ '%.2f' | format(producto.precio_venta) if producto else '0.00' }}">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stock -->
+      <div class="col-12 mt-2">
+        <div class="fw-bold text-muted mb-2" style="font-size:0.8rem; text-transform:uppercase; letter-spacing:1px">
+          <i class="bi bi-boxes me-1"></i>Stock
+        </div>
+        <div class="row g-3">
+          {% if not producto %}
+          <div class="col-md-3">
+            <label class="form-label" for="stock_actual">Stock Inicial</label>
+            <input type="number" id="stock_actual" name="stock_actual" class="form-control"
+                   min="0" step="0.01" value="0">
+            <small class="text-muted">Para cambiar el stock después, use Movimientos</small>
+          </div>
+          {% else %}
+          <div class="col-md-3">
+            <label class="form-label">Stock Actual</label>
+            <div class="form-control bg-light fw-bold text-{{ 'danger' if producto.stock_bajo else 'success' }}">
+              {{ producto.stock_actual | round(2) }} {{ producto.unidad_medida }}
+            </div>
+            <small class="text-muted">Use <a href="/inventario/ajuste">Ajuste de Stock</a> para modificar</small>
+          </div>
+          {% endif %}
+          <div class="col-md-3">
+            <label class="form-label" for="stock_minimo">Stock Mínimo (alerta)</label>
+            <input type="number" id="stock_minimo" name="stock_minimo" class="form-control"
+                   min="0" step="0.01" value="{{ '%.2f' | format(producto.stock_minimo) if producto else '0.00' }}">
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <hr class="my-4">
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary px-4">
+        <i class="bi bi-check-lg me-1"></i>{{ 'Actualizar Producto' if producto else 'Crear Producto' }}
+      </button>
+      <a href="/productos" class="btn btn-outline-secondary px-4">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

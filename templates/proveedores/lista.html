@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Proveedores{% endblock %}
+{% block page_title %}Compras &rsaquo; Proveedores{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert alert-success alert-dismissible alert-auto-hide mb-3">
+  <i class="bi bi-check-circle me-2"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible mb-3">
+  <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1><i class="bi bi-truck me-2 text-primary"></i>Proveedores</h1>
+  <a href="/proveedores/nuevo" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo Proveedor
+  </a>
+</div>
+
+<!-- Búsqueda -->
+<div class="search-bar">
+  <form method="get" action="/proveedores" class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" name="buscar" class="form-control" placeholder="Buscar por nombre..." value="{{ buscar }}">
+      </div>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary btn-sm">Buscar</button>
+      {% if buscar %}<a href="/proveedores" class="btn btn-outline-secondary btn-sm ms-1">Limpiar</a>{% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Tabla -->
+<div class="table-card">
+  <div class="p-3 border-bottom">
+    <span class="text-muted" style="font-size:0.82rem"><strong>{{ proveedores | length }}</strong> proveedor(es)</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Proveedor</th>
+          <th>Contacto</th>
+          <th>Teléfono</th>
+          <th>Email</th>
+          <th>NIT / RUC</th>
+          <th class="table-actions">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for prov in proveedores %}
+        <tr>
+          <td>
+            <div class="fw-medium">{{ prov.nombre }}</div>
+            {% if prov.direccion %}
+            <small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ prov.direccion[:40] }}</small>
+            {% endif %}
+          </td>
+          <td>{{ prov.contacto or "-" }}</td>
+          <td>
+            {% if prov.telefono %}
+            <a href="tel:{{ prov.telefono }}" class="text-decoration-none">
+              <i class="bi bi-telephone me-1"></i>{{ prov.telefono }}
+            </a>
+            {% else %}-{% endif %}
+          </td>
+          <td>
+            {% if prov.email %}
+            <a href="mailto:{{ prov.email }}" class="text-decoration-none text-truncate" style="max-width:150px; display:block">
+              {{ prov.email }}
+            </a>
+            {% else %}-{% endif %}
+          </td>
+          <td><code>{{ prov.nit_ruc or "-" }}</code></td>
+          <td class="table-actions">
+            <a href="/proveedores/{{ prov.id }}/detalle" class="btn btn-sm btn-outline-info" title="Ver detalle">
+              <i class="bi bi-eye"></i>
+            </a>
+            <a href="/proveedores/{{ prov.id }}/editar" class="btn btn-sm btn-outline-secondary" title="Editar">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="/proveedores/{{ prov.id }}/eliminar"
+                  class="d-inline form-delete" data-name="{{ prov.nombre }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Desactivar">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="bi bi-truck fs-2 d-block mb-2"></i>
+            No hay proveedores registrados
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
