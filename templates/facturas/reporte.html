@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Reporte de Facturas{% endblock %}
+{% block page_title %}Reportes › Facturas{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="bi bi-file-earmark-check me-2 text-primary"></i>Reporte de Facturas</h1>
+  <a href="/facturas/reporte/pdf?estado={{ estado }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}"
+     class="btn btn-primary" target="_blank">
+    <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="search-bar mb-4">
+  <form method="get" action="/facturas/reporte" class="row g-2 align-items-end">
+    <div class="col-sm-3 col-6">
+      <label class="form-label">Desde</label>
+      <input type="date" name="fecha_desde" value="{{ fecha_desde }}" class="form-control">
+    </div>
+    <div class="col-sm-3 col-6">
+      <label class="form-label">Hasta</label>
+      <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" class="form-control">
+    </div>
+    <div class="col-sm-2 col-6">
+      <label class="form-label">Estado</label>
+      <select name="estado" class="form-select auto-submit">
+        <option value="">Todos</option>
+        <option value="PENDIENTE" {% if estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+        <option value="PARCIAL"   {% if estado == 'PARCIAL'   %}selected{% endif %}>Parcial</option>
+        <option value="PAGADO"    {% if estado == 'PAGADO'    %}selected{% endif %}>Cobrada</option>
+      </select>
+    </div>
+    <div class="col-sm-4 d-flex gap-2 align-items-end">
+      <button type="submit" class="btn btn-primary flex-fill">
+        <i class="bi bi-funnel me-1"></i>Filtrar
+      </button>
+      <a href="/facturas/reporte" class="btn btn-outline-secondary">
+        <i class="bi bi-x-lg"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Resumen -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value">{{ facturas | length }}</div>
+      <div class="stat-label">Total Registros</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value" style="font-size:1.2rem">{{ total_facturado | moneda }}</div>
+      <div class="stat-label">Total Facturado</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-success" style="font-size:1.2rem">{{ total_cobrado | moneda }}</div>
+      <div class="stat-label">Total Cobrado</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-danger" style="font-size:1.2rem">{{ total_pend | moneda }}</div>
+      <div class="stat-label">Por Cobrar</div>
+    </div>
+  </div>
+</div>
+
+{% if total_venc > 0 %}
+<div class="alert alert-danger mb-4">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  <strong>{{ total_venc }} factura{{ 's' if total_venc != 1 }}</strong> vencida{{ 's' if total_venc != 1 }} sin cobrar.
+  <a href="/facturas" class="alert-link ms-2">Gestionar facturas →</a>
+</div>
+{% endif %}
+
+<!-- Generado -->
+<p class="text-muted mb-2" style="font-size:.78rem">
+  <i class="bi bi-clock me-1"></i>Reporte generado: {{ fecha_reporte.strftime('%d/%m/%Y %H:%M') }}
+  — Período: {{ fecha_desde }} al {{ fecha_hasta }}
+</p>
+
+<!-- Tabla -->
+<div class="table-card">
+  {% if facturas %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>N° Factura</th>
+          <th>Cliente</th>
+          <th class="d-mobile-none">Documento</th>
+          <th class="d-mobile-none">Emisión</th>
+          <th class="d-mobile-none">Vencimiento</th>
+          <th class="text-end">Total</th>
+          <th class="text-end d-mobile-none">Cobrado</th>
+          <th class="text-end">Por Cobrar</th>
+          <th>Avance</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for f in facturas %}
+        <tr class="{% if f.esta_vencida %}table-danger{% endif %}">
+          <td>
+            <a href="/facturas/{{ f.id }}/detalle" class="text-decoration-none">
+              <span class="badge bg-light text-dark border">{{ f.numero_factura }}</span>
+            </a>
+          </td>
+          <td class="fw-semibold">{{ f.cliente_nombre }}</td>
+          <td class="text-muted d-mobile-none">{{ f.cliente_documento or '—' }}</td>
+          <td class="text-muted d-mobile-none">{{ f.fecha_emision.strftime('%d/%m/%Y') }}</td>
+          <td class="d-mobile-none">
+            {% if f.fecha_vencimiento %}
+              <span class="{{ 'text-danger fw-semibold' if f.esta_vencida else 'text-muted' }}">
+                {{ f.fecha_vencimiento.strftime('%d/%m/%Y') }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-end fw-semibold">{{ f.monto_total | moneda }}</td>
+          <td class="text-end text-success d-mobile-none">{{ f.monto_cobrado | moneda }}</td>
+          <td class="text-end fw-bold {{ 'text-danger' if f.monto_pendiente > 0 else 'text-success' }}">
+            {{ f.monto_pendiente | moneda }}
+          </td>
+          <td style="min-width:80px">
+            <div class="progress progress-pago" style="height:6px">
+              <div class="progress-bar bg-primary" style="width:{{ f.porcentaje_cobrado }}%"></div>
+            </div>
+            <small class="text-muted">{{ f.porcentaje_cobrado }}%</small>
+          </td>
+          <td>
+            {% if f.esta_vencida %}
+              <span class="badge badge-vencido">VENCIDA</span>
+            {% elif f.estado == 'PENDIENTE' %}
+              <span class="badge badge-pendiente">PENDIENTE</span>
+            {% elif f.estado == 'PARCIAL' %}
+              <span class="badge badge-parcial">PARCIAL</span>
+            {% else %}
+              <span class="badge badge-pagado">COBRADA</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold" style="background:#f8f9fa">
+          <td colspan="5" class="d-none d-md-table-cell">TOTALES</td>
+          <td colspan="2" class="d-md-none">TOTALES</td>
+          <td class="text-end">{{ total_facturado | moneda }}</td>
+          <td class="text-end text-success d-mobile-none">{{ total_cobrado | moneda }}</td>
+          <td class="text-end text-danger">{{ total_pend | moneda }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-file-earmark-check fs-1 opacity-25 d-block mb-3"></i>
+    No hay facturas en el período seleccionado.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

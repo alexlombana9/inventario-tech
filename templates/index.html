@@ -3,84 +3,245 @@
 {% block page_title %}Dashboard &rsaquo; Resumen General{% endblock %}
 
 {% block content %}
+
+<!-- ════════════════════════ HEADER ════════════════════════ -->
 <div class="page-header">
-  <h1><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h1>
-  <small class="text-muted">{{ fecha_hoy if fecha_hoy else "" }}</small>
+  <div>
+    <h1><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard</h1>
+    <small class="text-muted">{{ fecha_hoy }}</small>
+  </div>
 </div>
 
-<!-- Stats Row -->
+<!-- ════════════════════════ STAT CARDS — FILA 1 ════════════════════════ -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#e8f4fd">
+          <i class="bi bi-box-seam text-primary"></i>
+        </div>
+        <div>
+          <div class="stat-value">{{ total_productos }}</div>
+          <div class="stat-label">Productos</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#fde8e8">
+          <i class="bi bi-exclamation-triangle text-danger"></i>
+        </div>
+        <div>
+          <div class="stat-value text-{{ 'danger' if stock_bajo > 0 else 'success' }}">{{ stock_bajo }}</div>
+          <div class="stat-label">Stock Bajo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#e8f5e9">
+          <i class="bi bi-currency-dollar text-success"></i>
+        </div>
+        <div>
+          <div class="stat-value" style="font-size:1.2rem">{{ valor_inventario | moneda }}</div>
+          <div class="stat-label">Valor Inventario</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#fff3e0">
+          <i class="bi bi-arrow-left-right text-warning"></i>
+        </div>
+        <div>
+          <div class="stat-value">{{ movimientos_hoy }}</div>
+          <div class="stat-label">Movimientos Hoy</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ STAT CARDS — FILA 2 (finanzas) ════════════════════════ -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="d-flex justify-content-between align-items-start mb-2">
-        <div class="stat-icon" style="background:#e8f4fd; color:#0d6efd">
-          <i class="bi bi-box-seam"></i>
+    <a href="/deudas?estado=PENDIENTE" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#fde8e8">
+            <i class="bi bi-credit-card-2-back text-danger"></i>
+          </div>
+          <div>
+            <div class="stat-value text-danger" style="font-size:1.15rem">{{ deudas_pendientes_total | moneda }}</div>
+            <div class="stat-label">Por Pagar</div>
+          </div>
         </div>
+        {% if deudas_vencidas_count > 0 %}
+        <div class="mt-2">
+          <span class="badge badge-vencido">{{ deudas_vencidas_count }} vencida{{ 's' if deudas_vencidas_count != 1 }}</span>
+        </div>
+        {% endif %}
       </div>
-      <div class="stat-value">{{ total_productos }}</div>
-      <div class="stat-label">Productos Activos</div>
-    </div>
+    </a>
   </div>
   <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="d-flex justify-content-between align-items-start mb-2">
-        <div class="stat-icon" style="background:#fde8e8; color:#dc3545">
-          <i class="bi bi-exclamation-triangle"></i>
+    <a href="/facturas?estado=PENDIENTE" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#e8f4fd">
+            <i class="bi bi-receipt text-primary"></i>
+          </div>
+          <div>
+            <div class="stat-value text-primary" style="font-size:1.15rem">{{ facturas_por_cobrar_total | moneda }}</div>
+            <div class="stat-label">Por Cobrar</div>
+          </div>
         </div>
+        {% if facturas_vencidas_count > 0 %}
+        <div class="mt-2">
+          <span class="badge badge-vencido">{{ facturas_vencidas_count }} vencida{{ 's' if facturas_vencidas_count != 1 }}</span>
+        </div>
+        {% endif %}
       </div>
-      <div class="stat-value text-{{ 'danger' if stock_bajo > 0 else 'success' }}">{{ stock_bajo }}</div>
-      <div class="stat-label">Stock Bajo</div>
-    </div>
+    </a>
   </div>
   <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="d-flex justify-content-between align-items-start mb-2">
-        <div class="stat-icon" style="background:#e8f5e9; color:#198754">
-          <i class="bi bi-currency-dollar"></i>
+    <a href="/proveedores" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#f3e8ff">
+            <i class="bi bi-truck" style="color:#6f42c1"></i>
+          </div>
+          <div>
+            <div class="stat-value">{{ total_proveedores }}</div>
+            <div class="stat-label">Proveedores</div>
+          </div>
         </div>
       </div>
-      <div class="stat-value" style="font-size:1.3rem">{{ valor_inventario | moneda }}</div>
-      <div class="stat-label">Valor Inventario</div>
-    </div>
+    </a>
   </div>
   <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="d-flex justify-content-between align-items-start mb-2">
-        <div class="stat-icon" style="background:#fff3e0; color:#fd7e14">
-          <i class="bi bi-arrow-left-right"></i>
+    <a href="/categorias" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#e8f5e9">
+            <i class="bi bi-tags text-success"></i>
+          </div>
+          <div>
+            <div class="stat-value">{{ total_categorias }}</div>
+            <div class="stat-label">Categorías</div>
+          </div>
         </div>
       </div>
-      <div class="stat-value">{{ movimientos_hoy }}</div>
-      <div class="stat-label">Movimientos Hoy</div>
-    </div>
+    </a>
   </div>
 </div>
 
-<!-- Quick Actions -->
+<!-- ════════════════════════ ACCIONES RÁPIDAS ════════════════════════ -->
 <div class="quick-actions mb-4">
   <a href="/inventario/entrada" class="quick-action-btn text-success border-success">
-    <i class="bi bi-box-arrow-in-down"></i> Registrar Entrada
+    <i class="bi bi-box-arrow-in-down"></i>
+    <span>Registrar Entrada</span>
   </a>
   <a href="/inventario/salida" class="quick-action-btn text-danger border-danger">
-    <i class="bi bi-box-arrow-up"></i> Registrar Salida
+    <i class="bi bi-box-arrow-up"></i>
+    <span>Registrar Salida</span>
   </a>
-  <a href="/inventario/ajuste" class="quick-action-btn text-warning border-warning">
-    <i class="bi bi-pencil-square"></i> Ajuste de Stock
+  <a href="/deudas/nueva" class="quick-action-btn text-warning border-warning">
+    <i class="bi bi-credit-card-2-back"></i>
+    <span>Nueva Deuda</span>
   </a>
-  <a href="/productos/nuevo" class="quick-action-btn text-primary border-primary">
-    <i class="bi bi-plus-circle"></i> Nuevo Producto
+  <a href="/facturas/nueva" class="quick-action-btn text-primary border-primary">
+    <i class="bi bi-receipt"></i>
+    <span>Nueva Factura</span>
   </a>
-  <a href="/reportes/stock?solo_bajo=true" class="quick-action-btn text-secondary border-secondary">
-    <i class="bi bi-bar-chart-line"></i> Ver Reportes
+  <a href="/productos/nuevo" class="quick-action-btn text-secondary border-secondary">
+    <i class="bi bi-plus-circle"></i>
+    <span>Nuevo Producto</span>
   </a>
 </div>
 
+<!-- ════════════════════════ GRÁFICAS — FILA 1 ════════════════════════ -->
+<div class="row g-3 mb-3">
+
+  <!-- Movimientos 7 días (línea) -->
+  <div class="col-lg-8">
+    <div class="chart-card h-100">
+      <div class="chart-title">
+        <i class="bi bi-graph-up me-1 text-primary"></i>Movimientos — Últimos 7 días
+      </div>
+      <div style="position:relative; height:220px;">
+        <canvas id="chartMovimientos"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inventario por categoría (doughnut) -->
+  <div class="col-lg-4">
+    <div class="chart-card h-100">
+      <div class="chart-title">
+        <i class="bi bi-pie-chart me-1 text-primary"></i>Inventario por Categoría
+      </div>
+      {% if chart_cat_valores != '[]' %}
+      <div style="position:relative; height:220px; display:flex; align-items:center; justify-content:center;">
+        <canvas id="chartCategorias"></canvas>
+      </div>
+      {% else %}
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-pie-chart fs-2 opacity-25 d-block mb-2"></i>Sin datos de categorías
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════ GRÁFICAS — FILA 2 ════════════════════════ -->
+<div class="row g-3 mb-3">
+
+  <!-- Estado de Deudas (bar horizontal) -->
+  <div class="col-md-6">
+    <div class="chart-card h-100">
+      <div class="chart-title d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-credit-card-2-back me-1 text-danger"></i>Estado de Deudas</span>
+        <a href="/deudas" class="btn btn-sm btn-outline-danger" style="font-size:.72rem">Ver todas</a>
+      </div>
+      <div style="position:relative; height:140px;">
+        <canvas id="chartDeudas"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Estado de Facturas (bar horizontal) -->
+  <div class="col-md-6">
+    <div class="chart-card h-100">
+      <div class="chart-title d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-receipt me-1 text-primary"></i>Estado de Facturas</span>
+        <a href="/facturas" class="btn btn-sm btn-outline-primary" style="font-size:.72rem">Ver todas</a>
+      </div>
+      <div style="position:relative; height:140px;">
+        <canvas id="chartFacturas"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════ TABLAS ════════════════════════ -->
 <div class="row g-3">
+
   <!-- Últimos movimientos -->
   <div class="col-lg-7">
     <div class="table-card">
       <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
-        <h6 class="mb-0 fw-bold"><i class="bi bi-clock-history me-2 text-primary"></i>Últimos Movimientos</h6>
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-clock-history me-2 text-primary"></i>Últimos Movimientos
+        </h6>
         <a href="/inventario" class="btn btn-sm btn-outline-primary">Ver todos</a>
       </div>
       <div class="table-responsive">
@@ -89,30 +250,32 @@
             <tr>
               <th>Producto</th>
               <th>Tipo</th>
-              <th>Cantidad</th>
-              <th>Stock</th>
+              <th>Cant.</th>
+              <th class="d-mobile-none">Stock</th>
               <th>Fecha</th>
             </tr>
           </thead>
           <tbody>
             {% for mov in ultimos_movimientos %}
             <tr>
-              <td class="fw-medium">{{ mov.producto.nombre[:28] if mov.producto else "-" }}</td>
+              <td class="fw-medium">{{ mov.producto.nombre[:26] if mov.producto else "—" }}</td>
               <td>
-                <span class="badge badge-{{ mov.tipo.lower() }} px-2 py-1" style="font-size:0.75rem">
+                <span class="badge badge-{{ mov.tipo.lower() }} px-2 py-1" style="font-size:.72rem">
                   {{ mov.tipo }}
                 </span>
               </td>
               <td>
-                {% if mov.tipo == "ENTRADA" %}<span class="text-success">+{% elif mov.tipo == "SALIDA" %}<span class="text-danger">-{% else %}<span class="text-warning">~{% endif %}
-                {{ mov.cantidad | numero }}
+                <span class="{{ 'text-success' if mov.tipo == 'ENTRADA' else ('text-danger' if mov.tipo == 'SALIDA' else 'text-warning') }}">
+                  {{ '+' if mov.tipo == 'ENTRADA' else ('−' if mov.tipo == 'SALIDA' else '~') }}{{ mov.cantidad | numero }}
                 </span>
               </td>
-              <td><span class="text-muted">{{ mov.stock_resultante | numero }}</span></td>
-              <td class="text-muted" style="font-size:0.78rem">{{ mov.fecha.strftime('%d/%m %H:%M') }}</td>
+              <td class="text-muted d-mobile-none">{{ mov.stock_resultante | numero }}</td>
+              <td class="text-muted" style="font-size:.77rem">{{ mov.fecha.strftime('%d/%m %H:%M') }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="5" class="text-center text-muted py-4">No hay movimientos registrados</td></tr>
+            <tr>
+              <td colspan="5" class="text-center text-muted py-4">No hay movimientos registrados</td>
+            </tr>
             {% endfor %}
           </tbody>
         </table>
@@ -120,35 +283,226 @@
     </div>
   </div>
 
-  <!-- Stock Bajo -->
+  <!-- Stock bajo -->
   <div class="col-lg-5">
     <div class="table-card">
       <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
-        <h6 class="mb-0 fw-bold"><i class="bi bi-exclamation-triangle me-2 text-danger"></i>Stock Bajo / Agotado</h6>
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-exclamation-triangle me-2 text-danger"></i>Stock Bajo / Agotado
+        </h6>
         <a href="/reportes/stock?solo_bajo=true" class="btn btn-sm btn-outline-danger">Ver todos</a>
       </div>
       {% if productos_stock_bajo %}
       <div class="list-group list-group-flush">
         {% for p in productos_stock_bajo %}
-        <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3">
+        <a href="/productos/{{ p.id }}/editar" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center py-2 px-3">
           <div>
-            <div class="fw-medium" style="font-size:0.85rem">{{ p.nombre[:30] }}</div>
+            <div class="fw-medium" style="font-size:.85rem">{{ p.nombre[:28] }}</div>
             <small class="text-muted">{{ p.codigo }}</small>
           </div>
           <div class="text-end">
             <span class="badge bg-danger">{{ p.stock_actual | numero }} {{ p.unidad_medida }}</span>
             <br><small class="text-muted">Mín: {{ p.stock_minimo | numero }}</small>
           </div>
-        </div>
+        </a>
         {% endfor %}
       </div>
       {% else %}
       <div class="text-center text-muted py-4">
         <i class="bi bi-check-circle text-success fs-2 d-block mb-2"></i>
-        Todo el stock está en niveles óptimos
+        Todo el stock en niveles óptimos
       </div>
       {% endif %}
     </div>
   </div>
+
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+(function () {
+  Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+  Chart.defaults.font.size   = 12;
+  Chart.defaults.color       = '#6c757d';
+
+  // ── Paleta ────────────────────────────────────────────────
+  const GREEN  = 'rgba(25, 135, 84, 0.85)';
+  const RED    = 'rgba(220, 53, 69, 0.85)';
+  const BLUE   = 'rgba(13, 110, 253, 0.85)';
+  const YELLOW = 'rgba(255, 193, 7, 0.85)';
+  const PALETTE = [
+    '#0d6efd','#198754','#fd7e14','#6f42c1',
+    '#20c997','#dc3545','#ffc107','#0dcaf0',
+    '#6c757d','#d63384'
+  ];
+
+  // ── 1. Movimientos 7 días (line) ──────────────────────────
+  const labels7d   = {{ chart_labels_7d | safe }};
+  const entradas7d = {{ chart_entradas_7d | safe }};
+  const salidas7d  = {{ chart_salidas_7d | safe }};
+
+  new Chart(document.getElementById('chartMovimientos'), {
+    type: 'line',
+    data: {
+      labels: labels7d,
+      datasets: [
+        {
+          label: 'Entradas',
+          data: entradas7d,
+          borderColor: GREEN,
+          backgroundColor: 'rgba(25,135,84,0.1)',
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: GREEN,
+        },
+        {
+          label: 'Salidas',
+          data: salidas7d,
+          borderColor: RED,
+          backgroundColor: 'rgba(220,53,69,0.08)',
+          borderWidth: 2.5,
+          fill: true,
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: RED,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { position: 'top', labels: { boxWidth: 12, padding: 14 } },
+        tooltip: { backgroundColor: '#1a1a2e', padding: 10, cornerRadius: 8 }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { font: { size: 11 } } },
+        y: {
+          beginAtZero: true,
+          ticks: { stepSize: 1, precision: 0 },
+          grid: { color: 'rgba(0,0,0,0.05)' }
+        }
+      }
+    }
+  });
+
+  // ── 2. Inventario por categoría (doughnut) ─────────────────
+  const catLabels  = {{ chart_cat_labels | safe }};
+  const catValores = {{ chart_cat_valores | safe }};
+
+  if (catLabels.length > 0) {
+    new Chart(document.getElementById('chartCategorias'), {
+      type: 'doughnut',
+      data: {
+        labels: catLabels,
+        datasets: [{
+          data: catValores,
+          backgroundColor: PALETTE.slice(0, catLabels.length),
+          borderWidth: 2,
+          borderColor: '#fff',
+          hoverOffset: 6,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        cutout: '62%',
+        plugins: {
+          legend: {
+            position: 'right',
+            labels: {
+              boxWidth: 12,
+              padding: 10,
+              font: { size: 11 },
+              generateLabels: function(chart) {
+                const ds = chart.data.datasets[0];
+                const total = ds.data.reduce((a, b) => a + b, 0);
+                return chart.data.labels.map(function(lbl, i) {
+                  const pct = total > 0 ? ((ds.data[i] / total) * 100).toFixed(1) : 0;
+                  return {
+                    text: lbl + ' (' + pct + '%)',
+                    fillStyle: ds.backgroundColor[i],
+                    strokeStyle: '#fff',
+                    lineWidth: 2,
+                    index: i
+                  };
+                });
+              }
+            }
+          },
+          tooltip: {
+            callbacks: {
+              label: function(ctx) {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                return ' $' + ctx.parsed.toLocaleString('es', {minimumFractionDigits:2}) + ' (' + pct + '%)';
+              }
+            }
+          }
+        }
+      }
+    });
+  }
+
+  // ── 3. Estado de Deudas (bar horizontal) ──────────────────
+  const deudasData = {{ chart_deudas | safe }};  // [pendiente, parcial, pagado]
+
+  new Chart(document.getElementById('chartDeudas'), {
+    type: 'bar',
+    data: {
+      labels: ['Pendiente', 'Parcial', 'Pagado'],
+      datasets: [{
+        data: deudasData,
+        backgroundColor: [YELLOW, BLUE, GREEN],
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a2e' } },
+      scales: {
+        x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+
+  // ── 4. Estado de Facturas (bar horizontal) ─────────────────
+  const facturasData = {{ chart_facturas | safe }};
+
+  new Chart(document.getElementById('chartFacturas'), {
+    type: 'bar',
+    data: {
+      labels: ['Pendiente', 'Parcial', 'Cobrada'],
+      datasets: [{
+        data: facturasData,
+        backgroundColor: [YELLOW, BLUE, GREEN],
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a2e' } },
+      scales: {
+        x: { beginAtZero: true, ticks: { precision: 0 }, grid: { color: 'rgba(0,0,0,0.05)' } },
+        y: { grid: { display: false } }
+      }
+    }
+  });
+
+})();
+</script>
 {% endblock %}

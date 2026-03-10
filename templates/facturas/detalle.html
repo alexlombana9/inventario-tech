@@ -1,0 +1,245 @@
+{% extends "base.html" %}
+{% block title %}Factura {{ factura.numero_factura }}{% endblock %}
+{% block page_title %}Finanzas › Cuentas por Cobrar › {{ factura.numero_factura }}{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert alert-success alert-dismissible alert-auto-hide" role="alert">
+  <i class="bi bi-check-circle-fill me-2"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible" role="alert">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <div>
+    <h1>
+      <i class="bi bi-receipt me-2 text-primary"></i>{{ factura.numero_factura }}
+    </h1>
+    <p class="text-muted mb-0">{{ factura.cliente_nombre }} — {{ factura.concepto }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/facturas/{{ factura.id }}/editar" class="btn btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+    <a href="/facturas" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+  </div>
+</div>
+
+<!-- Resumen financiero -->
+<div class="finance-summary-card">
+  <div class="row g-4">
+    <div class="col-md-3 text-center">
+      <div class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Total facturado</div>
+      <div style="font-size:1.8rem;font-weight:800;color:#212529">{{ factura.monto_total | moneda }}</div>
+    </div>
+    <div class="col-md-3 text-center">
+      <div class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Cobrado</div>
+      <div style="font-size:1.8rem;font-weight:800;color:#198754">{{ factura.monto_cobrado | moneda }}</div>
+    </div>
+    <div class="col-md-3 text-center">
+      <div class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Por cobrar</div>
+      <div style="font-size:1.8rem;font-weight:800;color:{% if factura.monto_pendiente > 0 %}#dc3545{% else %}#198754{% endif %}">
+        {{ factura.monto_pendiente | moneda }}
+      </div>
+    </div>
+    <div class="col-md-3 d-flex flex-column justify-content-center">
+      <div class="d-flex justify-content-between mb-1">
+        <small class="text-muted">Avance de cobro</small>
+        <small class="fw-semibold">{{ factura.porcentaje_cobrado }}%</small>
+      </div>
+      <div class="progress progress-pago mb-3">
+        <div class="progress-bar bg-primary" style="width:{{ factura.porcentaje_cobrado }}%"></div>
+      </div>
+      {% if factura.esta_vencida %}
+        <span class="badge badge-vencido text-center py-2">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>VENCIDA
+        </span>
+      {% elif factura.estado == 'PENDIENTE' %}
+        <span class="badge badge-pendiente text-center py-2">PENDIENTE</span>
+      {% elif factura.estado == 'PARCIAL' %}
+        <span class="badge badge-parcial text-center py-2">COBRO PARCIAL</span>
+      {% else %}
+        <span class="badge badge-pagado text-center py-2"><i class="bi bi-check-lg me-1"></i>COBRADA</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+
+  <!-- Info cliente + factura -->
+  <div class="col-lg-5">
+    <div class="table-card p-4">
+      <h6 class="fw-bold mb-3">Información del cliente</h6>
+      <table class="table table-sm mb-0">
+        <tr>
+          <td class="text-muted" style="width:45%">Cliente</td>
+          <td class="fw-semibold">{{ factura.cliente_nombre }}</td>
+        </tr>
+        {% if factura.cliente_documento %}
+        <tr>
+          <td class="text-muted">Documento</td>
+          <td>{{ factura.cliente_documento }}</td>
+        </tr>
+        {% endif %}
+        {% if factura.cliente_telefono %}
+        <tr>
+          <td class="text-muted">Teléfono</td>
+          <td>{{ factura.cliente_telefono }}</td>
+        </tr>
+        {% endif %}
+        {% if factura.cliente_email %}
+        <tr>
+          <td class="text-muted">Email</td>
+          <td>{{ factura.cliente_email }}</td>
+        </tr>
+        {% endif %}
+        <tr><td colspan="2"><hr class="my-1"></td></tr>
+        <tr>
+          <td class="text-muted">Fecha emisión</td>
+          <td>{{ factura.fecha_emision.strftime('%d/%m/%Y') }}</td>
+        </tr>
+        <tr>
+          <td class="text-muted">Vencimiento</td>
+          <td>
+            {% if factura.fecha_vencimiento %}
+              <span class="{% if factura.esta_vencida %}text-danger fw-semibold{% endif %}">
+                {{ factura.fecha_vencimiento.strftime('%d/%m/%Y') }}
+              </span>
+            {% else %}
+              <span class="text-muted">Sin fecha límite</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="text-muted">Registrado el</td>
+          <td>{{ factura.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        </tr>
+      </table>
+      {% if factura.concepto %}
+      <hr>
+      <p class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase">Concepto</p>
+      <p class="mb-0" style="font-size:.875rem">{{ factura.concepto }}</p>
+      {% endif %}
+      {% if factura.notas %}
+      <hr>
+      <p class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase">Notas</p>
+      <p class="mb-0" style="font-size:.875rem">{{ factura.notas }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Formulario de cobro -->
+  <div class="col-lg-7" id="cobrar">
+    {% if factura.estado != 'PAGADO' %}
+    <div class="table-card p-4">
+      <h6 class="fw-bold mb-3">
+        <i class="bi bi-cash-coin me-2 text-primary"></i>Registrar Cobro
+      </h6>
+      <form method="post" action="/facturas/{{ factura.id }}/cobrar">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">Monto a cobrar <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" name="monto" class="form-control" step="0.01" min="0.01"
+                     max="{{ '%.2f' | format(factura.monto_pendiente) }}"
+                     value="{{ '%.2f' | format(factura.monto_pendiente) }}" required>
+            </div>
+            <div class="form-text">Por cobrar: <strong>{{ factura.monto_pendiente | moneda }}</strong></div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Fecha de cobro <span class="text-danger">*</span></label>
+            <input type="date" name="fecha_cobro" class="form-control" id="fechaHoy" required>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Método de pago</label>
+            <select name="metodo_pago" class="form-select">
+              {% for m in metodos_pago %}
+              <option value="{{ m }}">{{ m | capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Comprobante / Referencia</label>
+            <input type="text" name="comprobante" class="form-control"
+                   placeholder="Nro. transferencia, recibo…">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Notas</label>
+            <input type="text" name="notas" class="form-control" placeholder="Observaciones del cobro…">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-cash-coin me-1"></i>Registrar Cobro
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+    {% else %}
+    <div class="table-card p-4 text-center">
+      <i class="bi bi-check-circle-fill text-success fs-1 mb-3 d-block"></i>
+      <p class="fw-semibold mb-0">Esta factura ha sido completamente cobrada.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Historial de cobros -->
+{% if factura.cobros %}
+<div class="mt-4">
+  <h6 class="fw-bold mb-3">
+    <i class="bi bi-clock-history me-2"></i>Historial de Cobros
+    <span class="badge bg-secondary ms-1">{{ factura.cobros | length }}</span>
+  </h6>
+  <div class="table-card">
+    <table class="table table-hover pagos-table mb-0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Método</th>
+          <th>Comprobante</th>
+          <th>Notas</th>
+          <th class="text-end">Monto</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for cobro in factura.cobros | sort(attribute='fecha_cobro', reverse=True) %}
+        <tr>
+          <td>{{ cobro.fecha_cobro.strftime('%d/%m/%Y') }}</td>
+          <td><span class="badge bg-light text-dark">{{ cobro.metodo_pago }}</span></td>
+          <td>{{ cobro.comprobante or '—' }}</td>
+          <td class="text-muted">{{ cobro.notas or '—' }}</td>
+          <td class="text-end fw-semibold text-primary">{{ cobro.monto | moneda }}</td>
+          <td>
+            <form action="/facturas/{{ factura.id }}/cobros/{{ cobro.id }}/eliminar" method="post"
+                  class="form-delete d-inline" data-name="este cobro de {{ cobro.monto | moneda }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar cobro">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<script>
+document.getElementById('fechaHoy').valueAsDate = new Date();
+</script>
+{% endblock %}

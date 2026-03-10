@@ -30,6 +30,7 @@ class Proveedor(Base):
 
     productos = relationship("Producto", back_populates="proveedor_principal")
     movimientos = relationship("MovimientoInventario", back_populates="proveedor")
+    deudas = relationship("Deuda", back_populates="proveedor")
 
 
 class Producto(Base):
@@ -83,3 +84,118 @@ class MovimientoInventario(Base):
 
     producto = relationship("Producto", back_populates="movimientos")
     proveedor = relationship("Proveedor", back_populates="movimientos")
+
+
+# ─────────────────────────────────────────────
+#  CUENTAS POR PAGAR — Deudas con proveedores
+# ─────────────────────────────────────────────
+
+class Deuda(Base):
+    __tablename__ = "deudas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    concepto = Column(String(300), nullable=False)
+    acreedor_nombre = Column(String(200), nullable=False)   # a quién se le debe
+    acreedor_tipo = Column(String(20), default="OTRO")      # PROVEEDOR | LOCAL | OTRO
+    proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True)
+    monto_total = Column(Float, nullable=False)
+    monto_pagado = Column(Float, default=0.0)
+    fecha_deuda = Column(DateTime, default=datetime.now)
+    fecha_vencimiento = Column(DateTime, nullable=True)
+    estado = Column(String(20), default="PENDIENTE")        # PENDIENTE | PARCIAL | PAGADO
+    notas = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    proveedor = relationship("Proveedor", back_populates="deudas")
+    pagos = relationship("PagoDeuda", back_populates="deuda", cascade="all, delete-orphan")
+
+    @property
+    def monto_pendiente(self):
+        return max(0.0, self.monto_total - self.monto_pagado)
+
+    @property
+    def porcentaje_pagado(self):
+        if self.monto_total > 0:
+            return min(100, round((self.monto_pagado / self.monto_total) * 100, 1))
+        return 0.0
+
+    @property
+    def esta_vencida(self):
+        if self.estado == "PAGADO":
+            return False
+        if self.fecha_vencimiento:
+            return datetime.now() > self.fecha_vencimiento
+        return False
+
+
+class PagoDeuda(Base):
+    __tablename__ = "pagos_deuda"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deuda_id = Column(Integer, ForeignKey("deudas.id"), nullable=False)
+    monto = Column(Float, nullable=False)
+    fecha_pago = Column(DateTime, default=datetime.now)
+    metodo_pago = Column(String(50), default="EFECTIVO")    # EFECTIVO | TRANSFERENCIA | TARJETA | CHEQUE
+    comprobante = Column(String(100), default="")
+    notas = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    deuda = relationship("Deuda", back_populates="pagos")
+
+
+# ─────────────────────────────────────────────
+#  CUENTAS POR COBRAR — Facturas pendientes
+# ─────────────────────────────────────────────
+
+class Factura(Base):
+    __tablename__ = "facturas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    numero_factura = Column(String(100), nullable=False, unique=True)
+    cliente_nombre = Column(String(200), nullable=False)
+    cliente_documento = Column(String(50), default="")
+    cliente_telefono = Column(String(50), default="")
+    cliente_email = Column(String(100), default="")
+    concepto = Column(Text, nullable=False)
+    monto_total = Column(Float, nullable=False)
+    monto_cobrado = Column(Float, default=0.0)
+    fecha_emision = Column(DateTime, default=datetime.now)
+    fecha_vencimiento = Column(DateTime, nullable=True)
+    estado = Column(String(20), default="PENDIENTE")        # PENDIENTE | PARCIAL | PAGADO
+    notas = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    cobros = relationship("PagoFactura", back_populates="factura", cascade="all, delete-orphan")
+
+    @property
+    def monto_pendiente(self):
+        return max(0.0, self.monto_total - self.monto_cobrado)
+
+    @property
+    def porcentaje_cobrado(self):
+        if self.monto_total > 0:
+            return min(100, round((self.monto_cobrado / self.monto_total) * 100, 1))
+        return 0.0
+
+    @property
+    def esta_vencida(self):
+        if self.estado == "PAGADO":
+            return False
+        if self.fecha_vencimiento:
+            return datetime.now() > self.fecha_vencimiento
+        return False
+
+
+class PagoFactura(Base):
+    __tablename__ = "cobros_factura"
+
+    id = Column(Integer, primary_key=True, index=True)
+    factura_id = Column(Integer, ForeignKey("facturas.id"), nullable=False)
+    monto = Column(Float, nullable=False)
+    fecha_cobro = Column(DateTime, default=datetime.now)
+    metodo_pago = Column(String(50), default="EFECTIVO")
+    comprobante = Column(String(100), default="")
+    notas = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    factura = relationship("Factura", back_populates="cobros")

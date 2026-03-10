@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Deuda — {{ deuda.acreedor_nombre }}{% endblock %}
+{% block page_title %}Finanzas › Cuentas por Pagar › Detalle{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert alert-success alert-dismissible alert-auto-hide" role="alert">
+  <i class="bi bi-check-circle-fill me-2"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible" role="alert">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <div>
+    <h1>
+      <i class="bi bi-credit-card-2-back me-2 text-danger"></i>{{ deuda.acreedor_nombre }}
+    </h1>
+    <p class="text-muted mb-0">{{ deuda.concepto }}</p>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="/deudas/{{ deuda.id }}/editar" class="btn btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i>Editar
+    </a>
+    <a href="/deudas" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Volver
+    </a>
+  </div>
+</div>
+
+<!-- Resumen financiero -->
+<div class="finance-summary-card">
+  <div class="row g-4">
+    <div class="col-md-3 text-center">
+      <div class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Total</div>
+      <div style="font-size:1.8rem;font-weight:800;color:#212529">{{ deuda.monto_total | moneda }}</div>
+    </div>
+    <div class="col-md-3 text-center">
+      <div class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Pagado</div>
+      <div style="font-size:1.8rem;font-weight:800;color:#198754">{{ deuda.monto_pagado | moneda }}</div>
+    </div>
+    <div class="col-md-3 text-center">
+      <div class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px">Pendiente</div>
+      <div style="font-size:1.8rem;font-weight:800;color:{% if deuda.monto_pendiente > 0 %}#dc3545{% else %}#198754{% endif %}">
+        {{ deuda.monto_pendiente | moneda }}
+      </div>
+    </div>
+    <div class="col-md-3 d-flex flex-column justify-content-center">
+      <div class="d-flex justify-content-between mb-1">
+        <small class="text-muted">Avance de pago</small>
+        <small class="fw-semibold">{{ deuda.porcentaje_pagado }}%</small>
+      </div>
+      <div class="progress progress-pago mb-3">
+        <div class="progress-bar bg-success" style="width:{{ deuda.porcentaje_pagado }}%"></div>
+      </div>
+      {% if deuda.esta_vencida %}
+        <span class="badge badge-vencido text-center py-2">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>VENCIDA
+        </span>
+      {% elif deuda.estado == 'PENDIENTE' %}
+        <span class="badge badge-pendiente text-center py-2">PENDIENTE</span>
+      {% elif deuda.estado == 'PARCIAL' %}
+        <span class="badge badge-parcial text-center py-2">PAGO PARCIAL</span>
+      {% else %}
+        <span class="badge badge-pagado text-center py-2"><i class="bi bi-check-lg me-1"></i>PAGADO</span>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- Info general y formulario de pago en columnas -->
+<div class="row g-4">
+
+  <!-- Info general -->
+  <div class="col-lg-5">
+    <div class="table-card p-4">
+      <h6 class="fw-bold mb-3">Información general</h6>
+      <table class="table table-sm mb-0">
+        <tr>
+          <td class="text-muted" style="width:45%">Tipo de acreedor</td>
+          <td><span class="badge bg-secondary bg-opacity-25 text-secondary">{{ deuda.acreedor_tipo }}</span></td>
+        </tr>
+        {% if deuda.proveedor %}
+        <tr>
+          <td class="text-muted">Proveedor vinculado</td>
+          <td><a href="/proveedores/{{ deuda.proveedor.id }}/detalle">{{ deuda.proveedor.nombre }}</a></td>
+        </tr>
+        {% endif %}
+        <tr>
+          <td class="text-muted">Fecha de deuda</td>
+          <td>{{ deuda.fecha_deuda.strftime('%d/%m/%Y') }}</td>
+        </tr>
+        <tr>
+          <td class="text-muted">Vencimiento</td>
+          <td>
+            {% if deuda.fecha_vencimiento %}
+              <span class="{% if deuda.esta_vencida %}text-danger fw-semibold{% endif %}">
+                {{ deuda.fecha_vencimiento.strftime('%d/%m/%Y') }}
+              </span>
+            {% else %}
+              <span class="text-muted">Sin fecha límite</span>
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="text-muted">Registrado el</td>
+          <td>{{ deuda.created_at.strftime('%d/%m/%Y %H:%M') }}</td>
+        </tr>
+      </table>
+      {% if deuda.notas %}
+      <hr>
+      <p class="text-muted mb-1" style="font-size:.78rem;font-weight:700;text-transform:uppercase">Notas</p>
+      <p class="mb-0" style="font-size:.875rem">{{ deuda.notas }}</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Formulario de pago -->
+  <div class="col-lg-7" id="pagar">
+    {% if deuda.estado != 'PAGADO' %}
+    <div class="table-card p-4">
+      <h6 class="fw-bold mb-3">
+        <i class="bi bi-cash-coin me-2 text-success"></i>Registrar Pago
+      </h6>
+      <form method="post" action="/deudas/{{ deuda.id }}/pagar">
+        <div class="row g-3">
+          <div class="col-sm-6">
+            <label class="form-label">Monto a pagar <span class="text-danger">*</span></label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" name="monto" class="form-control" step="0.01" min="0.01"
+                     max="{{ '%.2f' | format(deuda.monto_pendiente) }}"
+                     value="{{ '%.2f' | format(deuda.monto_pendiente) }}" required>
+            </div>
+            <div class="form-text">Pendiente: <strong>{{ deuda.monto_pendiente | moneda }}</strong></div>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Fecha de pago <span class="text-danger">*</span></label>
+            <input type="date" name="fecha_pago" class="form-control"
+                   value="{{ '' }}" required
+                   id="fechaHoy">
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Método de pago</label>
+            <select name="metodo_pago" class="form-select">
+              {% for m in metodos_pago %}
+              <option value="{{ m }}">{{ m | capitalize }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-sm-6">
+            <label class="form-label">Comprobante / Referencia</label>
+            <input type="text" name="comprobante" class="form-control"
+                   placeholder="Nro. transferencia, recibo…">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Notas</label>
+            <input type="text" name="notas" class="form-control" placeholder="Observaciones del pago…">
+          </div>
+          <div class="col-12">
+            <button type="submit" class="btn btn-success">
+              <i class="bi bi-cash-coin me-1"></i>Registrar Pago
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+    {% else %}
+    <div class="table-card p-4 text-center">
+      <i class="bi bi-check-circle-fill text-success fs-1 mb-3 d-block"></i>
+      <p class="fw-semibold mb-0">Esta deuda ha sido completamente pagada.</p>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+
+<!-- Historial de pagos -->
+{% if deuda.pagos %}
+<div class="mt-4">
+  <h6 class="fw-bold mb-3">
+    <i class="bi bi-clock-history me-2"></i>Historial de Pagos
+    <span class="badge bg-secondary ms-1">{{ deuda.pagos | length }}</span>
+  </h6>
+  <div class="table-card">
+    <table class="table table-hover pagos-table mb-0">
+      <thead>
+        <tr>
+          <th>Fecha</th>
+          <th>Método</th>
+          <th>Comprobante</th>
+          <th>Notas</th>
+          <th class="text-end">Monto</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for pago in deuda.pagos | sort(attribute='fecha_pago', reverse=True) %}
+        <tr>
+          <td>{{ pago.fecha_pago.strftime('%d/%m/%Y') }}</td>
+          <td><span class="badge bg-light text-dark">{{ pago.metodo_pago }}</span></td>
+          <td>{{ pago.comprobante or '—' }}</td>
+          <td class="text-muted">{{ pago.notas or '—' }}</td>
+          <td class="text-end fw-semibold text-success">{{ pago.monto | moneda }}</td>
+          <td>
+            <form action="/deudas/{{ deuda.id }}/pagos/{{ pago.id }}/eliminar" method="post"
+                  class="form-delete d-inline" data-name="este pago de {{ pago.monto | moneda }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar pago">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<script>
+document.getElementById('fechaHoy').valueAsDate = new Date();
+</script>
+{% endblock %}

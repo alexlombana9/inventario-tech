@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Reporte de Deudas{% endblock %}
+{% block page_title %}Reportes › Deudas{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+  <h1><i class="bi bi-file-earmark-minus me-2 text-danger"></i>Reporte de Deudas</h1>
+  <a href="/deudas/reporte/pdf?estado={{ estado }}&acreedor_tipo={{ acreedor_tipo }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}"
+     class="btn btn-danger" target="_blank">
+    <i class="bi bi-file-earmark-pdf me-1"></i>Exportar PDF
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="search-bar mb-4">
+  <form method="get" action="/deudas/reporte" class="row g-2 align-items-end">
+    <div class="col-sm-3 col-6">
+      <label class="form-label">Desde</label>
+      <input type="date" name="fecha_desde" value="{{ fecha_desde }}" class="form-control">
+    </div>
+    <div class="col-sm-3 col-6">
+      <label class="form-label">Hasta</label>
+      <input type="date" name="fecha_hasta" value="{{ fecha_hasta }}" class="form-control">
+    </div>
+    <div class="col-sm-2 col-6">
+      <label class="form-label">Estado</label>
+      <select name="estado" class="form-select auto-submit">
+        <option value="">Todos</option>
+        <option value="PENDIENTE" {% if estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+        <option value="PARCIAL"   {% if estado == 'PARCIAL'   %}selected{% endif %}>Parcial</option>
+        <option value="PAGADO"    {% if estado == 'PAGADO'    %}selected{% endif %}>Pagado</option>
+      </select>
+    </div>
+    <div class="col-sm-2 col-6">
+      <label class="form-label">Tipo</label>
+      <select name="acreedor_tipo" class="form-select auto-submit">
+        <option value="">Todos</option>
+        {% for t in tipos_acreedor %}
+        <option value="{{ t }}" {% if acreedor_tipo == t %}selected{% endif %}>{{ t | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-2 d-flex gap-2">
+      <button type="submit" class="btn btn-primary flex-fill">
+        <i class="bi bi-funnel me-1"></i>Filtrar
+      </button>
+      <a href="/deudas/reporte" class="btn btn-outline-secondary">
+        <i class="bi bi-x-lg"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
+<!-- Resumen -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value">{{ deudas | length }}</div>
+      <div class="stat-label">Total Registros</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value" style="font-size:1.2rem">{{ total_deuda | moneda }}</div>
+      <div class="stat-label">Total Deudas</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-success" style="font-size:1.2rem">{{ total_pagado | moneda }}</div>
+      <div class="stat-label">Total Pagado</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="stat-value text-danger" style="font-size:1.2rem">{{ total_pend | moneda }}</div>
+      <div class="stat-label">Total Pendiente</div>
+    </div>
+  </div>
+</div>
+
+{% if total_venc > 0 %}
+<div class="alert alert-danger mb-4">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  <strong>{{ total_venc }} deuda{{ 's' if total_venc != 1 }}</strong> vencida{{ 's' if total_venc != 1 }} en este período.
+  <a href="/deudas" class="alert-link ms-2">Gestionar deudas →</a>
+</div>
+{% endif %}
+
+<!-- Generado -->
+<p class="text-muted mb-2" style="font-size:.78rem">
+  <i class="bi bi-clock me-1"></i>Reporte generado: {{ fecha_reporte.strftime('%d/%m/%Y %H:%M') }}
+  — Período: {{ fecha_desde }} al {{ fecha_hasta }}
+</p>
+
+<!-- Tabla -->
+<div class="table-card">
+  {% if deudas %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Acreedor</th>
+          <th class="d-mobile-none">Tipo</th>
+          <th>Concepto</th>
+          <th class="d-mobile-none">Fecha</th>
+          <th class="d-mobile-none">Vencimiento</th>
+          <th class="text-end">Total</th>
+          <th class="text-end d-mobile-none">Pagado</th>
+          <th class="text-end">Pendiente</th>
+          <th>Avance</th>
+          <th>Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for d in deudas %}
+        <tr class="{% if d.esta_vencida %}table-danger{% endif %}">
+          <td>
+            <a href="/deudas/{{ d.id }}/detalle" class="text-decoration-none fw-semibold">
+              {{ d.acreedor_nombre }}
+            </a>
+          </td>
+          <td class="d-mobile-none">
+            <span class="badge bg-secondary bg-opacity-25 text-secondary">{{ d.acreedor_tipo }}</span>
+          </td>
+          <td class="text-truncate-2" style="max-width:180px">{{ d.concepto }}</td>
+          <td class="text-muted d-mobile-none">{{ d.fecha_deuda.strftime('%d/%m/%Y') }}</td>
+          <td class="d-mobile-none">
+            {% if d.fecha_vencimiento %}
+              <span class="{{ 'text-danger fw-semibold' if d.esta_vencida else 'text-muted' }}">
+                {{ d.fecha_vencimiento.strftime('%d/%m/%Y') }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td class="text-end fw-semibold">{{ d.monto_total | moneda }}</td>
+          <td class="text-end text-success d-mobile-none">{{ d.monto_pagado | moneda }}</td>
+          <td class="text-end fw-bold {{ 'text-danger' if d.monto_pendiente > 0 else 'text-success' }}">
+            {{ d.monto_pendiente | moneda }}
+          </td>
+          <td style="min-width:80px">
+            <div class="progress progress-pago" style="height:6px">
+              <div class="progress-bar bg-success" style="width:{{ d.porcentaje_pagado }}%"></div>
+            </div>
+            <small class="text-muted">{{ d.porcentaje_pagado }}%</small>
+          </td>
+          <td>
+            {% if d.esta_vencida %}
+              <span class="badge badge-vencido">VENCIDA</span>
+            {% elif d.estado == 'PENDIENTE' %}
+              <span class="badge badge-pendiente">PENDIENTE</span>
+            {% elif d.estado == 'PARCIAL' %}
+              <span class="badge badge-parcial">PARCIAL</span>
+            {% else %}
+              <span class="badge badge-pagado">PAGADO</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+      <tfoot>
+        <tr class="fw-bold" style="background:#f8f9fa">
+          <td colspan="5" class="d-none d-md-table-cell">TOTALES</td>
+          <td colspan="2" class="d-md-none">TOTALES</td>
+          <td class="text-end">{{ total_deuda | moneda }}</td>
+          <td class="text-end text-success d-mobile-none">{{ total_pagado | moneda }}</td>
+          <td class="text-end text-danger">{{ total_pend | moneda }}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tfoot>
+    </table>
+  </div>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-file-earmark-minus fs-1 opacity-25 d-block mb-3"></i>
+    No hay deudas en el período seleccionado.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

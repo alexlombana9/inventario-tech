@@ -1,0 +1,214 @@
+{% extends "base.html" %}
+{% block title %}Cuentas por Pagar{% endblock %}
+{% block page_title %}Finanzas › Cuentas por Pagar{% endblock %}
+
+{% block content %}
+
+{% if msg %}
+<div class="alert alert-success alert-dismissible alert-auto-hide" role="alert">
+  <i class="bi bi-check-circle-fill me-2"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible" role="alert">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Resumen -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon bg-danger bg-opacity-10">
+          <i class="bi bi-credit-card-2-back text-danger"></i>
+        </div>
+        <div>
+          <div class="stat-value">{{ deudas | selectattr("estado", "ne", "PAGADO") | list | length }}</div>
+          <div class="stat-label">Deudas activas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon bg-warning bg-opacity-10">
+          <i class="bi bi-hourglass-split text-warning"></i>
+        </div>
+        <div>
+          <div class="stat-value text-danger">{{ total_vencidas }}</div>
+          <div class="stat-label">Vencidas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon bg-primary bg-opacity-10">
+          <i class="bi bi-cash-stack text-primary"></i>
+        </div>
+        <div>
+          <div class="stat-value" style="font-size:1.3rem">{{ total_pendiente | moneda }}</div>
+          <div class="stat-label">Total por pagar</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-6 col-lg-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon bg-success bg-opacity-10">
+          <i class="bi bi-check2-circle text-success"></i>
+        </div>
+        <div>
+          <div class="stat-value">{{ deudas | selectattr("estado", "eq", "PAGADO") | list | length }}</div>
+          <div class="stat-label">Pagadas</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Page header -->
+<div class="page-header">
+  <h1><i class="bi bi-credit-card-2-back me-2 text-danger"></i>Deudas y Cuentas por Pagar</h1>
+  <a href="/deudas/nueva" class="btn btn-danger">
+    <i class="bi bi-plus-lg me-1"></i>Registrar Deuda
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="search-bar">
+  <form method="get" action="/deudas" class="row g-2 align-items-end">
+    <div class="col-sm-5">
+      <input type="text" name="buscar" value="{{ buscar }}" class="form-control"
+             placeholder="Buscar por acreedor…">
+    </div>
+    <div class="col-sm-3">
+      <select name="estado" class="form-select auto-submit">
+        <option value="">Todos los estados</option>
+        <option value="PENDIENTE" {% if estado == 'PENDIENTE' %}selected{% endif %}>Pendiente</option>
+        <option value="PARCIAL"   {% if estado == 'PARCIAL'   %}selected{% endif %}>Pago parcial</option>
+        <option value="PAGADO"    {% if estado == 'PAGADO'    %}selected{% endif %}>Pagado</option>
+      </select>
+    </div>
+    <div class="col-sm-2">
+      <select name="acreedor_tipo" class="form-select auto-submit">
+        <option value="">Todos los tipos</option>
+        {% for tipo in tipos_acreedor %}
+        <option value="{{ tipo }}" {% if acreedor_tipo == tipo %}selected{% endif %}>{{ tipo | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-sm-2 d-flex gap-2">
+      <button type="submit" class="btn btn-primary flex-fill">
+        <i class="bi bi-search"></i>
+      </button>
+      {% if buscar or estado or acreedor_tipo %}
+      <a href="/deudas" class="btn btn-outline-secondary">
+        <i class="bi bi-x-lg"></i>
+      </a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+
+<!-- Tabla -->
+<div class="table-card">
+  {% if deudas %}
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Acreedor</th>
+        <th>Concepto</th>
+        <th class="text-end">Total</th>
+        <th class="text-end">Pagado</th>
+        <th class="text-end">Pendiente</th>
+        <th>Avance</th>
+        <th>Vencimiento</th>
+        <th>Estado</th>
+        <th class="table-actions">Acciones</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for d in deudas %}
+      <tr class="{% if d.esta_vencida %}table-danger{% endif %}">
+        <td>
+          <div class="fw-semibold">{{ d.acreedor_nombre }}</div>
+          <small class="text-muted">
+            <span class="badge bg-secondary bg-opacity-25 text-secondary">{{ d.acreedor_tipo }}</span>
+          </small>
+        </td>
+        <td class="text-truncate-2" style="max-width:200px">{{ d.concepto }}</td>
+        <td class="text-end fw-semibold">{{ d.monto_total | moneda }}</td>
+        <td class="text-end text-success">{{ d.monto_pagado | moneda }}</td>
+        <td class="text-end fw-bold {% if d.monto_pendiente > 0 %}text-danger{% else %}text-success{% endif %}">
+          {{ d.monto_pendiente | moneda }}
+        </td>
+        <td style="min-width:90px">
+          <div class="progress progress-pago">
+            <div class="progress-bar bg-success" style="width:{{ d.porcentaje_pagado }}%"></div>
+          </div>
+          <small class="text-muted">{{ d.porcentaje_pagado }}%</small>
+        </td>
+        <td>
+          {% if d.fecha_vencimiento %}
+            <span class="{% if d.esta_vencida %}text-danger fw-semibold{% else %}text-muted{% endif %}">
+              {% if d.esta_vencida %}<i class="bi bi-exclamation-triangle-fill me-1"></i>{% endif %}
+              {{ d.fecha_vencimiento.strftime('%d/%m/%Y') }}
+            </span>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if d.esta_vencida %}
+            <span class="badge badge-vencido">VENCIDA</span>
+          {% elif d.estado == 'PENDIENTE' %}
+            <span class="badge badge-pendiente">PENDIENTE</span>
+          {% elif d.estado == 'PARCIAL' %}
+            <span class="badge badge-parcial">PARCIAL</span>
+          {% else %}
+            <span class="badge badge-pagado">PAGADO</span>
+          {% endif %}
+        </td>
+        <td class="table-actions">
+          <a href="/deudas/{{ d.id }}/detalle" class="btn btn-sm btn-outline-primary me-1" title="Ver detalle">
+            <i class="bi bi-eye"></i>
+          </a>
+          {% if d.estado != 'PAGADO' %}
+          <a href="/deudas/{{ d.id }}/detalle#pagar" class="btn btn-sm btn-success me-1" title="Registrar pago">
+            <i class="bi bi-cash"></i>
+          </a>
+          {% endif %}
+          <a href="/deudas/{{ d.id }}/editar" class="btn btn-sm btn-outline-secondary me-1" title="Editar">
+            <i class="bi bi-pencil"></i>
+          </a>
+          <form action="/deudas/{{ d.id }}/eliminar" method="post" class="d-inline form-delete"
+                data-name="{{ d.concepto }}">
+            <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+              <i class="bi bi-trash"></i>
+            </button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="text-center py-5 text-muted">
+    <i class="bi bi-credit-card-2-back fs-1 d-block mb-3 opacity-25"></i>
+    <p class="mb-1">No hay deudas registradas{% if buscar or estado or acreedor_tipo %} con esos filtros{% endif %}.</p>
+    {% if not buscar and not estado %}
+    <a href="/deudas/nueva" class="btn btn-danger mt-2">
+      <i class="bi bi-plus-lg me-1"></i>Registrar primera deuda
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
