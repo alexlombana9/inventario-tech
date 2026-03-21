@@ -108,6 +108,97 @@ def reporte_movimientos(
     })
 
 
+@router.get("/stock/excel")
+def reporte_stock_excel(
+    db: Session = Depends(get_db),
+    categoria_id: int = None,
+    solo_bajo: bool = False
+):
+    from utils.excel import generate_excel
+
+    query = db.query(models.Producto).filter(models.Producto.activo == True)
+    if categoria_id:
+        query = query.filter(models.Producto.categoria_id == categoria_id)
+    if solo_bajo:
+        query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
+    productos = query.order_by(models.Producto.nombre).all()
+
+    headers = ["Código", "Producto", "Categoría", "Stock", "Mín.", "U.M.", "P. Costo", "P. Venta", "Valor Total", "Estado"]
+    rows = []
+    for p in productos:
+        rows.append([
+            p.codigo, p.nombre,
+            p.categoria.nombre if p.categoria else "-",
+            p.stock_actual, p.stock_minimo, p.unidad_medida,
+            p.precio_costo, p.precio_venta,
+            round(p.stock_actual * p.precio_costo, 2),
+            "BAJO" if p.stock_bajo else "OK",
+        ])
+
+    output = generate_excel(
+        "Reporte de Stock", headers, rows,
+        col_widths=[14, 30, 16, 10, 10, 10, 14, 14, 16, 10],
+        money_cols=[6, 7, 8],
+    )
+    filename = f"stock_{date.today().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
+@router.get("/movimientos/excel")
+def reporte_movimientos_excel(
+    fecha_desde: str = None,
+    fecha_hasta: str = None,
+    tipo: str = None,
+    db: Session = Depends(get_db),
+):
+    from utils.excel import generate_excel
+
+    if not fecha_desde:
+        fecha_desde = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
+    if not fecha_hasta:
+        fecha_hasta = date.today().strftime("%Y-%m-%d")
+
+    query = db.query(models.MovimientoInventario)
+    try:
+        fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
+        fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        query = query.filter(models.MovimientoInventario.fecha >= fd, models.MovimientoInventario.fecha <= fh)
+    except ValueError:
+        pass
+
+    if tipo and tipo in ("ENTRADA", "SALIDA", "AJUSTE"):
+        query = query.filter(models.MovimientoInventario.tipo == tipo)
+
+    movimientos = query.order_by(models.MovimientoInventario.fecha.desc()).all()
+
+    headers = ["Fecha", "Producto", "Tipo", "Cantidad", "Stock Ant.", "Stock Res.", "Precio Unit.", "Referencia", "Observaciones"]
+    rows = []
+    for m in movimientos:
+        rows.append([
+            m.fecha.strftime("%d/%m/%Y %H:%M"),
+            m.producto.nombre if m.producto else "-",
+            m.tipo, m.cantidad, m.stock_anterior, m.stock_resultante,
+            m.precio_unitario, m.numero_referencia or "-",
+            m.observaciones or "-",
+        ])
+
+    output = generate_excel(
+        "Reporte de Movimientos", headers, rows,
+        col_widths=[18, 28, 12, 12, 14, 14, 14, 16, 24],
+        money_cols=[6],
+    )
+    filename = f"movimientos_{fecha_desde}_{fecha_hasta}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.get("/stock/pdf")
 def reporte_stock_pdf(
     db: Session = Depends(get_db),

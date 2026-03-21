@@ -68,7 +68,71 @@
   </div>
 </div>
 
-<!-- ════════════════════════ STAT CARDS — FILA 2 (finanzas) ════════════════════════ -->
+<!-- ════════════════════════ STAT CARDS — FILA 2 (ventas) ════════════════════════ -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <a href="/ventas" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#d1fae5">
+            <i class="bi bi-cart-check text-success"></i>
+          </div>
+          <div>
+            <div class="stat-value text-success" style="font-size:1.15rem">{{ ventas_hoy | moneda }}</div>
+            <div class="stat-label">Ventas Hoy ({{ num_ventas_hoy }})</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="/ventas" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#e0e7ff">
+            <i class="bi bi-graph-up-arrow" style="color:#4f46e5"></i>
+          </div>
+          <div>
+            <div class="stat-value" style="font-size:1.15rem; color:#4f46e5">{{ ventas_mes | moneda }}</div>
+            <div class="stat-label">Ventas del Mes</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="/clientes" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#fef3c7">
+            <i class="bi bi-person-vcard text-warning"></i>
+          </div>
+          <div>
+            <div class="stat-value">{{ total_clientes }}</div>
+            <div class="stat-label">Clientes</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3">
+    <a href="/caja" class="text-decoration-none">
+      <div class="stat-card">
+        <div class="d-flex align-items-center gap-3">
+          <div class="stat-icon" style="background:#fce4ec">
+            <i class="bi bi-cash-stack" style="color:#e91e63"></i>
+          </div>
+          <div>
+            <div class="stat-value" style="font-size:1.15rem; color:#e91e63">{{ valor_inventario | moneda }}</div>
+            <div class="stat-label">Valor Inventario</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+
+<!-- ════════════════════════ STAT CARDS — FILA 3 (finanzas) ════════════════════════ -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <a href="/deudas?estado=PENDIENTE" class="text-decoration-none">
@@ -144,6 +208,10 @@
 
 <!-- ════════════════════════ ACCIONES RÁPIDAS ════════════════════════ -->
 <div class="quick-actions mb-4">
+  <a href="/ventas/pos" class="quick-action-btn text-primary border-primary">
+    <i class="bi bi-cart-check"></i>
+    <span>Punto de Venta</span>
+  </a>
   <a href="/inventario/entrada" class="quick-action-btn text-success border-success">
     <i class="bi bi-box-arrow-in-down"></i>
     <span>Registrar Entrada</span>
@@ -152,13 +220,9 @@
     <i class="bi bi-box-arrow-up"></i>
     <span>Registrar Salida</span>
   </a>
-  <a href="/deudas/nueva" class="quick-action-btn text-warning border-warning">
-    <i class="bi bi-credit-card-2-back"></i>
-    <span>Nueva Deuda</span>
-  </a>
-  <a href="/facturas/nueva" class="quick-action-btn text-primary border-primary">
-    <i class="bi bi-receipt"></i>
-    <span>Nueva Factura</span>
+  <a href="/clientes/nuevo" class="quick-action-btn text-info border-info">
+    <i class="bi bi-person-plus"></i>
+    <span>Nuevo Cliente</span>
   </a>
   <a href="/productos/nuevo" class="quick-action-btn text-secondary border-secondary">
     <i class="bi bi-plus-circle"></i>
@@ -201,7 +265,49 @@
 
 </div>
 
-<!-- ════════════════════════ GRÁFICAS — FILA 2 ════════════════════════ -->
+<!-- ════════════════════════ GRÁFICAS — FILA 2 (ventas) ════════════════════════ -->
+<div class="row g-3 mb-3">
+  <div class="col-lg-8">
+    <div class="chart-card h-100">
+      <div class="chart-title d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cash-coin me-1 text-success"></i>Ventas — Últimos 7 días</span>
+        <a href="/ventas" class="btn btn-sm btn-outline-success" style="font-size:.72rem">Historial</a>
+      </div>
+      <div style="position:relative; height:220px;">
+        <canvas id="chartVentas7d"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="chart-card h-100">
+      <div class="chart-title">
+        <i class="bi bi-trophy me-1 text-warning"></i>Top 5 Productos del Mes
+      </div>
+      {% if top_productos %}
+      <div class="list-group list-group-flush">
+        {% for tp in top_productos %}
+        <div class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 border-0">
+          <div>
+            <span class="badge bg-primary rounded-pill me-2">{{ loop.index }}</span>
+            <span style="font-size:.85rem">{{ tp[0][:22] }}</span>
+          </div>
+          <div class="text-end">
+            <span class="fw-bold" style="font-size:.85rem">{{ tp[1] | numero }}</span>
+            <small class="text-muted d-block">{{ tp[2] | moneda }}</small>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="text-center text-muted py-5">
+        <i class="bi bi-trophy fs-2 opacity-25 d-block mb-2"></i>Sin ventas este mes
+      </div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ GRÁFICAS — FILA 3 (finanzas) ════════════════════════ -->
 <div class="row g-3 mb-3">
 
   <!-- Estado de Deudas (bar horizontal) -->
@@ -393,7 +499,45 @@
     }
   });
 
-  // ── 2. Inventario por categoría (doughnut) ─────────────────
+  // ── 2. Ventas 7 días (bar) ─────────────────────────────────
+  const ventas7d = {{ chart_ventas_7d | safe }};
+
+  new Chart(document.getElementById('chartVentas7d'), {
+    type: 'bar',
+    data: {
+      labels: labels7d,
+      datasets: [{
+        label: 'Ventas ($)',
+        data: ventas7d,
+        backgroundColor: 'rgba(25, 135, 84, 0.7)',
+        borderColor: GREEN,
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1a2e', padding: 10, cornerRadius: 8,
+          callbacks: {
+            label: function(ctx) { return ' $' + ctx.parsed.y.toLocaleString('es-CO'); }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false } },
+        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' },
+          ticks: { callback: function(v) { return '$' + v.toLocaleString('es-CO'); } }
+        }
+      }
+    }
+  });
+
+  // ── 3. Inventario por categoría (doughnut) ─────────────────
   const catLabels  = {{ chart_cat_labels | safe }};
   const catValores = {{ chart_cat_valores | safe }};
 

@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Abrir Caja{% endblock %}
+{% block page_title %}Abrir Caja{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-unlock me-2"></i>Abrir Caja</h1>
+  <a href="/caja" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Volver</a>
+</div>
+
+<div class="form-card" style="max-width:500px">
+  <p class="text-muted mb-3">Ingresa el monto de efectivo con el que inicias la caja.</p>
+  <form method="POST" action="/caja/abrir">
+    <div class="mb-3">
+      <label class="form-label">Monto de Apertura <span class="text-danger">*</span></label>
+      <div class="input-group">
+        <span class="input-group-text">$</span>
+        <input type="number" name="monto_apertura" class="form-control" step="100" min="0" required autofocus placeholder="0">
+      </div>
+    </div>
+    <button type="submit" class="btn btn-primary w-100"><i class="bi bi-unlock me-1"></i>Abrir Caja</button>
+  </form>
+</div>
+{% endblock %}

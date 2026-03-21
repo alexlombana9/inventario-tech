@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Cerrar Caja{% endblock %}
+{% block page_title %}Cerrar Caja{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-lock me-2"></i>Cerrar Caja</h1>
+  <a href="/caja" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Volver</a>
+</div>
+
+<div class="form-card" style="max-width:500px">
+  <div class="row g-2 mb-3">
+    <div class="col-6">
+      <div class="p-3 bg-light rounded text-center">
+        <div class="fw-bold text-muted small">APERTURA</div>
+        <div class="fs-5 fw-bold">{{ caja.monto_apertura | moneda }}</div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="p-3 bg-light rounded text-center">
+        <div class="fw-bold text-muted small">SALDO ESPERADO</div>
+        <div class="fs-5 fw-bold text-primary">{{ caja.saldo_esperado | moneda }}</div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="p-3 bg-light rounded text-center">
+        <div class="fw-bold text-muted small">INGRESOS</div>
+        <div class="fs-5 fw-bold text-success">+{{ caja.total_ingresos | moneda }}</div>
+      </div>
+    </div>
+    <div class="col-6">
+      <div class="p-3 bg-light rounded text-center">
+        <div class="fw-bold text-muted small">EGRESOS</div>
+        <div class="fs-5 fw-bold text-danger">-{{ caja.total_egresos | moneda }}</div>
+      </div>
+    </div>
+  </div>
+
+  <form method="POST" action="/caja/cerrar">
+    <div class="mb-3">
+      <label class="form-label">Monto Real en Caja <span class="text-danger">*</span></label>
+      <div class="input-group">
+        <span class="input-group-text">$</span>
+        <input type="number" name="monto_cierre_real" class="form-control" step="100" min="0" required autofocus
+               id="montoReal" placeholder="Cuenta el efectivo">
+      </div>
+      <div class="mt-1">
+        <small>Diferencia: <strong id="diferencia">$0</strong></small>
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Notas de Cierre</label>
+      <textarea name="notas_cierre" class="form-control" rows="2" placeholder="Observaciones opcionales"></textarea>
+    </div>
+    <button type="submit" class="btn btn-danger w-100" onclick="return confirm('¿Cerrar la caja?')">
+      <i class="bi bi-lock me-1"></i>Cerrar Caja
+    </button>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  const esperado = {{ caja.saldo_esperado }};
+  document.getElementById('montoReal').addEventListener('input', function() {
+    const real = parseFloat(this.value) || 0;
+    const diff = real - esperado;
+    const el = document.getElementById('diferencia');
+    el.textContent = (diff >= 0 ? '+' : '') + '$' + diff.toLocaleString('es-CO');
+    el.className = diff >= 0 ? 'text-success' : 'text-danger';
+  });
+</script>
+{% endblock %}

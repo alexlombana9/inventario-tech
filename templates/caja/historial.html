@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Historial de Cajas{% endblock %}
+{% block page_title %}Historial de Cajas{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-clock-history me-2"></i>Historial de Cajas</h1>
+  <a href="/caja" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Caja Actual</a>
+</div>
+
+<div class="table-card">
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead>
+        <tr>
+          <th>Fecha Apertura</th>
+          <th>Usuario</th>
+          <th class="text-end">Apertura</th>
+          <th class="text-end">Esperado</th>
+          <th class="text-end">Real</th>
+          <th class="text-end">Diferencia</th>
+          <th>Estado</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in cajas %}
+        <tr>
+          <td>{{ c.fecha_apertura.strftime('%d/%m/%Y %H:%M') }}</td>
+          <td>{{ c.usuario.nombre_completo if c.usuario else '—' }}</td>
+          <td class="text-end">{{ c.monto_apertura | moneda }}</td>
+          <td class="text-end">{{ (c.monto_cierre_esperado or 0) | moneda }}</td>
+          <td class="text-end">{{ (c.monto_cierre_real or 0) | moneda }}</td>
+          <td class="text-end">
+            {% if c.diferencia is not none %}
+              <span class="{% if c.diferencia >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                {{ ('+' if c.diferencia >= 0 else '') }}{{ c.diferencia | moneda }}
+              </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% if c.estado == 'ABIERTA' %}<span class="badge bg-success">Abierta</span>
+            {% else %}<span class="badge bg-secondary">Cerrada</span>{% endif %}
+          </td>
+          <td class="text-end">
+            <a href="/caja/{{ c.id }}/detalle" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
+          </td>
+        </tr>
+        {% endfor %}
+        {% if not cajas %}<tr><td colspan="8" class="text-center text-muted py-4">Sin registros</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if total_paginas > 1 %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center">
+    {% for p in range(1, total_paginas + 1) %}
+    <li class="page-item {% if p == pagina %}active{% endif %}">
+      <a class="page-link" href="?pagina={{ p }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

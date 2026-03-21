@@ -1,0 +1,173 @@
+from fastapi import APIRouter, Request, Depends, Form
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+
+from database import get_db
+from templates_config import templates
+from auth import require_auth, log_audit
+import models
+
+router = APIRouter(prefix="/clientes", tags=["clientes"])
+
+TIPOS_DOCUMENTO = ["CC", "NIT", "CE", "PASAPORTE", "TI", "OTRO"]
+
+
+@router.get("")
+def lista_clientes(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+    buscar: str = None,
+    msg: str = None,
+    error: str = None,
+):
+    query = db.query(models.Cliente).filter(models.Cliente.activo == True)
+    if buscar:
+        query = query.filter(
+            models.Cliente.nombre.ilike(f"%{buscar}%") |
+            models.Cliente.documento.ilike(f"%{buscar}%") |
+            models.Cliente.telefono.ilike(f"%{buscar}%")
+        )
+    clientes = query.order_by(models.Cliente.nombre).all()
+
+    return templates.TemplateResponse("clientes/lista.html", {
+        "request": request,
+        "clientes": clientes,
+        "buscar": buscar or "",
+        "msg": msg,
+        "error": error,
+    })
+
+
+@router.get("/nuevo")
+def nuevo_cliente_form(
+    request: Request,
+    current_user: models.Usuario = Depends(require_auth),
+):
+    return templates.TemplateResponse("clientes/form.html", {
+        "request": request,
+        "cliente": None,
+        "tipos_documento": TIPOS_DOCUMENTO,
+        "accion": "Nuevo",
+    })
+
+
+@router.post("/nuevo")
+def crear_cliente(
+    request: Request,
+    nombre: str = Form(...),
+    tipo_documento: str = Form("CC"),
+    documento: str = Form(""),
+    telefono: str = Form(""),
+    email: str = Form(""),
+    direccion: str = Form(""),
+    notas: str = Form(""),
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+):
+    cliente = models.Cliente(
+        nombre=nombre.strip(),
+        tipo_documento=tipo_documento,
+        documento=documento.strip(),
+        telefono=telefono.strip(),
+        email=email.strip(),
+        direccion=direccion.strip(),
+        notas=notas.strip(),
+    )
+    db.add(cliente)
+    db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "cliente", cliente.id, f"Cliente creado: {cliente.nombre}", ip)
+
+    return RedirectResponse("/clientes?msg=Cliente+creado+correctamente", status_code=303)
+
+
+@router.get("/{cliente_id}/editar")
+def editar_cliente_form(
+    cliente_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+):
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    if not cliente:
+        return RedirectResponse("/clientes?error=Cliente+no+encontrado", status_code=303)
+
+    return templates.TemplateResponse("clientes/form.html", {
+        "request": request,
+        "cliente": cliente,
+        "tipos_documento": TIPOS_DOCUMENTO,
+        "accion": "Editar",
+    })
+
+
+@router.post("/{cliente_id}/editar")
+def actualizar_cliente(
+    cliente_id: int,
+    request: Request,
+    nombre: str = Form(...),
+    tipo_documento: str = Form("CC"),
+    documento: str = Form(""),
+    telefono: str = Form(""),
+    email: str = Form(""),
+    direccion: str = Form(""),
+    notas: str = Form(""),
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+):
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    if not cliente:
+        return RedirectResponse("/clientes?error=Cliente+no+encontrado", status_code=303)
+
+    cliente.nombre = nombre.strip()
+    cliente.tipo_documento = tipo_documento
+    cliente.documento = documento.strip()
+    cliente.telefono = telefono.strip()
+    cliente.email = email.strip()
+    cliente.direccion = direccion.strip()
+    cliente.notas = notas.strip()
+    db.commit()
+
+    return RedirectResponse("/clientes?msg=Cliente+actualizado+correctamente", status_code=303)
+
+
+@router.get("/{cliente_id}/detalle")
+def detalle_cliente(
+    cliente_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+):
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    if not cliente:
+        return RedirectResponse("/clientes?error=Cliente+no+encontrado", status_code=303)
+
+    ventas = db.query(models.Venta).filter(
+        models.Venta.cliente_id == cliente_id,
+        models.Venta.estado == "COMPLETADA"
+    ).order_by(models.Venta.fecha.desc()).limit(20).all()
+
+    total_compras = sum(v.total for v in ventas)
+
+    return templates.TemplateResponse("clientes/detalle.html", {
+        "request": request,
+        "cliente": cliente,
+        "ventas": ventas,
+        "total_compras": total_compras,
+    })
+
+
+@router.post("/{cliente_id}/eliminar")
+def eliminar_cliente(
+    cliente_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+):
+    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    if not cliente:
+        return RedirectResponse("/clientes?error=Cliente+no+encontrado", status_code=303)
+    cliente.activo = False
+    db.commit()
+    return RedirectResponse("/clientes?msg=Cliente+desactivado+correctamente", status_code=303)

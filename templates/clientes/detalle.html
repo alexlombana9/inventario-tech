@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ cliente.nombre }}{% endblock %}
+{% block page_title %}Detalle de Cliente{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-person me-2"></i>{{ cliente.nombre }}</h1>
+  <div class="d-flex gap-2">
+    <a href="/clientes/{{ cliente.id }}/editar" class="btn btn-outline-primary"><i class="bi bi-pencil me-1"></i>Editar</a>
+    <a href="/clientes" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Volver</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="form-card">
+      <h6 class="fw-bold mb-3">Información del Cliente</h6>
+      <p><strong>Documento:</strong> {{ cliente.tipo_documento }} {{ cliente.documento or '—' }}</p>
+      <p><strong>Teléfono:</strong> {{ cliente.telefono or '—' }}</p>
+      <p><strong>Email:</strong> {{ cliente.email or '—' }}</p>
+      <p><strong>Dirección:</strong> {{ cliente.direccion or '—' }}</p>
+      {% if cliente.notas %}<p><strong>Notas:</strong> {{ cliente.notas }}</p>{% endif %}
+      <hr>
+      <p><strong>Total Compras:</strong> <span class="text-success fw-bold">{{ total_compras | moneda }}</span></p>
+      <p><strong>Cliente desde:</strong> {{ cliente.created_at.strftime('%d/%m/%Y') }}</p>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="table-card">
+      <div class="p-3 border-bottom"><h6 class="mb-0 fw-bold">Historial de Compras</h6></div>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead><tr><th>N° Venta</th><th>Fecha</th><th>Total</th><th>Método</th><th>Estado</th></tr></thead>
+          <tbody>
+            {% for v in ventas %}
+            <tr>
+              <td><a href="/ventas/{{ v.id }}/detalle">{{ v.numero_venta }}</a></td>
+              <td>{{ v.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+              <td>{{ v.total | moneda }}</td>
+              <td>{{ v.metodo_pago }}</td>
+              <td>
+                {% if v.estado == 'COMPLETADA' %}<span class="badge bg-success">Completada</span>
+                {% else %}<span class="badge bg-danger">Anulada</span>{% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+            {% if not ventas %}<tr><td colspan="5" class="text-center text-muted py-3">Sin compras registradas</td></tr>{% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

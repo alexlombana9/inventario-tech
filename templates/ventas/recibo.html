@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Recibo {{ venta.numero_venta }}{% endblock %}
+{% block page_title %}Recibo de Venta{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-1"></i>{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+{% endif %}
+
+<div class="d-flex justify-content-between mb-3">
+  <div class="d-flex gap-2">
+    <a href="/ventas/pos" class="btn btn-primary"><i class="bi bi-cart-plus me-1"></i>Nueva Venta</a>
+    <a href="/ventas" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Historial</a>
+  </div>
+  <button onclick="window.print()" class="btn btn-outline-primary"><i class="bi bi-printer me-1"></i>Imprimir</button>
+</div>
+
+<div class="form-card mx-auto" style="max-width:400px">
+  <style>
+    @media print {
+      .sidebar, .topbar, .btn, .alert, .page-header { display: none !important; }
+      .main-content { margin: 0 !important; }
+      .content-area { padding: 0 !important; }
+      .form-card { border: none !important; box-shadow: none !important; max-width: 100% !important; }
+    }
+    .recibo-table td { padding: 3px 0; font-size: 0.82rem; }
+    .recibo-divider { border-top: 1px dashed #999; margin: 8px 0; }
+  </style>
+
+  <div class="text-center mb-2">
+    {% if config and config.logo_path %}
+    <img src="{{ config.logo_path }}" alt="Logo" style="max-height:50px" class="mb-1">
+    {% endif %}
+    <h5 class="mb-0 fw-bold">{{ config.nombre_negocio if config else 'TechStock' }}</h5>
+    {% if config and config.nit %}<small>NIT: {{ config.nit }}</small><br>{% endif %}
+    {% if config and config.direccion %}<small>{{ config.direccion }}</small><br>{% endif %}
+    {% if config and config.telefono %}<small>Tel: {{ config.telefono }}</small>{% endif %}
+  </div>
+
+  <div class="recibo-divider"></div>
+
+  <table class="w-100 recibo-table">
+    <tr><td><strong>N° Venta:</strong></td><td class="text-end">{{ venta.numero_venta }}</td></tr>
+    <tr><td><strong>Fecha:</strong></td><td class="text-end">{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td></tr>
+    <tr><td><strong>Cliente:</strong></td><td class="text-end">{{ venta.cliente_nombre }}</td></tr>
+    <tr><td><strong>Atendido por:</strong></td><td class="text-end">{{ venta.vendedor.nombre_completo if venta.vendedor else '—' }}</td></tr>
+  </table>
+
+  <div class="recibo-divider"></div>
+
+  <table class="w-100 recibo-table">
+    <thead><tr><td class="fw-bold">Producto</td><td class="text-center fw-bold">Cant</td><td class="text-end fw-bold">Subtotal</td></tr></thead>
+    <tbody>
+      {% for d in venta.detalles %}
+      <tr>
+        <td>{{ d.producto_nombre }}</td>
+        <td class="text-center">{{ d.cantidad|numero }}</td>
+        <td class="text-end">{{ d.subtotal | moneda }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <div class="recibo-divider"></div>
+
+  <table class="w-100 recibo-table">
+    <tr><td><strong>Subtotal:</strong></td><td class="text-end">{{ venta.subtotal | moneda }}</td></tr>
+    {% if venta.descuento_total > 0 %}
+    <tr><td><strong>Descuento:</strong></td><td class="text-end">-{{ venta.descuento_total | moneda }}</td></tr>
+    {% endif %}
+    <tr class="fs-5"><td><strong>TOTAL:</strong></td><td class="text-end fw-bold">{{ venta.total | moneda }}</td></tr>
+    {% if venta.metodo_pago == 'EFECTIVO' %}
+    <tr><td>Recibido:</td><td class="text-end">{{ venta.monto_recibido | moneda }}</td></tr>
+    <tr><td><strong>Cambio:</strong></td><td class="text-end fw-bold">{{ venta.cambio | moneda }}</td></tr>
+    {% endif %}
+    <tr><td>Método:</td><td class="text-end">{{ venta.metodo_pago }}</td></tr>
+  </table>
+
+  <div class="recibo-divider"></div>
+
+  <div class="text-center">
+    <small>{{ config.mensaje_recibo if config else 'Gracias por su compra' }}</small>
+    {% if config and config.pie_factura %}<br><small class="text-muted">{{ config.pie_factura }}</small>{% endif %}
+  </div>
+</div>
+{% endblock %}

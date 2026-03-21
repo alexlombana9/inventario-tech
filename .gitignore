@@ -16,10 +16,18 @@ env/
 *.sqlite
 *.sqlite3
 
-# ===== Variables de entorno =====
+# ===== Variables de entorno / secretos =====
 .env
 .env.local
 .env.*.local
+.secret_key
+
+# ===== Backups locales =====
+backups/
+
+# ===== Uploads =====
+static/uploads/*
+!static/uploads/.gitkeep
 
 # ===== Logs =====
 *.log

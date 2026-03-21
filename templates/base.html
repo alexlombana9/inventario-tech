@@ -34,6 +34,7 @@
     <li class="nav-divider"></li>
 
     <!-- ── INVENTARIO ── -->
+    {% if request.state.user and request.state.user.rol in ['ADMIN', 'BODEGUERO', 'VENDEDOR'] %}
     <li class="nav-section">Inventario</li>
 
     <li class="nav-item">
@@ -42,12 +43,14 @@
         <span>Productos</span>
       </a>
     </li>
+    {% if request.state.user.rol in ['ADMIN', 'BODEGUERO'] %}
     <li class="nav-item">
       <a href="/categorias" class="nav-link {% if '/categorias' in request.url.path %}active{% endif %}">
         <i class="bi bi-tags"></i>
         <span>Categorías</span>
       </a>
     </li>
+    {% endif %}
     <li class="nav-item">
       <a href="/inventario" class="nav-link {% if '/inventario' in request.url.path and '/inventario/entrada' not in request.url.path and '/inventario/salida' not in request.url.path %}active{% endif %}">
         <i class="bi bi-arrow-left-right"></i>
@@ -56,8 +59,42 @@
     </li>
 
     <li class="nav-divider"></li>
+    {% endif %}
+
+    <!-- ── VENTAS ── -->
+    {% if request.state.user and request.state.user.rol in ['ADMIN', 'VENDEDOR'] %}
+    <li class="nav-section">Ventas</li>
+
+    <li class="nav-item">
+      <a href="/ventas/pos" class="nav-link {% if '/ventas/pos' in request.url.path %}active{% endif %}">
+        <i class="bi bi-cart-check"></i>
+        <span>Punto de Venta</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/ventas" class="nav-link {% if request.url.path == '/ventas' %}active{% endif %}">
+        <i class="bi bi-receipt-cutoff"></i>
+        <span>Historial Ventas</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/clientes" class="nav-link {% if '/clientes' in request.url.path %}active{% endif %}">
+        <i class="bi bi-person-vcard"></i>
+        <span>Clientes</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/caja" class="nav-link {% if '/caja' in request.url.path %}active{% endif %}">
+        <i class="bi bi-cash-stack"></i>
+        <span>Caja</span>
+      </a>
+    </li>
+
+    <li class="nav-divider"></li>
+    {% endif %}
 
     <!-- ── COMPRAS ── -->
+    {% if request.state.user and request.state.user.rol in ['ADMIN', 'BODEGUERO'] %}
     <li class="nav-section">Compras</li>
 
     <li class="nav-item">
@@ -74,8 +111,10 @@
     </li>
 
     <li class="nav-divider"></li>
+    {% endif %}
 
     <!-- ── FINANZAS ── -->
+    {% if request.state.user and request.state.user.rol in ['ADMIN', 'VENDEDOR'] %}
     <li class="nav-section">Finanzas</li>
 
     <li class="nav-item">
@@ -92,6 +131,7 @@
     </li>
 
     <li class="nav-divider"></li>
+    {% endif %}
 
     <!-- ── REPORTES ── -->
     <li class="nav-section">Reportes</li>
@@ -108,6 +148,7 @@
         <span>Movimientos</span>
       </a>
     </li>
+    {% if request.state.user and request.state.user.rol in ['ADMIN', 'VENDEDOR'] %}
     <li class="nav-item">
       <a href="/deudas/reporte" class="nav-link {% if '/deudas/reporte' in request.url.path %}active{% endif %}">
         <i class="bi bi-file-earmark-minus"></i>
@@ -120,8 +161,35 @@
         <span>Reporte Facturas</span>
       </a>
     </li>
+    {% endif %}
 
     <li class="nav-divider"></li>
+
+    <!-- ── ADMINISTRACIÓN ── -->
+    {% if request.state.user and request.state.user.rol == 'ADMIN' %}
+    <li class="nav-section">Administración</li>
+
+    <li class="nav-item">
+      <a href="/usuarios" class="nav-link {% if '/usuarios' in request.url.path %}active{% endif %}">
+        <i class="bi bi-people"></i>
+        <span>Usuarios</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/configuracion" class="nav-link {% if '/configuracion' in request.url.path %}active{% endif %}">
+        <i class="bi bi-gear"></i>
+        <span>Configuración</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/backup" class="nav-link {% if '/backup' in request.url.path %}active{% endif %}">
+        <i class="bi bi-shield-check"></i>
+        <span>Backups</span>
+      </a>
+    </li>
+
+    <li class="nav-divider"></li>
+    {% endif %}
 
     <!-- ── AYUDA ── -->
     <li class="nav-section">Ayuda</li>
@@ -151,6 +219,7 @@
     </button>
     <div class="topbar-title">{% block page_title %}{% endblock %}</div>
     <div class="topbar-actions">
+      {% if request.state.user and request.state.user.rol in ['ADMIN', 'BODEGUERO'] %}
       <a href="/inventario/entrada" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg"></i>
         <span class="d-none d-sm-inline ms-1">Entrada</span>
@@ -159,8 +228,49 @@
         <i class="bi bi-dash-lg"></i>
         <span class="d-none d-sm-inline ms-1">Salida</span>
       </a>
+      {% endif %}
+
+      <!-- User dropdown -->
+      {% if request.state.user %}
+      <div class="dropdown ms-2">
+        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                data-bs-toggle="dropdown" aria-expanded="false">
+          <i class="bi bi-person-circle me-1"></i>
+          <span class="d-none d-sm-inline">{{ request.state.user.nombre_completo }}</span>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li>
+            <span class="dropdown-item-text">
+              <small class="text-muted">{{ request.state.user.username }} &mdash;
+                {% if request.state.user.rol == 'ADMIN' %}Administrador
+                {% elif request.state.user.rol == 'VENDEDOR' %}Vendedor
+                {% elif request.state.user.rol == 'BODEGUERO' %}Bodeguero
+                {% endif %}
+              </small>
+            </span>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item text-danger" href="/logout">
+              <i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesión
+            </a>
+          </li>
+        </ul>
+      </div>
+      {% endif %}
     </div>
   </div>
+
+  <!-- Flash messages -->
+  {% if flash %}
+  <div class="content-area" style="padding-bottom:0">
+    <div class="alert alert-{{ 'success' if flash.category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
+      <i class="bi bi-{{ 'check-circle' if flash.category == 'success' else 'exclamation-triangle' }} me-1"></i>
+      {{ flash.message }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- Content -->
   <div class="content-area">

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Venta {{ venta.numero_venta }}{% endblock %}
+{% block page_title %}Detalle de Venta{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-receipt me-2"></i>{{ venta.numero_venta }}</h1>
+  <div class="d-flex gap-2">
+    <a href="/ventas/{{ venta.id }}/recibo" class="btn btn-outline-info"><i class="bi bi-printer me-1"></i>Recibo</a>
+    <a href="/ventas" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Volver</a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="form-card">
+      <h6 class="fw-bold mb-3">Información de la Venta</h6>
+      <p><strong>Fecha:</strong> {{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+      <p><strong>Cliente:</strong> {{ venta.cliente_nombre }}</p>
+      <p><strong>Vendedor:</strong> {{ venta.vendedor.nombre_completo if venta.vendedor else '—' }}</p>
+      <p><strong>Método de Pago:</strong> {{ venta.metodo_pago }}</p>
+      {% if venta.metodo_pago == 'EFECTIVO' %}
+      <p><strong>Recibido:</strong> {{ venta.monto_recibido | moneda }}</p>
+      <p><strong>Cambio:</strong> {{ venta.cambio | moneda }}</p>
+      {% endif %}
+      <hr>
+      <p><strong>Subtotal:</strong> {{ venta.subtotal | moneda }}</p>
+      {% if venta.descuento_total > 0 %}<p><strong>Descuento:</strong> -{{ venta.descuento_total | moneda }}</p>{% endif %}
+      <p class="fs-5 fw-bold"><strong>Total:</strong> <span class="text-primary">{{ venta.total | moneda }}</span></p>
+      <p><strong>Estado:</strong>
+        {% if venta.estado == 'COMPLETADA' %}<span class="badge bg-success">Completada</span>
+        {% else %}<span class="badge bg-danger">Anulada</span>{% endif %}
+      </p>
+    </div>
+  </div>
+
+  <div class="col-md-8">
+    <div class="table-card">
+      <div class="p-3 border-bottom"><h6 class="mb-0 fw-bold">Productos Vendidos</h6></div>
+      <div class="table-responsive">
+        <table class="table">
+          <thead><tr><th>Código</th><th>Producto</th><th class="text-center">Cant.</th><th class="text-end">Precio</th><th class="text-end">Subtotal</th></tr></thead>
+          <tbody>
+            {% for d in venta.detalles %}
+            <tr>
+              <td>{{ d.producto_codigo }}</td>
+              <td>{{ d.producto_nombre }}</td>
+              <td class="text-center">{{ d.cantidad | numero }}</td>
+              <td class="text-end">{{ d.precio_unitario | moneda }}</td>
+              <td class="text-end fw-bold">{{ d.subtotal | moneda }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="fw-bold"><td colspan="4" class="text-end">Total:</td><td class="text-end text-primary">{{ venta.total | moneda }}</td></tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

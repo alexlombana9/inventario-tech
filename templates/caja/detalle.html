@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Detalle Caja{% endblock %}
+{% block page_title %}Detalle de Caja{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-cash-stack me-2"></i>Caja #{{ caja.id }}</h1>
+  <a href="/caja/historial" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Historial</a>
+</div>
+
+{% if msg %}
+<div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-1"></i>{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+{% endif %}
+
+<div class="row g-3 mb-4">
+  <div class="col-sm-3">
+    <div class="stat-card">
+      <div class="stat-label">Apertura</div>
+      <div class="stat-value">{{ caja.monto_apertura | moneda }}</div>
+      <small class="text-muted">{{ caja.fecha_apertura.strftime('%d/%m/%Y %H:%M') }}</small>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="stat-card">
+      <div class="stat-label">Ingresos</div>
+      <div class="stat-value text-success">+{{ caja.total_ingresos | moneda }}</div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="stat-card">
+      <div class="stat-label">Egresos</div>
+      <div class="stat-value text-danger">-{{ caja.total_egresos | moneda }}</div>
+    </div>
+  </div>
+  <div class="col-sm-3">
+    <div class="stat-card">
+      <div class="stat-label">{% if caja.estado == 'CERRADA' %}Diferencia{% else %}Saldo Esperado{% endif %}</div>
+      {% if caja.estado == 'CERRADA' %}
+        <div class="stat-value {% if caja.diferencia >= 0 %}text-success{% else %}text-danger{% endif %}">
+          {{ ('+' if caja.diferencia >= 0 else '') }}{{ caja.diferencia | moneda }}
+        </div>
+        <small class="text-muted">Cerrada: {{ caja.fecha_cierre.strftime('%d/%m/%Y %H:%M') if caja.fecha_cierre else '' }}</small>
+      {% else %}
+        <div class="stat-value text-primary">{{ caja.saldo_esperado | moneda }}</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="table-card">
+  <div class="p-3 border-bottom"><h6 class="mb-0 fw-bold">Movimientos</h6></div>
+  <div class="table-responsive">
+    <table class="table table-hover">
+      <thead><tr><th>Hora</th><th>Tipo</th><th>Concepto</th><th>Referencia</th><th class="text-end">Monto</th></tr></thead>
+      <tbody>
+        {% for m in caja.movimientos %}
+        <tr>
+          <td>{{ m.created_at.strftime('%H:%M') }}</td>
+          <td>
+            {% if m.tipo == 'INGRESO' %}<span class="badge bg-success">Ingreso</span>
+            {% else %}<span class="badge bg-danger">Egreso</span>{% endif %}
+          </td>
+          <td>{{ m.concepto }}</td>
+          <td>{{ m.referencia_tipo or '—' }}</td>
+          <td class="text-end fw-bold">{{ m.monto | moneda }}</td>
+        </tr>
+        {% endfor %}
+        {% if not caja.movimientos %}<tr><td colspan="5" class="text-center text-muted py-3">Sin movimientos</td></tr>{% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if caja.notas_cierre %}
+<div class="form-card mt-3">
+  <h6 class="fw-bold">Notas de Cierre</h6>
+  <p class="mb-0">{{ caja.notas_cierre }}</p>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Punto de Venta{% endblock %}
+{% block page_title %}Punto de Venta{% endblock %}
+
+{% block content %}
+<style>
+  .pos-container { display: flex; gap: 16px; height: calc(100vh - 140px); }
+  .pos-products { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .pos-cart { width: 380px; display: flex; flex-direction: column; flex-shrink: 0; }
+  .pos-search { margin-bottom: 12px; }
+  .pos-grid { flex: 1; overflow-y: auto; }
+  .product-item { cursor: pointer; padding: 10px 12px; border-bottom: 1px solid #e9ecef; transition: background 0.15s; display: flex; justify-content: space-between; align-items: center; }
+  .product-item:hover { background: #e8f4f8; }
+  .product-item .name { font-weight: 600; font-size: 0.85rem; }
+  .product-item .meta { font-size: 0.75rem; color: #6c757d; }
+  .product-item .price { font-weight: 700; color: #0d6efd; font-size: 0.9rem; }
+  .cart-card { background: #fff; border-radius: 12px; border: 1px solid #e9ecef; display: flex; flex-direction: column; height: 100%; }
+  .cart-header { padding: 14px 16px; border-bottom: 1px solid #e9ecef; font-weight: 700; font-size: 0.9rem; }
+  .cart-items { flex: 1; overflow-y: auto; }
+  .cart-item { padding: 10px 14px; border-bottom: 1px solid #f0f2f5; display: flex; align-items: center; gap: 8px; }
+  .cart-item .qty-control { display: flex; align-items: center; gap: 4px; }
+  .cart-item .qty-control input { width: 45px; text-align: center; border: 1px solid #dee2e6; border-radius: 6px; padding: 2px; font-size: 0.85rem; }
+  .cart-item .qty-control button { width: 26px; height: 26px; border: none; border-radius: 50%; font-size: 0.8rem; display: flex; align-items: center; justify-content: center; }
+  .cart-item .item-info { flex: 1; min-width: 0; }
+  .cart-item .item-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cart-item .item-price { font-size: 0.75rem; color: #6c757d; }
+  .cart-item .item-subtotal { font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+  .cart-item .remove-btn { color: #dc3545; cursor: pointer; border: none; background: none; font-size: 0.9rem; }
+  .cart-footer { padding: 14px 16px; border-top: 2px solid #e9ecef; }
+  .cart-total { display: flex; justify-content: space-between; font-size: 1.2rem; font-weight: 700; margin-bottom: 12px; }
+  .cart-total .amount { color: #0d6efd; }
+  .no-caja-warning { background: #fff3cd; padding: 6px 10px; border-radius: 6px; font-size: 0.75rem; color: #664d03; margin-bottom: 8px; }
+  @media (max-width: 992px) {
+    .pos-container { flex-direction: column; height: auto; }
+    .pos-cart { width: 100%; }
+    .pos-grid { max-height: 300px; }
+  }
+</style>
+
+{% if not caja_abierta %}
+<div class="alert alert-warning mb-3">
+  <i class="bi bi-exclamation-triangle me-1"></i>
+  No tienes caja abierta. <a href="/caja/abrir" class="alert-link">Abrir caja</a> para registrar ventas en efectivo.
+</div>
+{% endif %}
+
+<div class="pos-container">
+  <!-- Products panel -->
+  <div class="pos-products">
+    <div class="pos-search">
+      <input type="text" id="productSearch" class="form-control" placeholder="Buscar producto por nombre o código... (F1)" autofocus>
+    </div>
+    <div class="table-card pos-grid" id="productGrid">
+      {% for p in productos %}
+      <div class="product-item" data-id="{{ p.id }}" data-code="{{ p.codigo }}" data-name="{{ p.nombre }}"
+           data-price="{{ p.precio_venta }}" data-stock="{{ p.stock_actual }}" data-unit="{{ p.unidad_medida }}">
+        <div>
+          <div class="name">{{ p.nombre }}</div>
+          <div class="meta">{{ p.codigo }} | Stock: {{ p.stock_actual|numero }} {{ p.unidad_medida }}</div>
+        </div>
+        <div class="price">{{ p.precio_venta | moneda }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Cart panel -->
+  <div class="pos-cart">
+    <div class="cart-card">
+      <div class="cart-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-cart3 me-1"></i>Carrito</span>
+        <button class="btn btn-sm btn-outline-danger" onclick="clearCart()" title="Limpiar (F4)">
+          <i class="bi bi-trash"></i>
+        </button>
+      </div>
+
+      <div class="cart-items" id="cartItems">
+        <div class="text-center text-muted py-4" id="emptyCart">
+          <i class="bi bi-cart-x" style="font-size:2rem"></i>
+          <p class="mt-2 mb-0">Carrito vacío</p>
+        </div>
+      </div>
+
+      <div class="cart-footer">
+        <div class="cart-total">
+          <span>TOTAL</span>
+          <span class="amount" id="cartTotal">$0</span>
+        </div>
+
+        <form method="POST" action="/ventas/procesar" id="saleForm">
+          <input type="hidden" name="items_json" id="itemsJson">
+          <div class="mb-2">
+            <select name="cliente_id" id="clienteSelect" class="form-select form-select-sm">
+              <option value="">Consumidor Final</option>
+              {% for c in clientes %}
+              <option value="{{ c.id }}">{{ c.nombre }} ({{ c.documento }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <input type="hidden" name="cliente_nombre" id="clienteNombre" value="Consumidor Final">
+          <div class="mb-2">
+            <select name="metodo_pago" id="metodoPago" class="form-select form-select-sm">
+              {% for m in metodos_pago %}
+              <option value="{{ m }}">{{ m }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-2" id="montoRecibidoGroup">
+            <input type="number" name="monto_recibido" id="montoRecibido" class="form-control form-control-sm"
+                   placeholder="Monto recibido" step="100" min="0">
+            <div class="d-flex justify-content-between mt-1">
+              <small class="text-muted">Cambio:</small>
+              <small class="fw-bold text-success" id="cambioDisplay">$0</small>
+            </div>
+          </div>
+          <input type="hidden" name="descuento_total" value="0">
+          <input type="hidden" name="notas" value="">
+          <button type="submit" class="btn btn-primary w-100" id="btnPagar" disabled>
+            <i class="bi bi-check-circle me-1"></i>Cobrar (F2)
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const cart = [];
+const formatter = new Intl.NumberFormat('es-CO', {style:'currency', currency:'COP', minimumFractionDigits:0, maximumFractionDigits:0});
+
+function formatMoney(v) { return formatter.format(v); }
+
+function addToCart(id, code, name, price, stock, unit) {
+  const existing = cart.find(i => i.producto_id === id);
+  if (existing) {
+    if (existing.cantidad >= stock) { alert('Stock insuficiente'); return; }
+    existing.cantidad++;
+  } else {
+    cart.push({ producto_id: id, codigo: code, nombre: name, precio_unitario: price, cantidad: 1, stock: stock, descuento: 0 });
+  }
+  renderCart();
+}
+
+function removeFromCart(idx) { cart.splice(idx, 1); renderCart(); }
+
+function updateQty(idx, delta) {
+  const item = cart[idx];
+  const newQty = item.cantidad + delta;
+  if (newQty <= 0) { removeFromCart(idx); return; }
+  if (newQty > item.stock) { alert('Stock insuficiente'); return; }
+  item.cantidad = newQty;
+  renderCart();
+}
+
+function setQty(idx, val) {
+  const item = cart[idx];
+  const qty = parseFloat(val) || 0;
+  if (qty <= 0) { removeFromCart(idx); return; }
+  if (qty > item.stock) { alert('Stock insuficiente'); item.cantidad = item.stock; }
+  else { item.cantidad = qty; }
+  renderCart();
+}
+
+function clearCart() { cart.length = 0; renderCart(); }
+
+function renderCart() {
+  const container = document.getElementById('cartItems');
+  const empty = document.getElementById('emptyCart');
+  const btn = document.getElementById('btnPagar');
+
+  if (cart.length === 0) {
+    container.innerHTML = '<div class="text-center text-muted py-4" id="emptyCart"><i class="bi bi-cart-x" style="font-size:2rem"></i><p class="mt-2 mb-0">Carrito vacío</p></div>';
+    document.getElementById('cartTotal').textContent = '$0';
+    btn.disabled = true;
+    return;
+  }
+
+  btn.disabled = false;
+  let html = '';
+  let total = 0;
+  cart.forEach((item, idx) => {
+    const sub = item.cantidad * item.precio_unitario;
+    total += sub;
+    html += `<div class="cart-item">
+      <div class="qty-control">
+        <button class="btn btn-sm btn-outline-secondary" onclick="updateQty(${idx},-1)">-</button>
+        <input type="number" value="${item.cantidad}" min="1" max="${item.stock}" step="1"
+               onchange="setQty(${idx},this.value)">
+        <button class="btn btn-sm btn-outline-secondary" onclick="updateQty(${idx},1)">+</button>
+      </div>
+      <div class="item-info">
+        <div class="item-name">${item.nombre}</div>
+        <div class="item-price">${formatMoney(item.precio_unitario)}</div>
+      </div>
+      <div class="item-subtotal">${formatMoney(sub)}</div>
+      <button class="remove-btn" onclick="removeFromCart(${idx})"><i class="bi bi-x-lg"></i></button>
+    </div>`;
+  });
+  container.innerHTML = html;
+  document.getElementById('cartTotal').textContent = formatMoney(total);
+  updateCambio();
+}
+
+function updateCambio() {
+  const total = cart.reduce((s,i) => s + i.cantidad * i.precio_unitario, 0);
+  const recibido = parseFloat(document.getElementById('montoRecibido').value) || 0;
+  const cambio = Math.max(0, recibido - total);
+  document.getElementById('cambioDisplay').textContent = formatMoney(cambio);
+}
+
+// Product search filter
+document.getElementById('productSearch').addEventListener('input', function() {
+  const q = this.value.toLowerCase();
+  document.querySelectorAll('.product-item').forEach(el => {
+    const name = el.dataset.name.toLowerCase();
+    const code = el.dataset.code.toLowerCase();
+    el.style.display = (name.includes(q) || code.includes(q)) ? '' : 'none';
+  });
+});
+
+// Click to add
+document.querySelectorAll('.product-item').forEach(el => {
+  el.addEventListener('click', () => {
+    addToCart(parseInt(el.dataset.id), el.dataset.code, el.dataset.name,
+             parseFloat(el.dataset.price), parseFloat(el.dataset.stock), el.dataset.unit);
+  });
+});
+
+// Payment method toggle
+document.getElementById('metodoPago').addEventListener('change', function() {
+  document.getElementById('montoRecibidoGroup').style.display = this.value === 'EFECTIVO' ? '' : 'none';
+});
+
+document.getElementById('montoRecibido').addEventListener('input', updateCambio);
+
+// Client name sync
+document.getElementById('clienteSelect').addEventListener('change', function() {
+  const opt = this.options[this.selectedIndex];
+  document.getElementById('clienteNombre').value = opt.text || 'Consumidor Final';
+});
+
+// Form submit
+document.getElementById('saleForm').addEventListener('submit', function(e) {
+  if (cart.length === 0) { e.preventDefault(); return; }
+  document.getElementById('itemsJson').value = JSON.stringify(cart);
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'F1') { e.preventDefault(); document.getElementById('productSearch').focus(); }
+  if (e.key === 'F2') { e.preventDefault(); document.getElementById('btnPagar').click(); }
+  if (e.key === 'F4') { e.preventDefault(); clearCart(); }
+});
+</script>
+{% endblock %}

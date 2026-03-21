@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Configuración{% endblock %}
+{% block page_title %}Configuración del Negocio{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-gear me-2"></i>Configuración del Negocio</h1>
+</div>
+
+{% if msg %}
+<div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-1"></i>{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
+{% endif %}
+
+<div class="row g-4">
+  <!-- Info del negocio -->
+  <div class="col-lg-8">
+    <div class="form-card">
+      <h5 class="mb-3"><i class="bi bi-building me-1"></i> Datos del Negocio</h5>
+      <form method="POST" action="/configuracion">
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label class="form-label">Nombre del Negocio <span class="text-danger">*</span></label>
+            <input type="text" name="nombre_negocio" class="form-control" value="{{ config.nombre_negocio }}" required>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">NIT / RUC</label>
+            <input type="text" name="nit" class="form-control" value="{{ config.nit }}" placeholder="900.123.456-7">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Dirección</label>
+            <input type="text" name="direccion" class="form-control" value="{{ config.direccion }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Teléfono</label>
+            <input type="text" name="telefono" class="form-control" value="{{ config.telefono }}">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Email</label>
+            <input type="email" name="email" class="form-control" value="{{ config.email }}">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Símbolo Moneda</label>
+            <input type="text" name="moneda_simbolo" class="form-control" value="{{ config.moneda_simbolo }}" maxlength="5">
+          </div>
+          <div class="col-md-3">
+            <label class="form-label">Código Moneda</label>
+            <input type="text" name="moneda_codigo" class="form-control" value="{{ config.moneda_codigo }}" maxlength="5">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label">Mensaje en Recibos</label>
+            <input type="text" name="mensaje_recibo" class="form-control" value="{{ config.mensaje_recibo }}">
+          </div>
+          <div class="col-12">
+            <label class="form-label">Pie de Factura</label>
+            <textarea name="pie_factura" class="form-control" rows="2">{{ config.pie_factura }}</textarea>
+          </div>
+        </div>
+        <button type="submit" class="btn btn-primary mt-3"><i class="bi bi-check-lg me-1"></i>Guardar Configuración</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Logo -->
+  <div class="col-lg-4">
+    <div class="form-card text-center">
+      <h5 class="mb-3"><i class="bi bi-image me-1"></i> Logo</h5>
+      {% if config.logo_path %}
+      <img src="{{ config.logo_path }}" alt="Logo" class="img-fluid mb-3" style="max-height:150px; border-radius:8px;">
+      {% else %}
+      <div class="p-4 mb-3 bg-light rounded-3">
+        <i class="bi bi-image text-muted" style="font-size:3rem"></i>
+        <p class="text-muted mt-2 mb-0">Sin logo</p>
+      </div>
+      {% endif %}
+      <form method="POST" action="/configuracion/logo" enctype="multipart/form-data">
+        <input type="file" name="logo" class="form-control mb-2" accept="image/png,image/jpeg,image/webp">
+        <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+          <i class="bi bi-upload me-1"></i>Subir Logo
+        </button>
+        <div class="form-text mt-1">PNG, JPG o WebP. Máximo 2MB.</div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

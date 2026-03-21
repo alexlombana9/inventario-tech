@@ -4,6 +4,38 @@ from datetime import datetime
 from database import Base
 
 
+# ─────────────────────────────────────────────
+#  USUARIOS Y AUDITORÍA
+# ─────────────────────────────────────────────
+
+class Usuario(Base):
+    __tablename__ = "usuarios"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, nullable=False, index=True)
+    password_hash = Column(String(255), nullable=False)
+    nombre_completo = Column(String(200), nullable=False)
+    rol = Column(String(20), nullable=False, default="VENDEDOR")  # ADMIN, VENDEDOR, BODEGUERO
+    activo = Column(Boolean, default=True)
+    ultimo_login = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_log"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    usuario_nombre = Column(String(200), default="")
+    accion = Column(String(50), nullable=False)  # CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+    entidad = Column(String(50), default="")      # producto, movimiento, venta, etc.
+    entidad_id = Column(Integer, nullable=True)
+    detalle = Column(Text, default="")
+    ip_address = Column(String(45), default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+
 class Categoria(Base):
     __tablename__ = "categorias"
 
@@ -199,3 +231,149 @@ class PagoFactura(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     factura = relationship("Factura", back_populates="cobros")
+
+
+# ─────────────────────────────────────────────
+#  CONFIGURACIÓN DEL NEGOCIO (Singleton)
+# ─────────────────────────────────────────────
+
+class Configuracion(Base):
+    __tablename__ = "configuracion"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre_negocio = Column(String(200), default="TechStock")
+    nit = Column(String(50), default="")
+    direccion = Column(Text, default="")
+    telefono = Column(String(50), default="")
+    email = Column(String(100), default="")
+    logo_path = Column(String(255), default="")
+    moneda_simbolo = Column(String(10), default="$")
+    moneda_codigo = Column(String(10), default="COP")
+    mensaje_recibo = Column(Text, default="Gracias por su compra")
+    pie_factura = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+
+# ─────────────────────────────────────────────
+#  CLIENTES
+# ─────────────────────────────────────────────
+
+class Cliente(Base):
+    __tablename__ = "clientes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(200), nullable=False)
+    tipo_documento = Column(String(20), default="CC")  # CC, NIT, CE, PASAPORTE
+    documento = Column(String(50), default="")
+    telefono = Column(String(50), default="")
+    email = Column(String(100), default="")
+    direccion = Column(Text, default="")
+    notas = Column(Text, default="")
+    saldo_credito = Column(Float, default=0.0)
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    ventas = relationship("Venta", back_populates="cliente")
+
+
+# ─────────────────────────────────────────────
+#  VENTAS / PUNTO DE VENTA
+# ─────────────────────────────────────────────
+
+class Venta(Base):
+    __tablename__ = "ventas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    numero_venta = Column(String(50), unique=True, nullable=False, index=True)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True)
+    cliente_nombre = Column(String(200), default="Consumidor Final")
+    vendedor_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    subtotal = Column(Float, nullable=False)
+    descuento_total = Column(Float, default=0.0)
+    impuesto_total = Column(Float, default=0.0)
+    total = Column(Float, nullable=False)
+    metodo_pago = Column(String(50), nullable=False)  # EFECTIVO, TARJETA, TRANSFERENCIA, CREDITO, MIXTO
+    monto_recibido = Column(Float, default=0.0)
+    cambio = Column(Float, default=0.0)
+    estado = Column(String(20), default="COMPLETADA")  # COMPLETADA, ANULADA
+    notas = Column(Text, default="")
+    caja_id = Column(Integer, ForeignKey("cajas.id"), nullable=True)
+    fecha = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=datetime.now)
+
+    cliente = relationship("Cliente", back_populates="ventas")
+    vendedor = relationship("Usuario", foreign_keys=[vendedor_id])
+    detalles = relationship("DetalleVenta", back_populates="venta", cascade="all, delete-orphan")
+    caja = relationship("Caja", back_populates="ventas")
+
+
+class DetalleVenta(Base):
+    __tablename__ = "detalle_venta"
+
+    id = Column(Integer, primary_key=True, index=True)
+    venta_id = Column(Integer, ForeignKey("ventas.id"), nullable=False)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False)
+    producto_nombre = Column(String(200), default="")
+    producto_codigo = Column(String(50), default="")
+    cantidad = Column(Float, nullable=False)
+    precio_unitario = Column(Float, nullable=False)
+    descuento_item = Column(Float, default=0.0)
+    subtotal = Column(Float, nullable=False)
+    created_at = Column(DateTime, default=datetime.now)
+
+    venta = relationship("Venta", back_populates="detalles")
+    producto = relationship("Producto")
+
+
+# ─────────────────────────────────────────────
+#  CAJA REGISTRADORA
+# ─────────────────────────────────────────────
+
+class Caja(Base):
+    __tablename__ = "cajas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    numero_caja = Column(Integer, default=1)
+    monto_apertura = Column(Float, nullable=False)
+    monto_cierre_esperado = Column(Float, nullable=True)
+    monto_cierre_real = Column(Float, nullable=True)
+    diferencia = Column(Float, nullable=True)
+    estado = Column(String(20), default="ABIERTA")  # ABIERTA, CERRADA
+    fecha_apertura = Column(DateTime, nullable=False, default=datetime.now)
+    fecha_cierre = Column(DateTime, nullable=True)
+    notas_cierre = Column(Text, default="")
+    created_at = Column(DateTime, default=datetime.now)
+
+    usuario = relationship("Usuario", foreign_keys=[usuario_id])
+    movimientos = relationship("MovimientoCaja", back_populates="caja", cascade="all, delete-orphan")
+    ventas = relationship("Venta", back_populates="caja")
+
+    @property
+    def total_ingresos(self):
+        return sum(m.monto for m in self.movimientos if m.tipo == "INGRESO")
+
+    @property
+    def total_egresos(self):
+        return sum(m.monto for m in self.movimientos if m.tipo == "EGRESO")
+
+    @property
+    def saldo_esperado(self):
+        return self.monto_apertura + self.total_ingresos - self.total_egresos
+
+
+class MovimientoCaja(Base):
+    __tablename__ = "movimientos_caja"
+
+    id = Column(Integer, primary_key=True, index=True)
+    caja_id = Column(Integer, ForeignKey("cajas.id"), nullable=False)
+    tipo = Column(String(20), nullable=False)  # INGRESO, EGRESO
+    concepto = Column(String(200), nullable=False)
+    monto = Column(Float, nullable=False)
+    referencia_tipo = Column(String(50), nullable=True)  # VENTA, PAGO_DEUDA, OTRO
+    referencia_id = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.now)
+
+    caja = relationship("Caja", back_populates="movimientos")
