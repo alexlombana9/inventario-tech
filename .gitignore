@@ -56,4 +56,3 @@ build/
 *.egg-info/
 .eggs/
 *.spec
-*.exe
