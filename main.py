@@ -2,7 +2,7 @@ from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func
+from sqlalchemy import func, cast, Date, extract
 from datetime import datetime, date, timedelta
 import uvicorn
 import socket
@@ -36,7 +36,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ── Routers ──
 from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas
-from routers import auth_router, usuarios, configuracion, clientes, ventas, caja, backup
+from routers import auth_router, usuarios, configuracion, clientes, ventas, caja, backup, importar
 
 app.include_router(auth_router.router)
 app.include_router(usuarios.router)
@@ -45,6 +45,7 @@ app.include_router(clientes.router)
 app.include_router(ventas.router)
 app.include_router(caja.router)
 app.include_router(backup.router)
+app.include_router(importar.router)
 app.include_router(productos.router)
 app.include_router(categorias.router)
 app.include_router(proveedores.router)
@@ -90,22 +91,23 @@ def index(request: Request, db: Session = Depends(get_db)):
     ).filter(models.Producto.activo == True).scalar() or 0.0
 
     movimientos_hoy = db.query(models.MovimientoInventario).filter(
-        func.date(models.MovimientoInventario.fecha) == hoy
+        cast(models.MovimientoInventario.fecha, Date) == hoy
     ).count()
 
     # ── Métricas de ventas ───────────────────────────────────────
     ventas_hoy = db.query(func.sum(models.Venta.total)).filter(
-        func.date(models.Venta.fecha) == hoy,
+        cast(models.Venta.fecha, Date) == hoy,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0.0
 
     ventas_mes = db.query(func.sum(models.Venta.total)).filter(
-        func.strftime('%Y-%m', models.Venta.fecha) == hoy.strftime('%Y-%m'),
+        extract('year', models.Venta.fecha) == hoy.year,
+        extract('month', models.Venta.fecha) == hoy.month,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0.0
 
     num_ventas_hoy = db.query(func.count(models.Venta.id)).filter(
-        func.date(models.Venta.fecha) == hoy,
+        cast(models.Venta.fecha, Date) == hoy,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0
 
@@ -117,7 +119,8 @@ def index(request: Request, db: Session = Depends(get_db)):
         func.sum(models.DetalleVenta.cantidad).label("total_qty"),
         func.sum(models.DetalleVenta.subtotal).label("total_revenue"),
     ).join(models.Venta).filter(
-        func.strftime('%Y-%m', models.Venta.fecha) == hoy.strftime('%Y-%m'),
+        extract('year', models.Venta.fecha) == hoy.year,
+        extract('month', models.Venta.fecha) == hoy.month,
         models.Venta.estado == "COMPLETADA"
     ).group_by(models.DetalleVenta.producto_nombre) \
      .order_by(func.sum(models.DetalleVenta.cantidad).desc()).limit(5).all()
@@ -127,7 +130,7 @@ def index(request: Request, db: Session = Depends(get_db)):
     for i in range(6, -1, -1):
         dia = hoy - timedelta(days=i)
         v = db.query(func.sum(models.Venta.total)).filter(
-            func.date(models.Venta.fecha) == dia,
+            cast(models.Venta.fecha, Date) == dia,
             models.Venta.estado == "COMPLETADA"
         ).scalar() or 0
         ventas_7d.append(round(float(v), 2))
@@ -172,11 +175,11 @@ def index(request: Request, db: Session = Depends(get_db)):
     for i in range(6, -1, -1):
         dia = hoy - timedelta(days=i)
         e = db.query(func.count(models.MovimientoInventario.id)).filter(
-            func.date(models.MovimientoInventario.fecha) == dia,
+            cast(models.MovimientoInventario.fecha, Date) == dia,
             models.MovimientoInventario.tipo == "ENTRADA"
         ).scalar() or 0
         s = db.query(func.count(models.MovimientoInventario.id)).filter(
-            func.date(models.MovimientoInventario.fecha) == dia,
+            cast(models.MovimientoInventario.fecha, Date) == dia,
             models.MovimientoInventario.tipo == "SALIDA"
         ).scalar() or 0
         labels_7d.append(dia.strftime("%d/%m"))

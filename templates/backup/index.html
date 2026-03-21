@@ -44,7 +44,7 @@
       <tbody>
         {% for b in backups %}
         <tr>
-          <td><i class="bi bi-file-earmark-zip me-1"></i>{{ b.filename }}</td>
+          <td><i class="bi bi-file-earmark-code me-1"></i>{{ b.filename }}</td>
           <td>{{ b.date.strftime('%d/%m/%Y %H:%M') }}</td>
           <td class="text-end">{{ b.size_mb }} MB</td>
         </tr>

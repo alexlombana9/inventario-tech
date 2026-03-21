@@ -1,24 +1,29 @@
 """
-Migraciones ligeras para TechStock.
+Migraciones ligeras para TechStock (PostgreSQL).
 Maneja ALTER TABLE de forma idempotente sin necesidad de Alembic.
 Se ejecuta al iniciar la app, después de create_all().
 """
-from sqlalchemy import text, inspect
+from sqlalchemy import text
 
 
 def get_table_columns(conn, table_name: str) -> set:
-    """Obtiene los nombres de columnas de una tabla."""
-    result = conn.execute(text(f"PRAGMA table_info({table_name})"))
-    return {row[1] for row in result.fetchall()}
+    """Obtiene los nombres de columnas de una tabla (PostgreSQL)."""
+    result = conn.execute(text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_name = :table_name"
+    ), {"table_name": table_name})
+    return {row[0] for row in result.fetchall()}
 
 
 def table_exists(conn, table_name: str) -> bool:
-    """Verifica si una tabla existe."""
-    result = conn.execute(
-        text("SELECT name FROM sqlite_master WHERE type='table' AND name=:name"),
-        {"name": table_name}
-    )
-    return result.fetchone() is not None
+    """Verifica si una tabla existe (PostgreSQL)."""
+    result = conn.execute(text(
+        "SELECT EXISTS ("
+        "  SELECT FROM information_schema.tables "
+        "  WHERE table_name = :name"
+        ")"
+    ), {"name": table_name})
+    return result.scalar()
 
 
 def run_migrations(engine):
@@ -26,7 +31,7 @@ def run_migrations(engine):
     migrations_applied = 0
 
     with engine.connect() as conn:
-        # ── Fase 3: Agregar cliente_id a facturas ──
+        # ── Agregar cliente_id a facturas ──
         if table_exists(conn, "facturas"):
             columns = get_table_columns(conn, "facturas")
             if "cliente_id" not in columns:
@@ -35,7 +40,7 @@ def run_migrations(engine):
                 migrations_applied += 1
                 print("  [Migration] facturas: agregada columna cliente_id")
 
-        # ── Fase 4: Agregar venta_id a movimientos_inventario ──
+        # ── Agregar venta_id a movimientos_inventario ──
         if table_exists(conn, "movimientos_inventario"):
             columns = get_table_columns(conn, "movimientos_inventario")
             if "venta_id" not in columns:

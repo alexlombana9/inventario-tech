@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+{% block title %}Importar Excel{% endblock %}
+{% block page_title %}Importar desde Excel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-file-earmark-excel me-2"></i>Importar Datos desde Excel</h1>
+</div>
+
+{% if msg %}
+<div class="alert alert-success alert-dismissible fade show">
+  <i class="bi bi-check-circle me-1"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible fade show">
+  <i class="bi bi-exclamation-triangle me-1"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row g-4">
+
+  <!-- ── Formulario de carga ── -->
+  <div class="col-lg-7">
+    <div class="form-card">
+      <h5 class="fw-bold mb-3"><i class="bi bi-upload me-2"></i>Cargar Archivo</h5>
+
+      <form method="POST" action="/importar/procesar" enctype="multipart/form-data" id="importForm">
+        <!-- Tipo de importación -->
+        <div class="mb-3">
+          <label class="form-label fw-semibold">Tipo de datos a importar</label>
+          <div class="d-flex gap-2 flex-wrap">
+            <input type="radio" class="btn-check" name="tipo" id="tipoProductos" value="productos" checked>
+            <label class="btn btn-outline-primary" for="tipoProductos">
+              <i class="bi bi-box-seam me-1"></i>Productos
+            </label>
+
+            <input type="radio" class="btn-check" name="tipo" id="tipoClientes" value="clientes">
+            <label class="btn btn-outline-primary" for="tipoClientes">
+              <i class="bi bi-person-vcard me-1"></i>Clientes
+            </label>
+
+            <input type="radio" class="btn-check" name="tipo" id="tipoProveedores" value="proveedores">
+            <label class="btn btn-outline-primary" for="tipoProveedores">
+              <i class="bi bi-truck me-1"></i>Proveedores
+            </label>
+          </div>
+        </div>
+
+        <!-- Archivo -->
+        <div class="mb-3">
+          <label for="archivo" class="form-label fw-semibold">Archivo Excel (.xlsx)</label>
+          <input type="file" class="form-control" id="archivo" name="archivo"
+                 accept=".xlsx,.xls" required>
+          <div class="form-text">Tamaño máximo: 10 MB. La primera fila debe contener los encabezados.</div>
+        </div>
+
+        <!-- Preview area -->
+        <div id="previewArea" class="mb-3" style="display:none;">
+          <label class="form-label fw-semibold">Vista previa</label>
+          <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+            <table class="table table-sm table-bordered" id="previewTable">
+              <thead id="previewHead"></thead>
+              <tbody id="previewBody"></tbody>
+            </table>
+          </div>
+          <div class="form-text" id="previewCount"></div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="btnImportar">
+          <i class="bi bi-cloud-upload me-1"></i>Importar Datos
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ── Instrucciones y plantillas ── -->
+  <div class="col-lg-5">
+    <div class="form-card">
+      <h5 class="fw-bold mb-3"><i class="bi bi-download me-2"></i>Descargar Plantillas</h5>
+      <p class="text-muted small">Descargue una plantilla con los encabezados correctos y un ejemplo de datos.</p>
+
+      <div class="d-grid gap-2">
+        <a href="/importar/plantilla/productos" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Productos
+        </a>
+        <a href="/importar/plantilla/clientes" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Clientes
+        </a>
+        <a href="/importar/plantilla/proveedores" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Proveedores
+        </a>
+      </div>
+    </div>
+
+    <div class="form-card mt-3">
+      <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Instrucciones</h5>
+
+      <!-- Productos info -->
+      <div id="infoProductos">
+        <h6 class="fw-semibold">Columnas para Productos</h6>
+        <table class="table table-sm small">
+          <tbody>
+            <tr><td><code>codigo</code></td><td><span class="badge bg-danger">Requerido</span> Código único</td></tr>
+            <tr><td><code>nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre del producto</td></tr>
+            <tr><td><code>descripcion</code></td><td>Descripción</td></tr>
+            <tr><td><code>categoria</code></td><td>Nombre de la categoría (se crea si no existe)</td></tr>
+            <tr><td><code>proveedor</code></td><td>Nombre del proveedor (debe existir)</td></tr>
+            <tr><td><code>precio_costo</code></td><td>Precio de costo</td></tr>
+            <tr><td><code>precio_venta</code></td><td>Precio de venta</td></tr>
+            <tr><td><code>stock_actual</code></td><td>Stock inicial</td></tr>
+            <tr><td><code>stock_minimo</code></td><td>Stock mínimo de alerta</td></tr>
+            <tr><td><code>unidad_medida</code></td><td>UND, KG, LT, etc.</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-info small py-2">
+          <i class="bi bi-lightbulb me-1"></i>
+          Si el código ya existe, el producto se <strong>actualiza</strong>. Si no existe, se <strong>crea</strong>.
+        </div>
+      </div>
+
+      <!-- Clientes info -->
+      <div id="infoClientes" style="display:none;">
+        <h6 class="fw-semibold">Columnas para Clientes</h6>
+        <table class="table table-sm small">
+          <tbody>
+            <tr><td><code>nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre completo</td></tr>
+            <tr><td><code>tipo_documento</code></td><td>CC, NIT, CE, PASAPORTE</td></tr>
+            <tr><td><code>documento</code></td><td>Número de documento</td></tr>
+            <tr><td><code>telefono</code></td><td>Teléfono</td></tr>
+            <tr><td><code>email</code></td><td>Correo electrónico</td></tr>
+            <tr><td><code>direccion</code></td><td>Dirección</td></tr>
+            <tr><td><code>notas</code></td><td>Notas adicionales</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-info small py-2">
+          <i class="bi bi-lightbulb me-1"></i>
+          Clientes con el mismo documento serán <strong>omitidos</strong> para evitar duplicados.
+        </div>
+      </div>
+
+      <!-- Proveedores info -->
+      <div id="infoProveedores" style="display:none;">
+        <h6 class="fw-semibold">Columnas para Proveedores</h6>
+        <table class="table table-sm small">
+          <tbody>
+            <tr><td><code>nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre de la empresa</td></tr>
+            <tr><td><code>contacto</code></td><td>Persona de contacto</td></tr>
+            <tr><td><code>telefono</code></td><td>Teléfono</td></tr>
+            <tr><td><code>email</code></td><td>Correo electrónico</td></tr>
+            <tr><td><code>direccion</code></td><td>Dirección</td></tr>
+            <tr><td><code>nit_ruc</code></td><td>NIT / RUC</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-info small py-2">
+          <i class="bi bi-lightbulb me-1"></i>
+          Proveedores con nombre duplicado serán <strong>omitidos</strong>.
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Toggle info panels based on selected type
+document.querySelectorAll('input[name="tipo"]').forEach(radio => {
+  radio.addEventListener('change', function() {
+    document.getElementById('infoProductos').style.display = this.value === 'productos' ? '' : 'none';
+    document.getElementById('infoClientes').style.display = this.value === 'clientes' ? '' : 'none';
+    document.getElementById('infoProveedores').style.display = this.value === 'proveedores' ? '' : 'none';
+  });
+});
+
+// Client-side Excel preview using basic parsing
+document.getElementById('archivo').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  const previewArea = document.getElementById('previewArea');
+
+  if (!file) {
+    previewArea.style.display = 'none';
+    return;
+  }
+
+  // Simple preview: read as array buffer and show first rows
+  const reader = new FileReader();
+  reader.onload = function(evt) {
+    try {
+      // Use a basic approach: show file name and size
+      previewArea.style.display = 'block';
+      document.getElementById('previewCount').textContent =
+        `Archivo: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+      document.getElementById('previewHead').innerHTML = '';
+      document.getElementById('previewBody').innerHTML =
+        '<tr><td class="text-muted"><i class="bi bi-check-circle text-success me-1"></i>Archivo cargado correctamente. Haga clic en "Importar Datos" para procesar.</td></tr>';
+    } catch(err) {
+      previewArea.style.display = 'none';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+});
+
+// Confirm before importing
+document.getElementById('importForm').addEventListener('submit', function(e) {
+  const tipo = document.querySelector('input[name="tipo"]:checked').value;
+  const archivo = document.getElementById('archivo').files[0];
+  if (!archivo) return;
+
+  if (!confirm(`¿Está seguro de importar ${tipo} desde "${archivo.name}"?`)) {
+    e.preventDefault();
+  } else {
+    document.getElementById('btnImportar').disabled = true;
+    document.getElementById('btnImportar').innerHTML =
+      '<span class="spinner-border spinner-border-sm me-1"></span>Importando...';
+  }
+});
+</script>
+{% endblock %}

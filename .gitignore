@@ -24,6 +24,7 @@ env/
 
 # ===== Backups locales =====
 backups/
+backup_auto.bat
 
 # ===== Uploads =====
 static/uploads/*
