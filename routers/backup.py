@@ -73,15 +73,21 @@ def _fallback_dump(db: Session) -> bytes:
         "facturas", "cobros_factura", "configuracion", "audit_log",
     ]
 
+    # Whitelist de tablas válidas (defensa en profundidad)
+    valid_tables = set(tables)
+
     for table_name in tables:
+        if table_name not in valid_tables:
+            continue
         try:
             rows = db.execute(text(f"SELECT * FROM {table_name}")).fetchall()
             if not rows:
                 continue
-            columns = db.execute(text(
-                f"SELECT column_name FROM information_schema.columns "
-                f"WHERE table_name = '{table_name}' ORDER BY ordinal_position"
-            )).fetchall()
+            columns = db.execute(
+                text("SELECT column_name FROM information_schema.columns "
+                     "WHERE table_name = :tname ORDER BY ordinal_position"),
+                {"tname": table_name}
+            ).fetchall()
             col_names = [c[0] for c in columns]
 
             lines.append(f"\n-- Tabla: {table_name} ({len(rows)} registros)")
@@ -101,8 +107,8 @@ def _fallback_dump(db: Session) -> bytes:
                 cols_str = ", ".join(col_names)
                 vals_str = ", ".join(vals)
                 lines.append(f"INSERT INTO {table_name} ({cols_str}) VALUES ({vals_str});")
-        except Exception:
-            lines.append(f"-- Error exportando tabla: {table_name}")
+        except Exception as e:
+            lines.append(f"-- Error exportando tabla {table_name}: {type(e).__name__}")
 
     return "\n".join(lines).encode("utf-8")
 

@@ -102,13 +102,10 @@ def crear_factura(
         models.Factura.numero_factura == numero_factura.strip()
     ).first()
     if existe:
-        return templates.TemplateResponse("facturas/form.html", {
-            "request": None,
-            "factura": None,
-            "numero_sugerido": numero_factura,
-            "accion": "Nueva",
-            "error": f"Ya existe una factura con el número '{numero_factura}'.",
-        })
+        return RedirectResponse(
+            f"/facturas/nueva?error=Ya+existe+una+factura+con+el+número+{numero_factura}",
+            status_code=303,
+        )
 
     fec_emision = datetime.strptime(fecha_emision, "%Y-%m-%d") if fecha_emision else datetime.now()
     fec_venc = datetime.strptime(fecha_vencimiento, "%Y-%m-%d") if fecha_vencimiento.strip() else None

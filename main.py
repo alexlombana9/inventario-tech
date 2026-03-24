@@ -1,3 +1,5 @@
+import os
+import logging
 from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
@@ -8,26 +10,34 @@ import uvicorn
 import socket
 import json
 
+# ── Logging estructurado ──────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+logger = logging.getLogger("techstock")
+
 from database import engine, Base, get_db
 from templates_config import templates
 from middleware import AuthMiddleware
 from auth import get_flash
 import models
 
-# ── Crear tablas y ejecutar migraciones ──
-Base.metadata.create_all(bind=engine)
+# ── Crear tablas y ejecutar migraciones (solo en producción) ──
+if os.environ.get("TESTING") != "1":
+    Base.metadata.create_all(bind=engine)
 
-from migrations import run_migrations
-run_migrations(engine)
+    from migrations import run_migrations
+    run_migrations(engine)
 
-from seed import run_seed
-_db = models.Usuario.__class__  # trigger import
-from database import SessionLocal
-_seed_db = SessionLocal()
-try:
-    run_seed(_seed_db)
-finally:
-    _seed_db.close()
+    from seed import run_seed
+    from database import SessionLocal
+    _seed_db = SessionLocal()
+    try:
+        run_seed(_seed_db)
+    finally:
+        _seed_db.close()
 
 # ── App ──
 app = FastAPI(title="TechStock - Sistema de Inventario")
@@ -125,15 +135,21 @@ def index(request: Request, db: Session = Depends(get_db)):
     ).group_by(models.DetalleVenta.producto_nombre) \
      .order_by(func.sum(models.DetalleVenta.cantidad).desc()).limit(5).all()
 
-    # Ventas últimos 7 días para gráfica
-    ventas_7d = []
-    for i in range(6, -1, -1):
-        dia = hoy - timedelta(days=i)
-        v = db.query(func.sum(models.Venta.total)).filter(
-            cast(models.Venta.fecha, Date) == dia,
-            models.Venta.estado == "COMPLETADA"
-        ).scalar() or 0
-        ventas_7d.append(round(float(v), 2))
+    # Ventas últimos 7 días para gráfica (1 query en vez de 7)
+    inicio_7d = hoy - timedelta(days=6)
+    ventas_7d_raw = dict(
+        db.query(
+            cast(models.Venta.fecha, Date),
+            func.sum(models.Venta.total),
+        ).filter(
+            cast(models.Venta.fecha, Date) >= inicio_7d,
+            models.Venta.estado == "COMPLETADA",
+        ).group_by(cast(models.Venta.fecha, Date)).all()
+    )
+    ventas_7d = [
+        round(float(ventas_7d_raw.get(hoy - timedelta(days=i), 0)), 2)
+        for i in range(6, -1, -1)
+    ]
 
     # ── Métricas financieras ───────────────────────────────────
     ahora = datetime.now()
@@ -168,23 +184,30 @@ def index(request: Request, db: Session = Depends(get_db)):
         models.Producto.stock_actual <= models.Producto.stock_minimo
     ).order_by(models.Producto.stock_actual.asc()).limit(5).all()
 
-    # ── Chart: movimientos últimos 7 días ──────────────────────
-    labels_7d    = []
-    entradas_7d  = []
-    salidas_7d   = []
+    # ── Chart: movimientos últimos 7 días (2 queries en vez de 14) ──
+    mov_7d_raw = db.query(
+        cast(models.MovimientoInventario.fecha, Date),
+        models.MovimientoInventario.tipo,
+        func.count(models.MovimientoInventario.id),
+    ).filter(
+        cast(models.MovimientoInventario.fecha, Date) >= inicio_7d,
+    ).group_by(
+        cast(models.MovimientoInventario.fecha, Date),
+        models.MovimientoInventario.tipo,
+    ).all()
+
+    mov_dict = {}
+    for fecha_mov, tipo_mov, cnt in mov_7d_raw:
+        mov_dict[(fecha_mov, tipo_mov)] = cnt
+
+    labels_7d = []
+    entradas_7d = []
+    salidas_7d = []
     for i in range(6, -1, -1):
         dia = hoy - timedelta(days=i)
-        e = db.query(func.count(models.MovimientoInventario.id)).filter(
-            cast(models.MovimientoInventario.fecha, Date) == dia,
-            models.MovimientoInventario.tipo == "ENTRADA"
-        ).scalar() or 0
-        s = db.query(func.count(models.MovimientoInventario.id)).filter(
-            cast(models.MovimientoInventario.fecha, Date) == dia,
-            models.MovimientoInventario.tipo == "SALIDA"
-        ).scalar() or 0
         labels_7d.append(dia.strftime("%d/%m"))
-        entradas_7d.append(e)
-        salidas_7d.append(s)
+        entradas_7d.append(mov_dict.get((dia, "ENTRADA"), 0))
+        salidas_7d.append(mov_dict.get((dia, "SALIDA"), 0))
 
     # ── Chart: valor inventario por categoría ──────────────────
     cats_raw = db.query(
@@ -267,12 +290,11 @@ def get_local_ip():
 
 if __name__ == "__main__":
     ip = get_local_ip()
-    print("\n" + "="*55)
-    print("  TechStock v2.0 - Sistema de Inventario")
-    print("="*55)
-    print(f"  Acceso local:    http://localhost:8000")
-    print(f"  Acceso en red:   http://{ip}:8000")
-    print(f"  Usuario admin:   admin / admin123")
-    print("="*55)
-    print("  Presiona CTRL+C para detener el servidor\n")
+    logger.info("=" * 55)
+    logger.info("  TechStock v2.0 - Sistema de Inventario")
+    logger.info("=" * 55)
+    logger.info("  Acceso local:    http://localhost:8000")
+    logger.info("  Acceso en red:   http://%s:8000", ip)
+    logger.info("  Presiona CTRL+C para detener el servidor")
+    logger.info("=" * 55)
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=False)

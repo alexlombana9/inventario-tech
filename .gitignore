@@ -50,9 +50,15 @@ desktop.ini
 exports/
 *.pdf
 
+# ===== Testing / Coverage =====
+.coverage
+htmlcov/
+.pytest_cache/
+
 # ===== Distribución / Build =====
 dist/
 build/
 *.egg-info/
 .eggs/
 *.spec
+*.exe

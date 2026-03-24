@@ -78,9 +78,9 @@ def crear_usuario(
             status_code=303
         )
 
-    if len(password) < 4:
+    if len(password) < 8:
         return RedirectResponse(
-            "/usuarios/nuevo?error=La+contraseña+debe+tener+al+menos+4+caracteres",
+            "/usuarios/nuevo?error=La+contraseña+debe+tener+al+menos+8+caracteres",
             status_code=303
         )
 
@@ -148,7 +148,7 @@ def actualizar_usuario(
     usuario.rol = rol
     usuario.activo = (activo == "on")
 
-    if password and len(password) >= 4:
+    if password and len(password) >= 8:
         usuario.password_hash = hash_password(password)
 
     db.commit()

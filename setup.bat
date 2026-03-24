@@ -255,7 +255,7 @@ REM =========================================================
 echo.
 echo %BOLD%[7/7] Inicializando base de datos (tablas + datos iniciales)...%RESET%
 
-python _init_db.py
+python -c "from database import engine, Base, SessionLocal; from models import *; from migrations import run_migrations; from seed import run_seed; print('  Creando tablas...'); Base.metadata.create_all(bind=engine); print('  Ejecutando migraciones...'); run_migrations(engine); print('  Insertando datos iniciales...'); db=SessionLocal(); run_seed(db); db.close(); print('  Listo.')"
 if %errorlevel% neq 0 (
     echo   %RED%[ERROR]%RESET% Error al inicializar la base de datos.
     echo   Verifique que PostgreSQL esta corriendo y que la URL es correcta.

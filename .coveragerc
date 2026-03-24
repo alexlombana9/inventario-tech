@@ -1,0 +1,17 @@
+[run]
+source = .
+omit =
+    venv/*
+    tests/*
+    launcher.py
+    setup.py
+    __pycache__/*
+    */__pycache__/*
+
+[report]
+exclude_lines =
+    pragma: no cover
+    if __name__ == .__main__.:
+    pass
+show_missing = true
+fail_under = 50

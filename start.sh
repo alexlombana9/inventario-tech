@@ -14,19 +14,11 @@ else
     exit 1
 fi
 
-# Verificar conexión a PostgreSQL
-python -c "
-from database import engine
-try:
-    conn = engine.connect()
-    conn.close()
-except Exception as e:
-    print(f'[ERROR] No se pudo conectar a PostgreSQL: {e}')
-    print('Verifique que el servicio de PostgreSQL está corriendo.')
-    exit(1)
-" 2>&1
-
+# Verificar conexion a PostgreSQL (inline)
+python -c "from database import engine; c=engine.connect(); c.close()" 2>/dev/null
 if [ $? -ne 0 ]; then
+    echo "[ERROR] No se pudo conectar a PostgreSQL."
+    echo "Verifique que el servicio esta corriendo."
     echo "Intente: sudo systemctl start postgresql"
     exit 1
 fi

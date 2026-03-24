@@ -2,9 +2,12 @@
 Inicialización de datos por defecto para TechStock.
 Se ejecuta al iniciar la app. Todas las operaciones son idempotentes.
 """
+import logging
 from sqlalchemy.orm import Session
 from auth import hash_password
 import models
+
+logger = logging.getLogger("techstock.seed")
 
 
 def run_seed(db: Session):
@@ -28,7 +31,7 @@ def _seed_admin(db: Session):
     )
     db.add(admin)
     db.commit()
-    print("  [Seed] Usuario admin creado (usuario: admin, contraseña: admin123)")
+    logger.info("Usuario admin creado (cambiar contraseña en produccion)")
 
 
 def _seed_config(db: Session):
@@ -45,4 +48,4 @@ def _seed_config(db: Session):
     )
     db.add(config)
     db.commit()
-    print("  [Seed] Configuración del negocio creada")
+    logger.info("Configuracion del negocio creada")

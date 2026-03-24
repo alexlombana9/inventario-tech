@@ -257,7 +257,21 @@ ok "Dependencias instaladas."
 echo ""
 echo -e "${BOLD}[7/7] Inicializando base de datos...${NC}"
 
-python _init_db.py
+python -c "
+from database import engine, Base, SessionLocal
+from models import *
+from migrations import run_migrations
+from seed import run_seed
+print('  Creando tablas...')
+Base.metadata.create_all(bind=engine)
+print('  Ejecutando migraciones...')
+run_migrations(engine)
+print('  Insertando datos iniciales...')
+db = SessionLocal()
+run_seed(db)
+db.close()
+print('  Listo.')
+"
 
 if [ $? -ne 0 ]; then
     err "Error al inicializar la base de datos."
