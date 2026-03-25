@@ -338,21 +338,49 @@ echo  %B%%C%[5/8]%N% %B%Instalando dependencias Python...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 echo    %C%⧖%N% Actualizando pip...
-python -m pip install --upgrade pip -q 2>nul
-echo    %C%⧖%N% Instalando paquetes (FastAPI, SQLAlchemy, etc.)...
-pip install -r requirements.txt -q
-if %errorlevel% neq 0 (
-    echo    %R%✗%N% Error al instalar dependencias.
-    echo    %D%  Intente manualmente: pip install -r requirements.txt%N%
-    set /a ERRORS+=1
-    pause
-    exit /b 1
+python -m pip install --upgrade pip --no-cache-dir -q 2>nul
+if !errorlevel! neq 0 (
+    echo    %Y%⚠%N% No se pudo actualizar pip, continuando con la version actual...
+)
+
+echo    %C%⧖%N% Instalando paquetes ^(FastAPI, SQLAlchemy, etc.^)...
+pip install -r requirements.txt --no-cache-dir -q
+if !errorlevel! neq 0 (
+    echo    %Y%⚠%N% Primer intento fallo. Reintentando sin cache y con permisos de usuario...
+    pip install -r requirements.txt --no-cache-dir --user -q 2>nul
+    if !errorlevel! neq 0 (
+        echo    %Y%⚠%N% Segundo intento fallo. Desactivando antivirus temporalmente...
+        echo    %D%  Si tiene Windows Defender u otro antivirus, agregue esta carpeta%N%
+        echo    %D%  a las exclusiones: %cd%%N%
+        echo.
+        echo    %C%⧖%N% Ultimo intento con pip verbose...
+        pip install -r requirements.txt --no-cache-dir --no-warn-script-location 2>&1
+        if !errorlevel! neq 0 (
+            echo.
+            echo    %R%✗%N% Error al instalar dependencias.
+            echo.
+            echo    %B%Posibles soluciones:%N%
+            echo      %C%1.%N% Ejecute instalar.bat como %Y%Administrador%N%
+            echo         ^(Clic derecho ^> Ejecutar como administrador^)
+            echo      %C%2.%N% Desactive el antivirus temporalmente
+            echo      %C%3.%N% Agregue esta carpeta como exclusion en Windows Defender:
+            echo         %D%%cd%%N%
+            echo      %C%4.%N% Ejecute manualmente:
+            echo         %D%cd %cd%%N%
+            echo         %D%venv\Scripts\activate%N%
+            echo         %D%pip install -r requirements.txt --no-cache-dir%N%
+            echo.
+            set /a ERRORS+=1
+            pause
+            exit /b 1
+        )
+    )
 )
 echo    %G%✓%N% Dependencias instaladas.
 
 REM Instalar PyInstaller para generar .exe
 echo    %C%⧖%N% Instalando PyInstaller...
-pip install pyinstaller -q 2>nul
+pip install pyinstaller --no-cache-dir -q 2>nul
 echo    %G%✓%N% PyInstaller listo.
 
 REM ══════════════════════════════════════════════════════════
