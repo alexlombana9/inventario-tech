@@ -57,33 +57,38 @@ def descargar_plantilla(
                         "precio_costo", "precio_venta", "precio_venta_minimo",
                         "stock_actual", "stock_minimo", "unidad_medida"],
             "widths": [15, 15, 30, 35, 18, 20, 16, 16, 18, 14, 14, 14],
-            "ejemplo": ["PROD-001", "REF-001", "Teclado Mecánico", "Teclado gaming RGB", "Periféricos",
+            "ejemplo": ["PROD-001", "REF-001", "Teclado Mecanico", "Teclado gaming RGB", "Perifericos",
                         "TechDistribuidor", 45000, 89000, 75000, 25, 5, "UND"],
         },
         "clientes": {
             "headers": ["nombre", "tipo_documento", "documento", "telefono", "email", "direccion", "notas"],
             "widths": [25, 18, 18, 15, 25, 30, 30],
-            "ejemplo": ["Juan Pérez", "CC", "1234567890", "3001234567",
+            "ejemplo": ["Juan Perez", "CC", "1234567890", "3001234567",
                         "juan@email.com", "Calle 123 #45-67", "Cliente frecuente"],
         },
         "proveedores": {
             "headers": ["nombre", "contacto", "telefono", "email", "direccion", "nit_ruc"],
             "widths": [25, 20, 15, 25, 30, 18],
-            "ejemplo": ["TechDistribuidor S.A.", "María López", "6011234567",
+            "ejemplo": ["TechDistribuidor S.A.", "Maria Lopez", "6011234567",
                         "ventas@techdist.com", "Av. Industrial 456", "900123456-1"],
         },
         "acreedores": {
             "headers": ["nombre", "tipo", "documento", "telefono", "email", "direccion", "notas"],
             "widths": [28, 16, 18, 15, 25, 30, 30],
             "ejemplo": ["Distribuidora XYZ", "PROVEEDOR", "900123456-1", "3001234567",
-                        "cobros@xyz.com", "Av. Industrial 456", "Pago a 30 días"],
+                        "cobros@xyz.com", "Av. Industrial 456", "Pago a 30 dias"],
         },
         "deudas": {
             "headers": ["concepto", "acreedor_nombre", "acreedor_tipo",
                         "monto_total", "monto_pagado", "fecha_deuda", "fecha_vencimiento", "notas"],
             "widths": [35, 25, 16, 16, 16, 16, 18, 30],
-            "ejemplo": ["Compra mercancía Factura #1234", "Distribuidora XYZ", "PROVEEDOR",
+            "ejemplo": ["Compra mercancia Factura #1234", "Distribuidora XYZ", "PROVEEDOR",
                         500000, 150000, "2026-01-15", "2026-04-15", "Pago en 3 cuotas"],
+        },
+        "categorias": {
+            "headers": ["nombre", "descripcion"],
+            "widths": [30, 50],
+            "ejemplo": ["Perifericos", "Teclados, mouse, audífonos y otros perifericos"],
         },
     }
 
@@ -171,6 +176,8 @@ async def procesar_importacion(
         result = _importar_acreedores(db, headers, data_rows, current_user, request)
     elif tipo == "deudas":
         result = _importar_deudas(db, headers, data_rows, current_user, request)
+    elif tipo == "categorias":
+        result = _importar_categorias(db, headers, data_rows, current_user, request)
     else:
         return RedirectResponse("/importar?error=Tipo+de+importación+no+válido", status_code=303)
 
@@ -621,6 +628,53 @@ def _importar_deudas(db: Session, headers: list, data_rows: list, user, request:
     if errores:
         msg_parts.append(f"{errores} filas omitidas")
     msg = "Importación completada: " + ", ".join(msg_parts) if msg_parts else "No se importaron datos"
+    return RedirectResponse(f"/importar?msg={msg.replace(' ', '+')}", status_code=303)
+
+
+# ── Importar Categorías ──────────────────────────────────────
+
+def _importar_categorias(db: Session, headers: list, data_rows: list, user, request: Request):
+    col_nombre = _col_index(headers, "nombre")
+    col_desc = _col_index(headers, "descripcion")
+
+    if col_nombre is None:
+        return RedirectResponse(
+            "/importar?error=El+archivo+debe+tener+la+columna+'nombre'",
+            status_code=303,
+        )
+
+    creados = 0
+    omitidos = 0
+
+    for i, row in enumerate(data_rows, start=2):
+        nombre = _cell_str(row, col_nombre)
+        if not nombre:
+            omitidos += 1
+            continue
+
+        existente = db.query(models.Categoria).filter(
+            models.Categoria.nombre.ilike(nombre)
+        ).first()
+        if existente:
+            omitidos += 1
+            continue
+
+        categoria = models.Categoria(
+            nombre=nombre,
+            descripcion=_cell_str(row, col_desc),
+        )
+        db.add(categoria)
+        creados += 1
+
+    db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, user, "CREATE", "importacion", None,
+              f"Importacion categorias: {creados} creadas, {omitidos} omitidas", ip)
+
+    msg = f"Importacion completada: {creados} categorias creadas"
+    if omitidos:
+        msg += f", {omitidos} omitidas (duplicadas o vacias)"
     return RedirectResponse(f"/importar?msg={msg.replace(' ', '+')}", status_code=303)
 
 

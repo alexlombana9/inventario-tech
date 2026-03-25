@@ -15,6 +15,8 @@ class Usuario(Base):
     username = Column(String(50), unique=True, nullable=False, index=True)
     password_hash = Column(String(255), nullable=False)
     nombre_completo = Column(String(200), nullable=False)
+    email = Column(String(100), default="")
+    telefono = Column(String(50), default="")
     rol = Column(String(20), nullable=False, default="VENDEDOR")  # ADMIN, VENDEDOR, BODEGUERO
     activo = Column(Boolean, default=True)
     ultimo_login = Column(DateTime, nullable=True)

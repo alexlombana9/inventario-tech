@@ -46,7 +46,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ── Routers ──
 from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas, acreedores
-from routers import auth_router, usuarios, configuracion, clientes, ventas, caja, backup, importar
+from routers import auth_router, usuarios, configuracion, clientes, ventas, caja, backup, importar, perfil
 
 app.include_router(auth_router.router)
 app.include_router(usuarios.router)
@@ -56,6 +56,7 @@ app.include_router(ventas.router)
 app.include_router(caja.router)
 app.include_router(backup.router)
 app.include_router(importar.router)
+app.include_router(perfil.router)
 app.include_router(productos.router)
 app.include_router(categorias.router)
 app.include_router(proveedores.router)

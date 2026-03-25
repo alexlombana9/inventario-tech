@@ -103,6 +103,20 @@ def run_migrations(engine):
                 migrations_applied += 1
                 print("  [Migration] deudas: agregada columna acreedor_id")
 
+        # ── Agregar email y telefono a usuarios ──
+        if table_exists(conn, "usuarios"):
+            columns = get_table_columns(conn, "usuarios")
+            if "email" not in columns:
+                conn.execute(text("ALTER TABLE usuarios ADD COLUMN email VARCHAR(100) DEFAULT ''"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] usuarios: agregada columna email")
+            if "telefono" not in columns:
+                conn.execute(text("ALTER TABLE usuarios ADD COLUMN telefono VARCHAR(50) DEFAULT ''"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] usuarios: agregada columna telefono")
+
     if migrations_applied > 0:
         print(f"  [Migration] {migrations_applied} migración(es) aplicada(s)")
     return migrations_applied

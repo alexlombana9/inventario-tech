@@ -465,6 +465,23 @@ body {
 }
 .stock-progress { height: 5px; border-radius: 3px; }
 
+/* Help trigger button (inline with h1) */
+.btn-help-trigger {
+  font-size: 0.72rem !important;
+  padding: 2px 8px !important;
+  vertical-align: middle;
+  border-radius: 50% !important;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.btn-help-trigger:hover { opacity: 1; }
+.page-header .btn-help-trigger { margin-top: -2px; }
+
 /* =====================================================
    SCROLLBAR
    ===================================================== */

@@ -4,7 +4,9 @@
 
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-clock-history me-2"></i>Historial de Ventas</h1>
+  <h1><i class="bi bi-clock-history me-2"></i>Historial de Ventas
+    <button class="btn btn-sm btn-outline-secondary ms-2 btn-help-trigger" data-help="historial_ventas" title="Ayuda"><i class="bi bi-question-circle"></i></button>
+  </h1>
   <div class="d-flex gap-2">
     <a href="/ventas/excel?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&estado={{ estado }}"
        class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>

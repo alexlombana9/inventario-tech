@@ -5,6 +5,9 @@
 {% block content %}
 <div class="page-header">
   <h1><i class="bi bi-file-earmark-excel me-2"></i>Importar Datos desde Excel</h1>
+  <button class="btn btn-sm btn-outline-secondary btn-help-trigger" data-help="importar">
+    <i class="bi bi-question-circle me-1"></i>Ayuda
+  </button>
 </div>
 
 {% if msg %}
@@ -28,13 +31,18 @@
       <h5 class="fw-bold mb-3"><i class="bi bi-upload me-2"></i>Cargar Archivo</h5>
 
       <form method="POST" action="/importar/procesar" enctype="multipart/form-data" id="importForm">
-        <!-- Tipo de importación -->
+        <!-- Tipo de importacion -->
         <div class="mb-3">
           <label class="form-label fw-semibold">Tipo de datos a importar</label>
           <div class="d-flex gap-2 flex-wrap">
             <input type="radio" class="btn-check" name="tipo" id="tipoProductos" value="productos" checked>
             <label class="btn btn-outline-primary" for="tipoProductos">
               <i class="bi bi-box-seam me-1"></i>Productos
+            </label>
+
+            <input type="radio" class="btn-check" name="tipo" id="tipoCategorias" value="categorias">
+            <label class="btn btn-outline-secondary" for="tipoCategorias">
+              <i class="bi bi-tags me-1"></i>Categorias
             </label>
 
             <input type="radio" class="btn-check" name="tipo" id="tipoClientes" value="clientes">
@@ -64,7 +72,7 @@
           <label for="archivo" class="form-label fw-semibold">Archivo Excel (.xlsx)</label>
           <input type="file" class="form-control" id="archivo" name="archivo"
                  accept=".xlsx,.xls" required>
-          <div class="form-text">Tamaño maximo: 10 MB. La primera fila debe contener los encabezados.</div>
+          <div class="form-text">Tamano maximo: 10 MB. La primera fila debe contener los encabezados.</div>
         </div>
 
         <!-- Preview area -->
@@ -85,7 +93,7 @@
       </form>
     </div>
 
-    <!-- ── Consejos para la administradora ── -->
+    <!-- ── Consejos ── -->
     <div class="form-card mt-3">
       <h6 class="fw-bold mb-2"><i class="bi bi-lightbulb me-2 text-warning"></i>Consejos para importar</h6>
       <ul class="small text-muted mb-0">
@@ -93,7 +101,7 @@
         <li>No importa el orden de las columnas, el sistema las detecta por nombre.</li>
         <li>Las columnas opcionales se pueden omitir, el sistema usara valores por defecto.</li>
         <li>Si un producto con el mismo <strong>codigo</strong> ya existe, se <strong>actualiza</strong> en vez de duplicarse.</li>
-        <li>Importe primero los <strong>Acreedores</strong> y luego las <strong>Deudas</strong>, asi las deudas se vinculan automaticamente.</li>
+        <li>Orden recomendado de importacion: <strong>Categorias</strong> &rarr; <strong>Proveedores</strong> &rarr; <strong>Productos</strong> &rarr; <strong>Clientes</strong> &rarr; <strong>Acreedores</strong> &rarr; <strong>Deudas</strong>.</li>
         <li>Las fechas se aceptan en formatos: <code>2026-01-15</code>, <code>15/01/2026</code>, <code>15-01-2026</code>.</li>
       </ul>
     </div>
@@ -108,6 +116,9 @@
       <div class="d-grid gap-2">
         <a href="/importar/plantilla/productos" class="btn btn-outline-success btn-sm">
           <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Productos
+        </a>
+        <a href="/importar/plantilla/categorias" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Categorias
         </a>
         <a href="/importar/plantilla/clientes" class="btn btn-outline-success btn-sm">
           <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Clientes
@@ -149,6 +160,21 @@
         <div class="alert alert-info small py-2">
           <i class="bi bi-lightbulb me-1"></i>
           Si el codigo ya existe, el producto se <strong>actualiza</strong>. Si no existe, se <strong>crea</strong>.
+        </div>
+      </div>
+
+      <!-- Categorias info -->
+      <div id="infoCategorias" style="display:none;">
+        <h6 class="fw-semibold">Categorias</h6>
+        <table class="table table-sm small">
+          <tbody>
+            <tr><td><code>nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre de la categoria</td></tr>
+            <tr><td><code>descripcion</code></td><td>Descripcion de la categoria</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-info small py-2">
+          <i class="bi bi-lightbulb me-1"></i>
+          Categorias con <strong>nombre duplicado</strong> se omiten. Importe las categorias <strong>antes</strong> que los productos.
         </div>
       </div>
 
@@ -241,7 +267,7 @@
 {% block scripts %}
 <script>
 // Toggle info panels based on selected type
-const infoPanels = ['Productos', 'Clientes', 'Proveedores', 'Acreedores', 'Deudas'];
+const infoPanels = ['Productos', 'Categorias', 'Clientes', 'Proveedores', 'Acreedores', 'Deudas'];
 document.querySelectorAll('input[name="tipo"]').forEach(radio => {
   radio.addEventListener('change', function() {
     infoPanels.forEach(p => {
@@ -280,8 +306,8 @@ document.getElementById('archivo').addEventListener('change', function(e) {
 // Confirm before importing
 document.getElementById('importForm').addEventListener('submit', function(e) {
   const tipoLabels = {
-    productos: 'productos', clientes: 'clientes', proveedores: 'proveedores',
-    acreedores: 'acreedores', deudas: 'deudas'
+    productos: 'productos', categorias: 'categorias', clientes: 'clientes',
+    proveedores: 'proveedores', acreedores: 'acreedores', deudas: 'deudas'
   };
   const tipo = document.querySelector('input[name="tipo"]:checked').value;
   const archivo = document.getElementById('archivo').files[0];
