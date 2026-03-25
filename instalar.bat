@@ -33,32 +33,30 @@ echo  %M%║%N%                                                           %M%║
 echo  %M%╚═══════════════════════════════════════════════════════════╝%N%
 echo.
 echo  %D%Este instalador configurara automaticamente:%N%
-echo    %C%1.%N% Python 3.12      %D%(lenguaje del sistema)%N%
-echo    %C%2.%N% PostgreSQL 16    %D%(base de datos)%N%
-echo    %C%3.%N% Conexion DB      %D%(configuracion PostgreSQL)%N%
-echo    %C%4.%N% Entorno virtual  %D%(dependencias aisladas)%N%
-echo    %C%5.%N% Dependencias     %D%(FastAPI, SQLAlchemy, etc.)%N%
-echo    %C%6.%N% Usuario ROOT     %D%(credenciales del administrador)%N%
-echo    %C%7.%N% Base de datos    %D%(tablas + datos iniciales)%N%
-echo    %C%8.%N% Ejecutable       %D%(TechStock.exe + acceso directo)%N%
+echo    %C%1.%N% Python 3.12      %D%^(lenguaje del sistema^)%N%
+echo    %C%2.%N% PostgreSQL 16    %D%^(base de datos^)%N%
+echo    %C%3.%N% Conexion DB      %D%^(configuracion PostgreSQL^)%N%
+echo    %C%4.%N% Entorno virtual  %D%^(dependencias aisladas^)%N%
+echo    %C%5.%N% Dependencias     %D%^(FastAPI, SQLAlchemy, etc.^)%N%
+echo    %C%6.%N% Usuario ROOT     %D%^(credenciales del administrador^)%N%
+echo    %C%7.%N% Base de datos    %D%^(tablas + datos iniciales^)%N%
+echo    %C%8.%N% Ejecutable       %D%^(TechStock.exe + acceso directo^)%N%
 echo.
 
 set "ERRORS=0"
-set "PYTHON_INSTALLED=0"
-set "PG_INSTALLED=0"
 
 REM ══════════════════════════════════════════════════════════
 REM  Verificar permisos de administrador
 REM ══════════════════════════════════════════════════════════
 net session >nul 2>&1
-if %errorlevel% neq 0 (
+if !errorlevel! neq 0 (
     echo  %Y%[AVISO]%N% Se recomienda ejecutar como Administrador para instalar
     echo          Python y PostgreSQL automaticamente.
     echo.
     echo  %D%Clic derecho sobre instalar.bat ^> "Ejecutar como administrador"%N%
     echo.
     set "RESP="
-    set /p "RESP=  Continuar de todas formas? (S/N): "
+    set /p "RESP=  Continuar de todas formas? ^(S/N^): "
     if /i "!RESP!"=="N" (
         pause
         exit /b 0
@@ -67,72 +65,99 @@ if %errorlevel% neq 0 (
 )
 
 REM ══════════════════════════════════════════════════════════
-REM  PASO 1/8: Python
+REM  PASO 1/8: Buscar Python real (no Microsoft Store)
 REM ══════════════════════════════════════════════════════════
 echo  %B%══════════════════════════════════════════════════════════%N%
 echo  %B%%C%[1/8]%N% %B%Verificando Python...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
-python --version > nul 2>&1
-if %errorlevel% equ 0 (
-    for /f "tokens=2" %%v in ('python --version 2^>^&1') do set "PYVER=%%v"
-    echo    %G%✓%N% Python !PYVER! encontrado.
-    set "PYTHON_INSTALLED=1"
-) else (
-    echo    %Y%⚠%N% Python no encontrado. Intentando instalar...
-    echo.
+set "PYTHON_CMD="
 
-    REM Intentar con winget
-    winget --version > nul 2>&1
-    if !errorlevel! equ 0 (
-        echo    %C%↓%N% Descargando Python 3.12 via winget...
-        echo    %D%  Esto puede tardar unos minutos...%N%
-        winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements --silent 2>nul
-        if !errorlevel! equ 0 (
-            echo    %G%✓%N% Python instalado correctamente.
-            echo    %Y%⚠%N% Es necesario reiniciar esta ventana para que Python sea visible.
-            echo.
-            echo    %B%Por favor cierre esta ventana y vuelva a ejecutar instalar.bat%N%
-            pause
-            exit /b 0
-        ) else (
-            echo    %R%✗%N% No se pudo instalar Python automaticamente.
-        )
-    )
-
-    REM Intentar descarga directa
-    if !PYTHON_INSTALLED! equ 0 (
-        echo    %C%↓%N% Descargando Python 3.12.7 directamente...
-        set "PY_URL=https://www.python.org/ftp/python/3.12.7/python-3.12.7-amd64.exe"
-        set "PY_EXE=%TEMP%\python_installer.exe"
-        powershell -Command "Invoke-WebRequest -Uri '!PY_URL!' -OutFile '!PY_EXE!'" 2>nul
-        if exist "!PY_EXE!" (
-            echo    %C%⧖%N% Ejecutando instalador de Python ^(modo silencioso^)...
-            "!PY_EXE!" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1 Include_tcltk=1
-            if !errorlevel! equ 0 (
-                echo    %G%✓%N% Python instalado. Reinicie esta ventana y ejecute de nuevo.
-                del "!PY_EXE!" 2>nul
-                pause
-                exit /b 0
-            )
-            del "!PY_EXE!" 2>nul
-        )
-        echo    %R%✗%N% No se pudo instalar Python automaticamente.
-        echo.
-        echo    %B%Instale Python manualmente:%N%
-        echo      1. Vaya a %C%https://python.org/downloads%N%
-        echo      2. Descargue Python 3.12+
-        echo      3. %Y%IMPORTANTE: Marque "Add Python to PATH"%N%
-        echo      4. Vuelva a ejecutar este instalador.
-        echo.
-        set /a ERRORS+=1
-        pause
-        exit /b 1
+REM Buscar Python real en rutas conocidas (evitar stub de Microsoft Store)
+for %%P in (
+    "%LOCALAPPDATA%\Programs\Python\Python314\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python313\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
+    "%LOCALAPPDATA%\Programs\Python\Python311\python.exe"
+    "C:\Python314\python.exe"
+    "C:\Python313\python.exe"
+    "C:\Python312\python.exe"
+    "C:\Python311\python.exe"
+    "%ProgramFiles%\Python314\python.exe"
+    "%ProgramFiles%\Python313\python.exe"
+    "%ProgramFiles%\Python312\python.exe"
+    "%ProgramFiles%\Python311\python.exe"
+) do (
+    if exist %%P (
+        set "PYTHON_CMD=%%~P"
+        goto :py_found
     )
 )
 
-REM Refrescar PATH por si se instalo recien
-set "PATH=%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts;%PATH%"
+REM Intentar con python del PATH (puede ser Microsoft Store)
+where python >nul 2>&1
+if !errorlevel! equ 0 (
+    REM Verificar que no sea el stub de Microsoft Store
+    for /f "tokens=*" %%p in ('where python 2^>nul') do (
+        set "PY_PATH=%%p"
+        echo "!PY_PATH!" | findstr /i "WindowsApps" >nul 2>&1
+        if !errorlevel! neq 0 (
+            set "PYTHON_CMD=%%p"
+            goto :py_found
+        )
+    )
+    REM Si solo hay Microsoft Store, usarlo como ultimo recurso
+    for /f "tokens=*" %%p in ('where python 2^>nul') do (
+        if not defined PYTHON_CMD set "PYTHON_CMD=%%p"
+    )
+    if defined PYTHON_CMD goto :py_found
+)
+
+REM Python no encontrado — instalar
+echo    %Y%⚠%N% Python no encontrado. Intentando instalar...
+echo.
+
+winget --version >nul 2>&1
+if !errorlevel! equ 0 (
+    echo    %C%↓%N% Descargando Python 3.12 via winget...
+    echo    %D%  Esto puede tardar unos minutos...%N%
+    winget install -e --id Python.Python.3.12 --accept-package-agreements --accept-source-agreements --silent 2>nul
+    if !errorlevel! equ 0 (
+        echo    %G%✓%N% Python instalado correctamente.
+        echo    %Y%⚠%N% Es necesario reiniciar esta ventana para que Python sea visible.
+        echo.
+        echo    %B%Por favor cierre esta ventana y vuelva a ejecutar instalar.bat%N%
+        pause
+        exit /b 0
+    ) else (
+        echo    %R%✗%N% No se pudo instalar Python automaticamente.
+    )
+)
+
+echo    %R%✗%N% Python no encontrado.
+echo.
+echo    %B%Instale Python manualmente:%N%
+echo      1. Vaya a %C%https://python.org/downloads%N%
+echo      2. Descargue Python 3.12+
+echo      3. %Y%IMPORTANTE: Marque "Add Python to PATH"%N%
+echo      4. %Y%IMPORTANTE: NO instale desde Microsoft Store%N%
+echo      5. Vuelva a ejecutar este instalador.
+echo.
+pause
+exit /b 1
+
+:py_found
+for /f "tokens=2" %%v in ('"!PYTHON_CMD!" --version 2^>^&1') do set "PYVER=%%v"
+echo    %G%✓%N% Python !PYVER! encontrado.
+
+REM Verificar si es Microsoft Store y avisar
+echo "!PYTHON_CMD!" | findstr /i "WindowsApps" >nul 2>&1
+if !errorlevel! equ 0 (
+    echo    %Y%⚠%N% Python de Microsoft Store detectado.
+    echo    %D%  Esta version puede causar problemas. Si falla la instalacion,%N%
+    echo    %D%  instale Python desde python.org/downloads%N%
+    echo.
+)
 
 REM ══════════════════════════════════════════════════════════
 REM  PASO 2/8: PostgreSQL
@@ -145,8 +170,8 @@ echo  %B%═══════════════════════�
 set "PSQL_CMD="
 
 REM Buscar psql en PATH
-where psql > nul 2>&1
-if %errorlevel% equ 0 (
+where psql >nul 2>&1
+if !errorlevel! equ 0 (
     set "PSQL_CMD=psql"
     goto :pg_ok
 )
@@ -164,8 +189,8 @@ REM No encontrado — instalar
 echo    %Y%⚠%N% PostgreSQL no encontrado. Intentando instalar...
 echo.
 
-winget --version > nul 2>&1
-if %errorlevel% equ 0 (
+winget --version >nul 2>&1
+if !errorlevel! equ 0 (
     echo    %C%↓%N% Instalando PostgreSQL 16 via winget...
     echo    %D%  El instalador interactivo se abrira para que configure la contrasena.%N%
     echo    %Y%  IMPORTANTE: Use la contrasena "postgres" para simplificar la configuracion.%N%
@@ -173,7 +198,6 @@ if %errorlevel% equ 0 (
     echo.
     winget install -e --id PostgreSQL.PostgreSQL.16 --accept-package-agreements --accept-source-agreements 2>nul
     if !errorlevel! equ 0 (
-        REM Buscar de nuevo
         for %%V in (17 16 15 14) do (
             if exist "C:\Program Files\PostgreSQL\%%V\bin\psql.exe" (
                 set "PSQL_CMD=C:\Program Files\PostgreSQL\%%V\bin\psql.exe"
@@ -194,9 +218,8 @@ echo      4. Deje el puerto: %Y%5432%N%
 echo      5. Vuelva a ejecutar este instalador.
 echo.
 set "RESP="
-set /p "RESP=  Abrir pagina de descarga? (S/N): "
+set /p "RESP=  Abrir pagina de descarga? ^(S/N^): "
 if /i "!RESP!"=="S" start https://www.postgresql.org/download/windows/
-set /a ERRORS+=1
 pause
 exit /b 1
 
@@ -225,19 +248,19 @@ if exist ".env" (
     )
     echo.
     set "RESP="
-    set /p "RESP=  Mantener configuracion existente? (S/N): "
+    set /p "RESP=  Mantener configuracion existente? ^(S/N^): "
     if /i "!RESP!"=="S" goto :skip_config
     echo.
 )
 
 echo.
-echo    %D%Ingrese los datos de conexion (ENTER = valor por defecto):%N%
+echo    %D%Ingrese los datos de conexion ^(ENTER = valor por defecto^):%N%
 echo.
-set /p "PG_HOST=    Host [%PG_HOST%]: " || set "PG_HOST=localhost"
-set /p "PG_PORT=    Puerto [%PG_PORT%]: " || set "PG_PORT=5432"
-set /p "PG_USER=    Usuario [%PG_USER%]: " || set "PG_USER=postgres"
-set /p "PG_PASS=    Contrasena [%PG_PASS%]: " || set "PG_PASS=postgres"
-set /p "PG_DBNAME=    Base de datos [%PG_DBNAME%]: " || set "PG_DBNAME=inventario"
+set /p "PG_HOST=    Host [!PG_HOST!]: " || set "PG_HOST=localhost"
+set /p "PG_PORT=    Puerto [!PG_PORT!]: " || set "PG_PORT=5432"
+set /p "PG_USER=    Usuario [!PG_USER!]: " || set "PG_USER=postgres"
+set /p "PG_PASS=    Contrasena [!PG_PASS!]: " || set "PG_PASS=postgres"
+set /p "PG_DBNAME=    Base de datos [!PG_DBNAME!]: " || set "PG_DBNAME=inventario"
 
 echo DATABASE_URL=postgresql://!PG_USER!:!PG_PASS!@!PG_HOST!:!PG_PORT!/!PG_DBNAME!> .env
 echo    %G%✓%N% Archivo .env creado.
@@ -271,18 +294,19 @@ if defined DATABASE_URL (
 
 REM Verificar conexion al servidor PostgreSQL
 set "PGPASSWORD=!PG_PASS!"
-"!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -c "SELECT 1" > nul 2>&1
-if %errorlevel% neq 0 (
+"!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -c "SELECT 1" >nul 2>&1
+if !errorlevel! neq 0 (
     echo    %Y%⚠%N% No se pudo conectar a PostgreSQL.
     echo    %D%  Intentando iniciar el servicio...%N%
-    net start postgresql-x64-16 > nul 2>&1 || net start postgresql-x64-15 > nul 2>&1 || net start postgresql-x64-17 > nul 2>&1
-    timeout /t 3 /nobreak > nul
-    "!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -c "SELECT 1" > nul 2>&1
+    net start postgresql-x64-16 >nul 2>&1
+    net start postgresql-x64-15 >nul 2>&1
+    net start postgresql-x64-17 >nul 2>&1
+    timeout /t 3 /nobreak >nul
+    "!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -c "SELECT 1" >nul 2>&1
     if !errorlevel! neq 0 (
         echo    %R%✗%N% No se pudo conectar a PostgreSQL.
         echo      Verifique que el servicio esta corriendo y la contrasena es correcta.
         echo      Servicios de Windows ^> postgresql-x64-16 ^> Iniciar
-        set /a ERRORS+=1
         pause
         exit /b 1
     )
@@ -290,15 +314,14 @@ if %errorlevel% neq 0 (
 echo    %G%✓%N% Conexion a PostgreSQL verificada.
 
 REM Crear base de datos si no existe
-"!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -d !PG_DBNAME! -c "SELECT 1" > nul 2>&1
-if %errorlevel% equ 0 (
+"!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -d !PG_DBNAME! -c "SELECT 1" >nul 2>&1
+if !errorlevel! equ 0 (
     echo    %C%ℹ%N% Base de datos '!PG_DBNAME!' ya existe.
 ) else (
     echo    %C%⧖%N% Creando base de datos '!PG_DBNAME!'...
-    "!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -c "CREATE DATABASE !PG_DBNAME! ENCODING 'UTF8'" > nul 2>&1
+    "!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -c "CREATE DATABASE !PG_DBNAME! ENCODING 'UTF8'" >nul 2>&1
     if !errorlevel! neq 0 (
         echo    %R%✗%N% Error al crear la base de datos.
-        set /a ERRORS+=1
         pause
         exit /b 1
     )
@@ -313,29 +336,100 @@ echo  %B%═══════════════════════�
 echo  %B%%C%[4/8]%N% %B%Creando entorno virtual Python...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
-REM Si el venv existe pero esta roto, eliminarlo y recrear
-if exist "venv\Scripts\activate.bat" (
-    venv\Scripts\python.exe -c "import pip" >nul 2>&1
-    if !errorlevel! neq 0 (
-        echo    %Y%⚠%N% Entorno virtual corrupto detectado. Recreando...
-        rmdir /s /q venv 2>nul
-    ) else (
+REM Si el venv existe, verificar que funcione
+set "VENV_OK=0"
+if exist "venv\Scripts\python.exe" (
+    venv\Scripts\python.exe -c "print('ok')" >nul 2>&1
+    if !errorlevel! equ 0 (
         echo    %C%ℹ%N% Entorno virtual ya existe y es valido.
+        set "VENV_OK=1"
+    ) else (
+        echo    %Y%⚠%N% Entorno virtual corrupto. Eliminando...
+        rmdir /s /q venv 2>nul
     )
 )
 
-if not exist "venv\Scripts\activate.bat" (
-    echo    %C%⧖%N% Creando entorno virtual limpio...
-    python -m venv venv
+if !VENV_OK! equ 0 (
+    REM Intento 1: creacion normal
+    echo    %C%⧖%N% Creando entorno virtual...
+    "!PYTHON_CMD!" -m venv venv 2>nul
+    if exist "venv\Scripts\python.exe" (
+        venv\Scripts\python.exe -c "print('ok')" >nul 2>&1
+        if !errorlevel! equ 0 set "VENV_OK=1"
+    )
+)
+
+if !VENV_OK! equ 0 (
+    REM Intento 2: --without-pip ^(evita error de copia de pip.exe^)
+    echo    %Y%⚠%N% Creacion normal fallo. Intentando sin pip...
+    rmdir /s /q venv 2>nul
+    "!PYTHON_CMD!" -m venv venv --without-pip 2>nul
+    if exist "venv\Scripts\python.exe" (
+        venv\Scripts\python.exe -c "print('ok')" >nul 2>&1
+        if !errorlevel! equ 0 set "VENV_OK=2"
+    )
+)
+
+if !VENV_OK! equ 0 (
+    REM Intento 3: --copies ^(copia archivos en vez de symlinks^)
+    echo    %Y%⚠%N% Intentando con copias en vez de symlinks...
+    rmdir /s /q venv 2>nul
+    "!PYTHON_CMD!" -m venv venv --copies 2>nul
+    if exist "venv\Scripts\python.exe" (
+        venv\Scripts\python.exe -c "print('ok')" >nul 2>&1
+        if !errorlevel! equ 0 set "VENV_OK=1"
+    )
+)
+
+if !VENV_OK! equ 0 (
+    REM Intento 4: --without-pip --copies ^(ultimo recurso^)
+    echo    %Y%⚠%N% Ultimo intento: sin pip y con copias...
+    rmdir /s /q venv 2>nul
+    "!PYTHON_CMD!" -m venv venv --without-pip --copies 2>nul
+    if exist "venv\Scripts\python.exe" (
+        venv\Scripts\python.exe -c "print('ok')" >nul 2>&1
+        if !errorlevel! equ 0 set "VENV_OK=2"
+    )
+)
+
+if !VENV_OK! equ 0 (
+    echo    %R%✗%N% No se pudo crear el entorno virtual.
+    echo.
+    echo    %B%Posibles causas y soluciones:%N%
+    echo      %C%1.%N% Si instalo Python desde %Y%Microsoft Store%N%, desinstalelo
+    echo         e instale desde %C%https://python.org/downloads%N%
+    echo         Marque %Y%"Add Python to PATH"%N% durante la instalacion.
+    echo      %C%2.%N% Ejecute como %Y%Administrador%N%
+    echo      %C%3.%N% Desactive el antivirus temporalmente
+    echo      %C%4.%N% Mueva el proyecto a una ruta corta ^(ej: C:\TechStock^)
+    echo.
+    pause
+    exit /b 1
+)
+
+REM Si se creo sin pip (VENV_OK==2), instalar pip manualmente
+if !VENV_OK! equ 2 (
+    echo    %C%⧖%N% Instalando pip en el entorno virtual...
+    venv\Scripts\python.exe -m ensurepip --default-pip 2>nul
     if !errorlevel! neq 0 (
-        echo    %R%✗%N% Error al crear el entorno virtual.
-        set /a ERRORS+=1
+        REM ensurepip fallo, descargar get-pip.py
+        echo    %C%⧖%N% Descargando get-pip.py...
+        powershell -NoProfile -Command "Invoke-WebRequest -Uri 'https://bootstrap.pypa.io/get-pip.py' -OutFile 'get-pip.py'" 2>nul
+        if exist "get-pip.py" (
+            venv\Scripts\python.exe get-pip.py --no-cache-dir 2>nul
+            del get-pip.py 2>nul
+        )
+    )
+    REM Verificar que pip quedo instalado
+    venv\Scripts\python.exe -m pip --version >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo    %R%✗%N% No se pudo instalar pip en el entorno virtual.
         pause
         exit /b 1
     )
-    echo    %G%✓%N% Entorno virtual creado.
 )
 
+echo    %G%✓%N% Entorno virtual creado.
 call venv\Scripts\activate.bat
 
 REM ══════════════════════════════════════════════════════════
@@ -348,26 +442,33 @@ echo  %B%═══════════════════════�
 
 REM NOTA: NO actualizar pip. "pip install --upgrade pip" en Windows
 REM intenta sobreescribir pip.exe mientras se ejecuta = WinError 5.
+REM Usar SIEMPRE "python -m pip" en vez de "pip" directo.
 
 echo    %C%⧖%N% Instalando paquetes ^(FastAPI, SQLAlchemy, etc.^)...
 set "PIP_OK=0"
 
-REM Intento 1: instalacion normal via python -m pip ^(evita bloqueo de pip.exe^)
+REM Intento 1: instalacion normal
 venv\Scripts\python.exe -m pip install -r requirements.txt --no-cache-dir -q 2>nul
 if !errorlevel! equ 0 set "PIP_OK=1"
 
 REM Intento 2: borrar venv y recrear limpio
 if !PIP_OK! equ 0 (
-    echo    %Y%⚠%N% Primer intento fallo. Recreando entorno virtual limpio...
+    echo    %Y%⚠%N% Primer intento fallo. Recreando entorno virtual...
     call deactivate 2>nul
     rmdir /s /q venv 2>nul
-    python -m venv venv
-    call venv\Scripts\activate.bat
+    "!PYTHON_CMD!" -m venv venv --copies 2>nul
+    if not exist "venv\Scripts\python.exe" (
+        "!PYTHON_CMD!" -m venv venv --without-pip --copies 2>nul
+        if exist "venv\Scripts\python.exe" (
+            venv\Scripts\python.exe -m ensurepip --default-pip 2>nul
+        )
+    )
+    call venv\Scripts\activate.bat 2>nul
     venv\Scripts\python.exe -m pip install -r requirements.txt --no-cache-dir -q 2>nul
     if !errorlevel! equ 0 set "PIP_OK=1"
 )
 
-REM Intento 3: instalar paquete por paquete ^(algunos pueden funcionar^)
+REM Intento 3: instalar paquete por paquete
 if !PIP_OK! equ 0 (
     echo    %Y%⚠%N% Segundo intento fallo. Instalando paquetes uno por uno...
     set "PKG_FAIL=0"
@@ -376,7 +477,7 @@ if !PIP_OK! equ 0 (
         if not "!PKG!"=="" if not "!PKG:~0,1!"=="#" (
             venv\Scripts\python.exe -m pip install "%%p" --no-cache-dir -q 2>nul
             if !errorlevel! neq 0 (
-                echo      %R%✗%N% Fallo: %%p
+                echo      %R%✗%N% %%p
                 set /a PKG_FAIL+=1
             ) else (
                 echo      %G%✓%N% %%p
@@ -391,19 +492,18 @@ if !PIP_OK! equ 0 (
     echo    %R%✗%N% No se pudieron instalar todas las dependencias.
     echo.
     echo    %B%Solucion manual:%N%
-    echo      %C%1.%N% Abra una ventana de CMD como %Y%Administrador%N%
-    echo      %C%2.%N% Ejecute estos comandos:
+    echo      %C%1.%N% Abra CMD como %Y%Administrador%N%
+    echo      %C%2.%N% Ejecute:
     echo         %D%cd %cd%%N%
-    echo         %D%python -m venv venv --clear%N%
     echo         %D%venv\Scripts\activate%N%
     echo         %D%python -m pip install -r requirements.txt%N%
     echo      %C%3.%N% Vuelva a ejecutar %C%instalar.bat%N%
     echo.
-    echo    %D%Esto no detiene la instalacion. Si ya instalo algunas%N%
-    echo    %D%dependencias, el sistema intentara iniciar de todas formas.%N%
+    echo    %D%La instalacion continuara. start.bat intentara instalar%N%
+    echo    %D%las dependencias faltantes al iniciar.%N%
     echo.
     set "RESP="
-    set /p "RESP=  Continuar con la instalacion? (S/N): "
+    set /p "RESP=  Continuar? ^(S/N^): "
     if /i not "!RESP!"=="S" (
         pause
         exit /b 1
@@ -422,11 +522,11 @@ REM  PASO 6/8: Credenciales del usuario administrador
 REM ══════════════════════════════════════════════════════════
 echo.
 echo  %B%══════════════════════════════════════════════════════════%N%
-echo  %B%%C%[6/8]%N% %B%Configurando usuario administrador (ROOT)...%N%
+echo  %B%%C%[6/8]%N% %B%Configurando usuario administrador ^(ROOT^)...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 echo.
 echo    %D%Configure las credenciales del usuario principal.%N%
-echo    %D%Presione ENTER para usar el valor por defecto [entre corchetes].%N%
+echo    %D%Presione ENTER para usar el valor por defecto.%N%
 echo.
 set "ADMIN_USERNAME=admin"
 set "ADMIN_PASSWORD="
@@ -452,11 +552,10 @@ echo  %B%%C%[7/8]%N% %B%Inicializando base de datos...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 echo    %C%⧖%N% Creando tablas...
-python -c "from database import engine, Base, SessionLocal; from models import *; from migrations import run_migrations; from seed import run_seed; Base.metadata.create_all(bind=engine); run_migrations(engine); db=SessionLocal(); run_seed(db); db.close(); print('OK')" 2>nul
-if %errorlevel% neq 0 (
+venv\Scripts\python.exe -c "from database import engine, Base, SessionLocal; from models import *; from migrations import run_migrations; from seed import run_seed; Base.metadata.create_all(bind=engine); run_migrations(engine); db=SessionLocal(); run_seed(db); db.close(); print('OK')" 2>nul
+if !errorlevel! neq 0 (
     echo    %R%✗%N% Error al inicializar la base de datos.
-    echo    %D%  Verifique que PostgreSQL esta corriendo.%N%
-    set /a ERRORS+=1
+    echo    %D%  Verifique que PostgreSQL esta corriendo y .env es correcto.%N%
     pause
     exit /b 1
 )
@@ -477,17 +576,17 @@ echo  %B%%C%[8/8]%N% %B%Generando ejecutable TechStock.exe...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 echo    %C%⧖%N% Compilando launcher con PyInstaller...
-pyinstaller launcher.py --onefile --name TechStock --noconsole --clean -y > nul 2>&1
-if %errorlevel% neq 0 (
+venv\Scripts\python.exe -m PyInstaller launcher.py --onefile --name TechStock --noconsole --clean -y >nul 2>&1
+if !errorlevel! neq 0 (
     echo    %Y%⚠%N% No se pudo generar el ejecutable.
-    echo    %D%  Puede usar 'start.bat' o 'python launcher.py' para iniciar.%N%
+    echo    %D%  Puede usar 'start.bat' para iniciar TechStock.%N%
     goto :skip_exe
 )
 
 REM Mover .exe a la raiz del proyecto
 if exist "dist\TechStock.exe" (
-    move /y "dist\TechStock.exe" "TechStock.exe" > nul 2>&1
-    echo    %G%✓%N% TechStock.exe generado en la carpeta del proyecto.
+    move /y "dist\TechStock.exe" "TechStock.exe" >nul 2>&1
+    echo    %G%✓%N% TechStock.exe generado.
 )
 
 REM Limpiar archivos de build
@@ -500,8 +599,7 @@ echo    %C%⧖%N% Creando acceso directo en el Escritorio...
 set "DESKTOP=%USERPROFILE%\Desktop"
 set "EXE_PATH=%cd%\TechStock.exe"
 
-powershell -NoProfile -Command ^
-  "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%DESKTOP%\TechStock.lnk'); $s.TargetPath = '%EXE_PATH%'; $s.WorkingDirectory = '%cd%'; $s.Description = 'TechStock v2.0 - Sistema de Inventario'; $s.Save()" 2>nul
+powershell -NoProfile -Command "$ws = New-Object -ComObject WScript.Shell; $s = $ws.CreateShortcut('%DESKTOP%\TechStock.lnk'); $s.TargetPath = '%EXE_PATH%'; $s.WorkingDirectory = '%cd%'; $s.Description = 'TechStock v2.0 - Sistema de Inventario'; $s.Save()" 2>nul
 
 if exist "%DESKTOP%\TechStock.lnk" (
     echo    %G%✓%N% Acceso directo creado en el Escritorio.
@@ -516,23 +614,15 @@ REM  RESUMEN FINAL
 REM ══════════════════════════════════════════════════════════
 echo.
 echo.
-if %ERRORS% equ 0 (
-    echo  %G%╔═══════════════════════════════════════════════════════════╗%N%
-    echo  %G%║%N%                                                           %G%║%N%
-    echo  %G%║%N%   %G%✓  INSTALACION COMPLETADA EXITOSAMENTE%N%                 %G%║%N%
-    echo  %G%║%N%                                                           %G%║%N%
-    echo  %G%╚═══════════════════════════════════════════════════════════╝%N%
-) else (
-    echo  %Y%╔═══════════════════════════════════════════════════════════╗%N%
-    echo  %Y%║%N%                                                           %Y%║%N%
-    echo  %Y%║%N%   %Y%⚠  INSTALACION COMPLETADA CON ADVERTENCIAS%N%             %Y%║%N%
-    echo  %Y%║%N%                                                           %Y%║%N%
-    echo  %Y%╚═══════════════════════════════════════════════════════════╝%N%
-)
+echo  %G%╔═══════════════════════════════════════════════════════════╗%N%
+echo  %G%║%N%                                                           %G%║%N%
+echo  %G%║%N%   %G%✓  INSTALACION COMPLETADA%N%                                %G%║%N%
+echo  %G%║%N%                                                           %G%║%N%
+echo  %G%╚═══════════════════════════════════════════════════════════╝%N%
 echo.
 echo  %B%Como iniciar TechStock:%N%
 echo.
-echo    %C%Opcion 1:%N%  Doble clic en %B%TechStock.exe%N% %D%(o acceso directo del Escritorio)%N%
+echo    %C%Opcion 1:%N%  Doble clic en %B%TechStock.exe%N% %D%^(o acceso directo del Escritorio^)%N%
 echo    %C%Opcion 2:%N%  Ejecutar %B%start.bat%N%
 echo.
 echo  %B%Datos de acceso:%N%
@@ -545,12 +635,12 @@ echo  %D%───────────────────────�
 echo.
 
 set "RESP="
-set /p "RESP=  Desea iniciar TechStock ahora? (S/N): "
+set /p "RESP=  Desea iniciar TechStock ahora? ^(S/N^): "
 if /i "!RESP!"=="S" (
     if exist "TechStock.exe" (
         start "" "TechStock.exe"
     ) else (
-        start "" python launcher.py
+        start "" venv\Scripts\python.exe launcher.py
     )
 )
 
