@@ -313,10 +313,19 @@ echo  %B%═══════════════════════�
 echo  %B%%C%[4/8]%N% %B%Creando entorno virtual Python...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
+REM Si el venv existe pero esta roto, eliminarlo y recrear
 if exist "venv\Scripts\activate.bat" (
-    echo    %C%ℹ%N% Entorno virtual ya existe.
-) else (
-    echo    %C%⧖%N% Creando entorno virtual...
+    venv\Scripts\python.exe -c "import pip" >nul 2>&1
+    if !errorlevel! neq 0 (
+        echo    %Y%⚠%N% Entorno virtual corrupto detectado. Recreando...
+        rmdir /s /q venv 2>nul
+    ) else (
+        echo    %C%ℹ%N% Entorno virtual ya existe y es valido.
+    )
+)
+
+if not exist "venv\Scripts\activate.bat" (
+    echo    %C%⧖%N% Creando entorno virtual limpio...
     python -m venv venv
     if !errorlevel! neq 0 (
         echo    %R%✗%N% Error al crear el entorno virtual.
@@ -337,50 +346,75 @@ echo  %B%═══════════════════════�
 echo  %B%%C%[5/8]%N% %B%Instalando dependencias Python...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
-echo    %C%⧖%N% Actualizando pip...
-python -m pip install --upgrade pip --no-cache-dir -q 2>nul
-if !errorlevel! neq 0 (
-    echo    %Y%⚠%N% No se pudo actualizar pip, continuando con la version actual...
-)
+REM NOTA: NO actualizar pip. "pip install --upgrade pip" en Windows
+REM intenta sobreescribir pip.exe mientras se ejecuta = WinError 5.
 
 echo    %C%⧖%N% Instalando paquetes ^(FastAPI, SQLAlchemy, etc.^)...
-pip install -r requirements.txt --no-cache-dir -q
-if !errorlevel! neq 0 (
-    echo    %Y%⚠%N% Primer intento fallo. Reintentando sin cache y con permisos de usuario...
-    pip install -r requirements.txt --no-cache-dir --user -q 2>nul
-    if !errorlevel! neq 0 (
-        echo    %Y%⚠%N% Segundo intento fallo. Desactivando antivirus temporalmente...
-        echo    %D%  Si tiene Windows Defender u otro antivirus, agregue esta carpeta%N%
-        echo    %D%  a las exclusiones: %cd%%N%
-        echo.
-        echo    %C%⧖%N% Ultimo intento con pip verbose...
-        pip install -r requirements.txt --no-cache-dir --no-warn-script-location 2>&1
-        if !errorlevel! neq 0 (
-            echo.
-            echo    %R%✗%N% Error al instalar dependencias.
-            echo.
-            echo    %B%Posibles soluciones:%N%
-            echo      %C%1.%N% Ejecute instalar.bat como %Y%Administrador%N%
-            echo         ^(Clic derecho ^> Ejecutar como administrador^)
-            echo      %C%2.%N% Desactive el antivirus temporalmente
-            echo      %C%3.%N% Agregue esta carpeta como exclusion en Windows Defender:
-            echo         %D%%cd%%N%
-            echo      %C%4.%N% Ejecute manualmente:
-            echo         %D%cd %cd%%N%
-            echo         %D%venv\Scripts\activate%N%
-            echo         %D%pip install -r requirements.txt --no-cache-dir%N%
-            echo.
-            set /a ERRORS+=1
-            pause
-            exit /b 1
+set "PIP_OK=0"
+
+REM Intento 1: instalacion normal via python -m pip ^(evita bloqueo de pip.exe^)
+venv\Scripts\python.exe -m pip install -r requirements.txt --no-cache-dir -q 2>nul
+if !errorlevel! equ 0 set "PIP_OK=1"
+
+REM Intento 2: borrar venv y recrear limpio
+if !PIP_OK! equ 0 (
+    echo    %Y%⚠%N% Primer intento fallo. Recreando entorno virtual limpio...
+    call deactivate 2>nul
+    rmdir /s /q venv 2>nul
+    python -m venv venv
+    call venv\Scripts\activate.bat
+    venv\Scripts\python.exe -m pip install -r requirements.txt --no-cache-dir -q 2>nul
+    if !errorlevel! equ 0 set "PIP_OK=1"
+)
+
+REM Intento 3: instalar paquete por paquete ^(algunos pueden funcionar^)
+if !PIP_OK! equ 0 (
+    echo    %Y%⚠%N% Segundo intento fallo. Instalando paquetes uno por uno...
+    set "PKG_FAIL=0"
+    for /f "usebackq tokens=1 delims=>= " %%p in ("requirements.txt") do (
+        set "PKG=%%p"
+        if not "!PKG!"=="" if not "!PKG:~0,1!"=="#" (
+            venv\Scripts\python.exe -m pip install "%%p" --no-cache-dir -q 2>nul
+            if !errorlevel! neq 0 (
+                echo      %R%✗%N% Fallo: %%p
+                set /a PKG_FAIL+=1
+            ) else (
+                echo      %G%✓%N% %%p
+            )
         )
     )
+    if !PKG_FAIL! equ 0 set "PIP_OK=1"
 )
-echo    %G%✓%N% Dependencias instaladas.
+
+if !PIP_OK! equ 0 (
+    echo.
+    echo    %R%✗%N% No se pudieron instalar todas las dependencias.
+    echo.
+    echo    %B%Solucion manual:%N%
+    echo      %C%1.%N% Abra una ventana de CMD como %Y%Administrador%N%
+    echo      %C%2.%N% Ejecute estos comandos:
+    echo         %D%cd %cd%%N%
+    echo         %D%python -m venv venv --clear%N%
+    echo         %D%venv\Scripts\activate%N%
+    echo         %D%python -m pip install -r requirements.txt%N%
+    echo      %C%3.%N% Vuelva a ejecutar %C%instalar.bat%N%
+    echo.
+    echo    %D%Esto no detiene la instalacion. Si ya instalo algunas%N%
+    echo    %D%dependencias, el sistema intentara iniciar de todas formas.%N%
+    echo.
+    set "RESP="
+    set /p "RESP=  Continuar con la instalacion? (S/N): "
+    if /i not "!RESP!"=="S" (
+        pause
+        exit /b 1
+    )
+)
+
+if !PIP_OK! equ 1 echo    %G%✓%N% Dependencias instaladas.
 
 REM Instalar PyInstaller para generar .exe
 echo    %C%⧖%N% Instalando PyInstaller...
-pip install pyinstaller --no-cache-dir -q 2>nul
+venv\Scripts\python.exe -m pip install pyinstaller --no-cache-dir -q 2>nul
 echo    %G%✓%N% PyInstaller listo.
 
 REM ══════════════════════════════════════════════════════════
