@@ -2,19 +2,20 @@ import os
 import io
 import subprocess
 from datetime import datetime
-from fastapi import APIRouter, Request, Depends
+from fastapi import APIRouter, Request, Depends, UploadFile, File
 from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import text
 
 from database import get_db, DATABASE_URL
 from templates_config import templates
-from auth import require_role, log_audit
+from auth import require_role, set_flash, log_audit
 import models
 
 router = APIRouter(prefix="/backup", tags=["backup"])
 
 BACKUP_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "backups")
+MAX_BACKUP_SIZE = 50 * 1024 * 1024  # 50 MB
 
 
 def _parse_pg_url(url: str) -> dict:
@@ -192,4 +193,209 @@ def crear_backup_local(
     ip = request.client.host if request.client else ""
     log_audit(db, current_user, "CREATE", "backup", None, f"Backup local creado: {filename}", ip)
 
-    return RedirectResponse(f"/backup?msg=Backup+creado:+{filename}", status_code=303)
+    resp = RedirectResponse("/backup", status_code=303)
+    return set_flash(resp, f"Backup creado: {filename}")
+
+
+@router.post("/subir")
+async def subir_backup(
+    request: Request,
+    archivo: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_role("ADMIN")),
+):
+    # Validar extension
+    if not archivo.filename or not archivo.filename.endswith(".sql"):
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "Solo se permiten archivos .sql", "error")
+
+    # Leer y validar tamano
+    content = await archivo.read()
+    if len(content) > MAX_BACKUP_SIZE:
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "El archivo no puede superar 50 MB.", "error")
+
+    if len(content) == 0:
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "El archivo esta vacio.", "error")
+
+    os.makedirs(BACKUP_DIR, exist_ok=True)
+
+    # Sanitizar nombre: solo alfanumericos, guiones, puntos y guion bajo
+    safe_name = "".join(c for c in archivo.filename if c.isalnum() or c in "-_.")
+    if not safe_name.endswith(".sql"):
+        safe_name += ".sql"
+    # Agregar timestamp para evitar colisiones
+    base = safe_name[:-4]
+    safe_name = f"{base}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.sql"
+
+    dest_path = os.path.join(BACKUP_DIR, safe_name)
+    with open(dest_path, "wb") as f:
+        f.write(content)
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "backup", None,
+              f"Backup subido: {safe_name} ({len(content)} bytes)", ip)
+
+    resp = RedirectResponse("/backup", status_code=303)
+    return set_flash(resp, f"Backup subido correctamente: {safe_name}")
+
+
+@router.get("/descargar-local/{filename}")
+def descargar_backup_local(
+    filename: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_role("ADMIN")),
+):
+    # Sanitizar: solo permitir nombre de archivo sin path traversal
+    safe_name = os.path.basename(filename)
+    if not safe_name.endswith(".sql"):
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "Archivo no valido", "error")
+
+    filepath = os.path.join(BACKUP_DIR, safe_name)
+    if not os.path.isfile(filepath):
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "Archivo no encontrado", "error")
+
+    with open(filepath, "rb") as f:
+        content = f.read()
+
+    buffer = io.BytesIO(content)
+    buffer.seek(0)
+
+    return StreamingResponse(
+        buffer,
+        media_type="application/sql",
+        headers={"Content-Disposition": f"attachment; filename={safe_name}"}
+    )
+
+
+@router.post("/restaurar/{filename}")
+def restaurar_backup(
+    filename: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_role("ADMIN")),
+):
+    safe_name = os.path.basename(filename)
+    if not safe_name.endswith(".sql"):
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "Archivo no valido", "error")
+
+    filepath = os.path.join(BACKUP_DIR, safe_name)
+    if not os.path.isfile(filepath):
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "Archivo no encontrado", "error")
+
+    pg = _parse_pg_url(DATABASE_URL)
+
+    # Intentar restaurar con psql
+    env = os.environ.copy()
+    if pg["password"]:
+        env["PGPASSWORD"] = pg["password"]
+
+    try:
+        result = subprocess.run(
+            [
+                "psql",
+                "-h", pg["host"],
+                "-p", pg["port"],
+                "-U", pg["user"],
+                "-d", pg["dbname"],
+                "-f", filepath,
+            ],
+            capture_output=True,
+            env=env,
+            timeout=300,
+        )
+        if result.returncode == 0:
+            ip = request.client.host if request.client else ""
+            log_audit(db, current_user, "UPDATE", "backup", None,
+                      f"Backup restaurado con psql: {safe_name}", ip)
+            resp = RedirectResponse("/backup", status_code=303)
+            return set_flash(resp, f"Backup restaurado correctamente: {safe_name}")
+        else:
+            error_msg = result.stderr.decode("utf-8", errors="replace")[:200]
+            resp = RedirectResponse("/backup", status_code=303)
+            return set_flash(resp, f"Error en psql: {error_msg}", "error")
+    except FileNotFoundError:
+        # psql no disponible, intentar restauracion por SQLAlchemy
+        pass
+    except subprocess.TimeoutExpired:
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "La restauracion tardo demasiado (timeout)", "error")
+
+    # Fallback: ejecutar SQL directamente con SQLAlchemy
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            sql_content = f.read()
+
+        # Filtrar comentarios y lineas vacias, ejecutar statements
+        statements = []
+        current = []
+        for line in sql_content.split("\n"):
+            stripped = line.strip()
+            if not stripped or stripped.startswith("--"):
+                continue
+            current.append(line)
+            if stripped.endswith(";"):
+                statements.append("\n".join(current))
+                current = []
+
+        executed = 0
+        errors = 0
+        for stmt in statements:
+            stmt = stmt.strip()
+            if not stmt:
+                continue
+            try:
+                db.execute(text(stmt))
+                executed += 1
+            except Exception:
+                errors += 1
+                db.rollback()
+
+        db.commit()
+
+        ip = request.client.host if request.client else ""
+        log_audit(db, current_user, "UPDATE", "backup", None,
+                  f"Backup restaurado (fallback): {safe_name} ({executed} sentencias, {errors} errores)", ip)
+
+        msg = f"Backup restaurado: {executed} sentencias ejecutadas"
+        if errors > 0:
+            msg += f", {errors} con errores"
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, msg)
+
+    except Exception as e:
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, f"Error al restaurar: {type(e).__name__}: {str(e)[:150]}", "error")
+
+
+@router.post("/eliminar/{filename}")
+def eliminar_backup_local(
+    filename: str,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_role("ADMIN")),
+):
+    safe_name = os.path.basename(filename)
+    if not safe_name.endswith(".sql"):
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "Archivo no valido", "error")
+
+    filepath = os.path.join(BACKUP_DIR, safe_name)
+    if not os.path.isfile(filepath):
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, "Archivo no encontrado", "error")
+
+    os.remove(filepath)
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "DELETE", "backup", None,
+              f"Backup eliminado: {safe_name}", ip)
+
+    resp = RedirectResponse("/backup", status_code=303)
+    return set_flash(resp, f"Backup eliminado: {safe_name}")

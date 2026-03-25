@@ -18,6 +18,7 @@ def lista_clientes(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
     buscar: str = None,
+    tipo_documento: str = None,
     msg: str = None,
     error: str = None,
 ):
@@ -26,14 +27,19 @@ def lista_clientes(
         query = query.filter(
             models.Cliente.nombre.ilike(f"%{buscar}%") |
             models.Cliente.documento.ilike(f"%{buscar}%") |
-            models.Cliente.telefono.ilike(f"%{buscar}%")
+            models.Cliente.telefono.ilike(f"%{buscar}%") |
+            models.Cliente.email.ilike(f"%{buscar}%")
         )
+    if tipo_documento and tipo_documento.strip():
+        query = query.filter(models.Cliente.tipo_documento == tipo_documento)
     clientes = query.order_by(models.Cliente.nombre).all()
 
     return templates.TemplateResponse("clientes/lista.html", {
         "request": request,
         "clientes": clientes,
         "buscar": buscar or "",
+        "tipo_documento": tipo_documento or "",
+        "tipos_documento": TIPOS_DOCUMENTO,
         "msg": msg,
         "error": error,
     })

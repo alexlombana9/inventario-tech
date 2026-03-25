@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from templates_config import templates
-from auth import require_auth, hash_password, verify_password, set_flash, log_audit, COOKIE_NAME
+from auth import require_auth, hash_password, verify_password, set_flash, log_audit, COOKIE_NAME, get_saved_accounts
 import models
 
 router = APIRouter(prefix="/perfil", tags=["perfil"])
@@ -22,9 +22,11 @@ def perfil_page(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
+    saved_accounts = get_saved_accounts(request)
     return templates.TemplateResponse("perfil/index.html", {
         "request": request,
         "usuario": current_user,
+        "saved_accounts": saved_accounts,
     })
 
 
@@ -42,13 +44,15 @@ def actualizar_perfil(
         resp = RedirectResponse("/perfil", status_code=303)
         return set_flash(resp, "El nombre completo es obligatorio", "error")
 
-    current_user.nombre_completo = nombre_clean
-    current_user.email = email.strip()
-    current_user.telefono = telefono.strip()
+    # Re-query user in current db session to ensure changes persist
+    user = db.query(models.Usuario).filter(models.Usuario.id == current_user.id).first()
+    user.nombre_completo = nombre_clean
+    user.email = email.strip()
+    user.telefono = telefono.strip()
     db.commit()
 
     ip = request.client.host if request.client else ""
-    log_audit(db, current_user, "UPDATE", "perfil", current_user.id,
+    log_audit(db, user, "UPDATE", "perfil", user.id,
               "Perfil actualizado", ip)
 
     resp = RedirectResponse("/perfil", status_code=303)
@@ -62,13 +66,13 @@ async def subir_foto(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    # Validar extensión
+    # Validar extension
     ext = os.path.splitext(foto.filename or "")[1].lower()
     if ext not in ALLOWED_EXTENSIONS:
         resp = RedirectResponse("/perfil", status_code=303)
         return set_flash(resp, "Formato no permitido. Usa JPG, PNG, GIF o WebP.", "error")
 
-    # Leer contenido y validar tamaño
+    # Leer contenido y validar tamano
     content = await foto.read()
     if len(content) > MAX_FILE_SIZE:
         resp = RedirectResponse("/perfil", status_code=303)
@@ -77,23 +81,26 @@ async def subir_foto(
     # Crear directorio si no existe
     os.makedirs(UPLOAD_DIR, exist_ok=True)
 
+    # Re-query user in current db session to ensure changes persist
+    user = db.query(models.Usuario).filter(models.Usuario.id == current_user.id).first()
+
     # Eliminar foto anterior si existe
-    if current_user.foto:
-        old_path = os.path.join(UPLOAD_DIR, current_user.foto)
+    if user.foto:
+        old_path = os.path.join(UPLOAD_DIR, user.foto)
         if os.path.isfile(old_path):
             os.remove(old_path)
 
-    # Guardar con nombre único
-    filename = f"{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
+    # Guardar con nombre unico
+    filename = f"{user.id}_{uuid.uuid4().hex[:8]}{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
     with open(filepath, "wb") as f:
         f.write(content)
 
-    current_user.foto = filename
+    user.foto = filename
     db.commit()
 
     ip = request.client.host if request.client else ""
-    log_audit(db, current_user, "UPDATE", "perfil", current_user.id,
+    log_audit(db, user, "UPDATE", "perfil", user.id,
               "Foto de perfil actualizada", ip)
 
     resp = RedirectResponse("/perfil", status_code=303)
@@ -106,12 +113,19 @@ def eliminar_foto(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    if current_user.foto:
-        old_path = os.path.join(UPLOAD_DIR, current_user.foto)
+    # Re-query user in current db session
+    user = db.query(models.Usuario).filter(models.Usuario.id == current_user.id).first()
+
+    if user.foto:
+        old_path = os.path.join(UPLOAD_DIR, user.foto)
         if os.path.isfile(old_path):
             os.remove(old_path)
-        current_user.foto = ""
+        user.foto = ""
         db.commit()
+
+        ip = request.client.host if request.client else ""
+        log_audit(db, user, "UPDATE", "perfil", user.id,
+                  "Foto de perfil eliminada", ip)
 
     resp = RedirectResponse("/perfil", status_code=303)
     return set_flash(resp, "Foto de perfil eliminada")
@@ -128,22 +142,24 @@ def cambiar_password(
 ):
     if not verify_password(password_actual, current_user.password_hash):
         resp = RedirectResponse("/perfil", status_code=303)
-        return set_flash(resp, "La contraseña actual es incorrecta", "error")
+        return set_flash(resp, "La contrasena actual es incorrecta", "error")
 
     if len(password_nueva) < 8:
         resp = RedirectResponse("/perfil", status_code=303)
-        return set_flash(resp, "La nueva contraseña debe tener al menos 8 caracteres", "error")
+        return set_flash(resp, "La nueva contrasena debe tener al menos 8 caracteres", "error")
 
     if password_nueva != password_confirmar:
         resp = RedirectResponse("/perfil", status_code=303)
-        return set_flash(resp, "Las contraseñas nuevas no coinciden", "error")
+        return set_flash(resp, "Las contrasenas nuevas no coinciden", "error")
 
-    current_user.password_hash = hash_password(password_nueva)
+    # Re-query user in current db session
+    user = db.query(models.Usuario).filter(models.Usuario.id == current_user.id).first()
+    user.password_hash = hash_password(password_nueva)
     db.commit()
 
     ip = request.client.host if request.client else ""
-    log_audit(db, current_user, "UPDATE", "perfil", current_user.id,
-              "Contraseña cambiada", ip)
+    log_audit(db, user, "UPDATE", "perfil", user.id,
+              "Contrasena cambiada", ip)
 
     resp = RedirectResponse("/perfil", status_code=303)
-    return set_flash(resp, "Contraseña cambiada correctamente")
+    return set_flash(resp, "Contrasena cambiada correctamente")

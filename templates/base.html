@@ -34,112 +34,136 @@
     <li class="nav-divider"></li>
 
     <!-- ── INVENTARIO ── -->
-    {% if request.state.user and request.state.user.rol in ['ADMIN', 'BODEGUERO', 'VENDEDOR'] %}
+    {% set u = request.state.user %}
+    {% if u and (has_permiso(u, 'productos') or has_permiso(u, 'categorias') or has_permiso(u, 'inventario')) %}
     <li class="nav-section">Inventario</li>
 
+    {% if has_permiso(u, 'productos') %}
     <li class="nav-item">
       <a href="/productos" class="nav-link {% if '/productos' in request.url.path %}active{% endif %}">
         <i class="bi bi-box-seam"></i>
         <span>Productos</span>
       </a>
     </li>
-    {% if request.state.user.rol in ['ADMIN', 'BODEGUERO'] %}
+    {% endif %}
+    {% if has_permiso(u, 'categorias') %}
     <li class="nav-item">
       <a href="/categorias" class="nav-link {% if '/categorias' in request.url.path %}active{% endif %}">
         <i class="bi bi-tags"></i>
-        <span>Categorías</span>
+        <span>Categorias</span>
       </a>
     </li>
     {% endif %}
+    {% if has_permiso(u, 'inventario') %}
     <li class="nav-item">
       <a href="/inventario" class="nav-link {% if '/inventario' in request.url.path and '/inventario/entrada' not in request.url.path and '/inventario/salida' not in request.url.path %}active{% endif %}">
         <i class="bi bi-arrow-left-right"></i>
         <span>Movimientos</span>
       </a>
     </li>
+    {% endif %}
 
     <li class="nav-divider"></li>
     {% endif %}
 
     <!-- ── VENTAS ── -->
-    {% if request.state.user and request.state.user.rol in ['ADMIN', 'VENDEDOR'] %}
+    {% if u and (has_permiso(u, 'ventas_pos') or has_permiso(u, 'ventas_historial') or has_permiso(u, 'clientes') or has_permiso(u, 'caja')) %}
     <li class="nav-section">Ventas</li>
 
+    {% if has_permiso(u, 'ventas_pos') %}
     <li class="nav-item">
       <a href="/ventas/pos" class="nav-link {% if '/ventas/pos' in request.url.path %}active{% endif %}">
         <i class="bi bi-cart-check"></i>
         <span>Punto de Venta</span>
       </a>
     </li>
+    {% endif %}
+    {% if has_permiso(u, 'ventas_historial') %}
     <li class="nav-item">
       <a href="/ventas" class="nav-link {% if request.url.path == '/ventas' %}active{% endif %}">
         <i class="bi bi-receipt-cutoff"></i>
         <span>Historial Ventas</span>
       </a>
     </li>
+    {% endif %}
+    {% if has_permiso(u, 'clientes') %}
     <li class="nav-item">
       <a href="/clientes" class="nav-link {% if '/clientes' in request.url.path %}active{% endif %}">
         <i class="bi bi-person-vcard"></i>
         <span>Clientes</span>
       </a>
     </li>
+    {% endif %}
+    {% if has_permiso(u, 'caja') %}
     <li class="nav-item">
       <a href="/caja" class="nav-link {% if '/caja' in request.url.path %}active{% endif %}">
         <i class="bi bi-cash-stack"></i>
         <span>Caja</span>
       </a>
     </li>
+    {% endif %}
 
     <li class="nav-divider"></li>
     {% endif %}
 
     <!-- ── COMPRAS ── -->
-    {% if request.state.user and request.state.user.rol in ['ADMIN', 'BODEGUERO'] %}
+    {% if u and (has_permiso(u, 'proveedores') or has_permiso(u, 'inventario')) %}
     <li class="nav-section">Compras</li>
 
+    {% if has_permiso(u, 'proveedores') %}
     <li class="nav-item">
       <a href="/proveedores" class="nav-link {% if '/proveedores' in request.url.path %}active{% endif %}">
         <i class="bi bi-truck"></i>
         <span>Proveedores</span>
       </a>
     </li>
+    {% endif %}
+    {% if has_permiso(u, 'inventario') %}
     <li class="nav-item">
       <a href="/inventario/entrada" class="nav-link {% if request.url.path == '/inventario/entrada' %}active{% endif %}">
         <i class="bi bi-box-arrow-in-down"></i>
         <span>Registrar Entrada</span>
       </a>
     </li>
+    {% endif %}
 
     <li class="nav-divider"></li>
     {% endif %}
 
     <!-- ── FINANZAS ── -->
-    {% if request.state.user and request.state.user.rol in ['ADMIN', 'VENDEDOR'] %}
+    {% if u and (has_permiso(u, 'acreedores') or has_permiso(u, 'deudas') or has_permiso(u, 'facturas')) %}
     <li class="nav-section">Finanzas</li>
 
+    {% if has_permiso(u, 'acreedores') %}
     <li class="nav-item">
       <a href="/acreedores" class="nav-link {% if '/acreedores' in request.url.path %}active{% endif %}">
         <i class="bi bi-person-lines-fill"></i>
         <span>Acreedores</span>
       </a>
     </li>
+    {% endif %}
+    {% if has_permiso(u, 'deudas') %}
     <li class="nav-item">
       <a href="/deudas" class="nav-link {% if '/deudas' in request.url.path and '/reporte' not in request.url.path %}active{% endif %}">
         <i class="bi bi-credit-card-2-back"></i>
         <span>Cuentas por Pagar</span>
       </a>
     </li>
+    {% endif %}
+    {% if has_permiso(u, 'facturas') %}
     <li class="nav-item">
       <a href="/facturas" class="nav-link {% if '/facturas' in request.url.path and '/reporte' not in request.url.path %}active{% endif %}">
         <i class="bi bi-receipt"></i>
         <span>Cuentas por Cobrar</span>
       </a>
     </li>
+    {% endif %}
 
     <li class="nav-divider"></li>
     {% endif %}
 
     <!-- ── REPORTES ── -->
+    {% if u and has_permiso(u, 'reportes') %}
     <li class="nav-section">Reportes</li>
 
     <li class="nav-item">
@@ -154,13 +178,15 @@
         <span>Movimientos</span>
       </a>
     </li>
-    {% if request.state.user and request.state.user.rol in ['ADMIN', 'VENDEDOR'] %}
+    {% if has_permiso(u, 'deudas') %}
     <li class="nav-item">
       <a href="/deudas/reporte" class="nav-link {% if '/deudas/reporte' in request.url.path %}active{% endif %}">
         <i class="bi bi-file-earmark-minus"></i>
         <span>Reporte Deudas</span>
       </a>
     </li>
+    {% endif %}
+    {% if has_permiso(u, 'facturas') %}
     <li class="nav-item">
       <a href="/facturas/reporte" class="nav-link {% if '/facturas/reporte' in request.url.path %}active{% endif %}">
         <i class="bi bi-file-earmark-check"></i>
@@ -170,6 +196,7 @@
     {% endif %}
 
     <li class="nav-divider"></li>
+    {% endif %}
 
     <!-- ── ADMINISTRACIÓN ── -->
     {% if request.state.user and request.state.user.rol == 'ADMIN' %}
@@ -197,6 +224,12 @@
       <a href="/backup" class="nav-link {% if '/backup' in request.url.path %}active{% endif %}">
         <i class="bi bi-shield-check"></i>
         <span>Backups</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/auditoria" class="nav-link {% if '/auditoria' in request.url.path %}active{% endif %}">
+        <i class="bi bi-clock-history"></i>
+        <span>Registro Actividad</span>
       </a>
     </li>
 
@@ -231,7 +264,7 @@
     </button>
     <div class="topbar-title">{% block page_title %}{% endblock %}</div>
     <div class="topbar-actions">
-      {% if request.state.user and request.state.user.rol in ['ADMIN', 'BODEGUERO'] %}
+      {% if request.state.user and has_permiso(request.state.user, 'inventario') %}
       <a href="/inventario/entrada" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg"></i>
         <span class="d-none d-sm-inline ms-1">Entrada</span>
@@ -272,6 +305,12 @@
               <i class="bi bi-person-gear me-1"></i>Mi Perfil
             </a>
           </li>
+          <li>
+            <a class="dropdown-item" href="/login?agregar=1">
+              <i class="bi bi-person-plus me-1"></i>Agregar Cuenta
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
           <li>
             <a class="dropdown-item text-danger" href="/logout">
               <i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesion

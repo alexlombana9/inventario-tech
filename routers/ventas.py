@@ -226,6 +226,8 @@ def historial_ventas(
     fecha_desde: str = None,
     fecha_hasta: str = None,
     estado: str = None,
+    metodo_pago: str = None,
+    vendedor_id: str = None,
     buscar: str = None,
     msg: str = None,
     error: str = None,
@@ -249,6 +251,13 @@ def historial_ventas(
 
     if estado and estado.strip():
         query = query.filter(models.Venta.estado == estado)
+    if metodo_pago and metodo_pago.strip():
+        query = query.filter(models.Venta.metodo_pago == metodo_pago)
+    if vendedor_id and vendedor_id.strip():
+        try:
+            query = query.filter(models.Venta.vendedor_id == int(vendedor_id))
+        except ValueError:
+            pass
     if buscar:
         query = query.filter(
             models.Venta.numero_venta.ilike(f"%{buscar}%") |
@@ -266,12 +275,21 @@ def historial_ventas(
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0
 
+    # Obtener vendedores para filtro
+    vendedores = db.query(models.Usuario).filter(
+        models.Usuario.activo == True
+    ).order_by(models.Usuario.nombre_completo).all()
+
     return templates.TemplateResponse("ventas/historial.html", {
         "request": request,
         "ventas": ventas,
         "fecha_desde": fecha_desde,
         "fecha_hasta": fecha_hasta,
         "estado": estado or "",
+        "metodo_pago": metodo_pago or "",
+        "vendedor_id": vendedor_id or "",
+        "vendedores": vendedores,
+        "metodos_pago": METODOS_PAGO,
         "buscar": buscar or "",
         "total": total,
         "total_ventas": total_ventas,

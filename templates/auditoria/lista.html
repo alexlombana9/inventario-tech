@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}Registro de Actividad{% endblock %}
+{% block page_title %}Registro de Actividad{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <h1><i class="bi bi-clock-history me-2"></i>Registro de Actividad</h1>
+</div>
+
+<!-- Estadisticas rapidas -->
+<div class="row g-3 mb-4">
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-3">
+        <div class="fs-3 fw-bold text-primary">{{ total_hoy }}</div>
+        <small class="text-muted">Acciones hoy</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-3">
+        <div class="fs-3 fw-bold text-info">{{ total }}</div>
+        <small class="text-muted">Registros en periodo</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-4">
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-3">
+        <div class="fs-3 fw-bold text-secondary">{{ total_paginas }}</div>
+        <small class="text-muted">Paginas</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filtros -->
+<div class="card border-0 shadow-sm mb-4">
+  <div class="card-body">
+    <form method="GET" action="/auditoria">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Buscar</label>
+          <input type="text" name="buscar" class="form-control form-control-sm"
+                 placeholder="Detalle, usuario, IP..." value="{{ buscar }}">
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Usuario</label>
+          <select name="usuario_id" class="form-select form-select-sm">
+            <option value="">Todos</option>
+            {% for u in usuarios %}
+            <option value="{{ u.id }}" {% if usuario_id == u.id|string %}selected{% endif %}>
+              {{ u.nombre_completo }}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Accion</label>
+          <select name="accion" class="form-select form-select-sm">
+            <option value="">Todas</option>
+            {% for a in acciones_disponibles %}
+            <option value="{{ a }}" {% if accion == a %}selected{% endif %}>{{ a }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="form-label small fw-semibold">Entidad</label>
+          <select name="entidad" class="form-select form-select-sm">
+            <option value="">Todas</option>
+            {% for e in entidades_disponibles %}
+            <option value="{{ e }}" {% if entidad == e %}selected{% endif %}>{{ e | capitalize }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3 col-lg-1">
+          <label class="form-label small fw-semibold d-block">&nbsp;</label>
+          <div class="d-flex gap-1">
+            <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i></button>
+            <a href="/auditoria" class="btn btn-outline-secondary btn-sm"><i class="bi bi-x-lg"></i></a>
+          </div>
+        </div>
+      </div>
+      <div class="row g-2 mt-1">
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Desde</label>
+          <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+        </div>
+        <div class="col-md-3">
+          <label class="form-label small fw-semibold">Hasta</label>
+          <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Tabla de registros -->
+<div class="table-card">
+  <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+    <span class="text-muted" style="font-size:0.82rem">
+      <strong>{{ total }}</strong> registro(s) encontrado(s)
+      {% if pagina > 1 %} &mdash; Pagina {{ pagina }} de {{ total_paginas }}{% endif %}
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" style="font-size: 0.85rem;">
+      <thead>
+        <tr>
+          <th style="width:140px">Fecha / Hora</th>
+          <th>Usuario</th>
+          <th style="width:90px">Accion</th>
+          <th style="width:100px">Entidad</th>
+          <th>Detalle</th>
+          <th style="width:110px">IP</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in registros %}
+        <tr>
+          <td>
+            <small>{{ r.created_at.strftime('%d/%m/%Y %H:%M:%S') }}</small>
+          </td>
+          <td>
+            <strong>{{ r.usuario_nombre }}</strong>
+          </td>
+          <td>
+            {% if r.accion == 'LOGIN' %}
+              <span class="badge bg-success">{{ r.accion }}</span>
+            {% elif r.accion == 'LOGOUT' %}
+              <span class="badge bg-secondary">{{ r.accion }}</span>
+            {% elif r.accion == 'CREATE' %}
+              <span class="badge bg-primary">{{ r.accion }}</span>
+            {% elif r.accion == 'UPDATE' %}
+              <span class="badge bg-warning text-dark">{{ r.accion }}</span>
+            {% elif r.accion == 'DELETE' %}
+              <span class="badge bg-danger">{{ r.accion }}</span>
+            {% else %}
+              <span class="badge bg-info">{{ r.accion }}</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if r.entidad %}
+              <span class="text-capitalize">{{ r.entidad }}</span>
+              {% if r.entidad_id %}<small class="text-muted">#{{ r.entidad_id }}</small>{% endif %}
+            {% else %}
+              <span class="text-muted">-</span>
+            {% endif %}
+          </td>
+          <td>{{ r.detalle or '-' }}</td>
+          <td><code class="small">{{ r.ip_address or '-' }}</code></td>
+        </tr>
+        {% endfor %}
+        {% if not registros %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="bi bi-clock-history fs-2 d-block mb-2"></i>
+            No se encontraron registros con los filtros seleccionados
+          </td>
+        </tr>
+        {% endif %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Paginacion -->
+{% if total_paginas > 1 %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center">
+    {% if pagina > 1 %}
+    <li class="page-item">
+      <a class="page-link" href="/auditoria?pagina={{ pagina - 1 }}&buscar={{ buscar }}&usuario_id={{ usuario_id }}&accion={{ accion }}&entidad={{ entidad }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}">
+        <i class="bi bi-chevron-left"></i>
+      </a>
+    </li>
+    {% endif %}
+
+    {% for p in range(1, total_paginas + 1) %}
+      {% if p == pagina %}
+      <li class="page-item active"><span class="page-link">{{ p }}</span></li>
+      {% elif p <= 3 or p > total_paginas - 2 or (p >= pagina - 1 and p <= pagina + 1) %}
+      <li class="page-item">
+        <a class="page-link" href="/auditoria?pagina={{ p }}&buscar={{ buscar }}&usuario_id={{ usuario_id }}&accion={{ accion }}&entidad={{ entidad }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}">{{ p }}</a>
+      </li>
+      {% elif p == 4 or p == total_paginas - 2 %}
+      <li class="page-item disabled"><span class="page-link">...</span></li>
+      {% endif %}
+    {% endfor %}
+
+    {% if pagina < total_paginas %}
+    <li class="page-item">
+      <a class="page-link" href="/auditoria?pagina={{ pagina + 1 }}&buscar={{ buscar }}&usuario_id={{ usuario_id }}&accion={{ accion }}&entidad={{ entidad }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}">
+        <i class="bi bi-chevron-right"></i>
+      </a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

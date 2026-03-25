@@ -132,7 +132,15 @@
       </div>
       {% endif %}
 
+      {% if agregar == '1' %}
+      <div class="alert alert-info d-flex align-items-center gap-2 mb-3" style="font-size:0.82rem;">
+        <i class="bi bi-info-circle-fill"></i>
+        Ingresa las credenciales de la otra cuenta. Tu sesion actual se mantendra guardada.
+      </div>
+      {% endif %}
+
       <form method="POST" action="/login">
+        <input type="hidden" name="agregar" value="{{ agregar }}">
         <div class="mb-3">
           <label class="form-label">Usuario</label>
           <div class="input-group">
@@ -142,18 +150,25 @@
           </div>
         </div>
         <div class="mb-4">
-          <label class="form-label">Contraseña</label>
+          <label class="form-label">Contrasena</label>
           <div class="input-group">
             <span class="input-group-text"><i class="bi bi-lock"></i></span>
-            <input type="password" name="password" class="form-control" placeholder="Tu contraseña"
+            <input type="password" name="password" class="form-control" placeholder="Tu contrasena"
                    required autocomplete="current-password">
           </div>
         </div>
         <button type="submit" class="btn btn-login">
           <i class="bi bi-box-arrow-in-right me-1"></i>
-          Iniciar Sesión
+          {% if agregar == '1' %}Agregar Cuenta{% else %}Iniciar Sesion{% endif %}
         </button>
       </form>
+      {% if agregar == '1' %}
+      <div class="text-center mt-3">
+        <a href="/" class="text-decoration-none" style="font-size:0.82rem;">
+          <i class="bi bi-arrow-left me-1"></i>Volver sin agregar cuenta
+        </a>
+      </div>
+      {% endif %}
     </div>
     <p class="footer-text">TechStock v2.0 &mdash; Gestión de Inventario</p>
   </div>

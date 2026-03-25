@@ -44,11 +44,11 @@
 <!-- Filters -->
 <div class="search-bar">
   <form method="GET" class="row g-2 align-items-end">
-    <div class="col-md-3">
+    <div class="col-md-2">
       <label class="form-label small">Desde</label>
       <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
     </div>
-    <div class="col-md-3">
+    <div class="col-md-2">
       <label class="form-label small">Hasta</label>
       <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
     </div>
@@ -60,11 +60,30 @@
         <option value="ANULADA" {% if estado == 'ANULADA' %}selected{% endif %}>Anulada</option>
       </select>
     </div>
-    <div class="col-md-3">
-      <input type="text" name="buscar" class="form-control form-control-sm" placeholder="Buscar..." value="{{ buscar }}">
+    <div class="col-md-2">
+      <label class="form-label small">Metodo Pago</label>
+      <select name="metodo_pago" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        {% for mp in metodos_pago %}
+        <option value="{{ mp }}" {% if metodo_pago == mp %}selected{% endif %}>{{ mp }}</option>
+        {% endfor %}
+      </select>
     </div>
-    <div class="col-md-1">
-      <button class="btn btn-primary btn-sm w-100"><i class="bi bi-search"></i></button>
+    <div class="col-md-2">
+      <label class="form-label small">Vendedor</label>
+      <select name="vendedor_id" class="form-select form-select-sm">
+        <option value="">Todos</option>
+        {% for v in vendedores %}
+        <option value="{{ v.id }}" {% if vendedor_id == v.id|string %}selected{% endif %}>{{ v.nombre_completo }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <label class="form-label small">Buscar</label>
+      <div class="input-group input-group-sm">
+        <input type="text" name="buscar" class="form-control" placeholder="N° venta, cliente..." value="{{ buscar }}">
+        <button class="btn btn-primary"><i class="bi bi-search"></i></button>
+      </div>
     </div>
   </form>
 </div>

@@ -126,6 +126,15 @@ def run_migrations(engine):
                 migrations_applied += 1
                 print("  [Migration] usuarios: agregada columna foto")
 
+        # ── Agregar permisos a usuarios ──
+        if table_exists(conn, "usuarios"):
+            columns = get_table_columns(conn, "usuarios")
+            if "permisos" not in columns:
+                conn.execute(text("ALTER TABLE usuarios ADD COLUMN permisos TEXT DEFAULT ''"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] usuarios: agregada columna permisos")
+
     if migrations_applied > 0:
         print(f"  [Migration] {migrations_applied} migración(es) aplicada(s)")
     return migrations_applied

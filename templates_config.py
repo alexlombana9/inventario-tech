@@ -21,3 +21,14 @@ def formato_numero(value):
 
 templates.env.filters["moneda"] = formato_moneda
 templates.env.filters["numero"] = formato_numero
+
+
+def _has_permiso(user, modulo):
+    """Template helper to check if a user has access to a module."""
+    if not user:
+        return False
+    from auth import user_has_permiso
+    return user_has_permiso(user, modulo)
+
+
+templates.env.globals["has_permiso"] = _has_permiso

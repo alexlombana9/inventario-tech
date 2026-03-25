@@ -16,23 +16,25 @@
     <div class="form-card">
       <h5 class="fw-bold mb-3"><i class="bi bi-camera me-2"></i>Foto de Perfil</h5>
       <div class="d-flex align-items-center gap-4 flex-wrap">
-        <div class="profile-avatar-lg">
+        <div class="profile-avatar-lg" id="avatarContainer">
           {% if usuario.foto %}
-            <img src="/static/uploads/avatars/{{ usuario.foto }}" alt="Foto de perfil"
+            <img src="/static/uploads/avatars/{{ usuario.foto }}" alt="Foto de perfil" id="avatarPreview"
                  class="rounded-circle" style="width:100px; height:100px; object-fit:cover; border: 3px solid #e9ecef;">
           {% else %}
-            <div class="rounded-circle d-flex align-items-center justify-content-center"
+            <div class="rounded-circle d-flex align-items-center justify-content-center" id="avatarPlaceholder"
                  style="width:100px; height:100px; background: linear-gradient(135deg, #1a1a2e, #16213e); color:white; font-size:2.5rem; border: 3px solid #e9ecef;">
               <i class="bi bi-person-fill"></i>
             </div>
+            <img src="" alt="Vista previa" id="avatarPreview" class="rounded-circle d-none"
+                 style="width:100px; height:100px; object-fit:cover; border: 3px solid #0d6efd;">
           {% endif %}
         </div>
         <div>
-          <form method="POST" action="/perfil/foto" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap">
+          <form method="POST" action="/perfil/foto" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap" id="fotoForm">
             <input type="file" name="foto" accept="image/jpeg,image/png,image/gif,image/webp"
                    class="form-control form-control-sm" style="max-width:280px" required
                    id="fotoInput">
-            <button type="submit" class="btn btn-sm btn-primary">
+            <button type="submit" class="btn btn-sm btn-primary" id="btnSubirFoto">
               <i class="bi bi-upload me-1"></i>Subir Foto
             </button>
           </form>
@@ -154,13 +156,67 @@
       </form>
     </div>
 
-    <!-- ── Cambiar cuenta ── -->
+    <!-- ── Cuentas / Cambiar cuenta ── -->
     <div class="form-card mt-4">
-      <h5 class="fw-bold mb-3"><i class="bi bi-arrow-left-right me-2"></i>Cambiar de Cuenta</h5>
-      <p class="text-muted small mb-3">Cierra tu sesion actual para iniciar con otra cuenta de usuario.</p>
-      <a href="/logout" class="btn btn-outline-danger" onclick="return confirm('¿Deseas cerrar sesion e iniciar con otra cuenta?')">
-        <i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesion y Cambiar Cuenta
-      </a>
+      <h5 class="fw-bold mb-3"><i class="bi bi-arrow-left-right me-2"></i>Cuentas</h5>
+
+      <!-- Cuenta activa -->
+      <div class="d-flex align-items-center gap-3 p-2 rounded mb-2" style="background: #e8f5e9;">
+        {% if usuario.foto %}
+          <img src="/static/uploads/avatars/{{ usuario.foto }}" class="rounded-circle" style="width:36px; height:36px; object-fit:cover;">
+        {% else %}
+          <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:36px; height:36px; background: #1a1a2e; color:white; font-size:1rem;">
+            <i class="bi bi-person-fill"></i>
+          </div>
+        {% endif %}
+        <div class="flex-grow-1">
+          <div class="fw-semibold" style="font-size:0.85rem;">{{ usuario.nombre_completo }}</div>
+          <small class="text-muted">@{{ usuario.username }} &mdash;
+            {% if usuario.rol == 'ADMIN' %}Administrador{% elif usuario.rol == 'VENDEDOR' %}Vendedor{% elif usuario.rol == 'BODEGUERO' %}Bodeguero{% endif %}
+          </small>
+        </div>
+        <span class="badge bg-success">Activa</span>
+      </div>
+
+      <!-- Cuentas guardadas -->
+      {% if saved_accounts %}
+      <div class="mt-2">
+        {% for acc in saved_accounts %}
+        <div class="d-flex align-items-center gap-3 p-2 rounded mb-1 border">
+          {% if acc.foto %}
+            <img src="/static/uploads/avatars/{{ acc.foto }}" class="rounded-circle" style="width:36px; height:36px; object-fit:cover;">
+          {% else %}
+            <div class="rounded-circle d-flex align-items-center justify-content-center" style="width:36px; height:36px; background: #455a64; color:white; font-size:1rem;">
+              <i class="bi bi-person-fill"></i>
+            </div>
+          {% endif %}
+          <div class="flex-grow-1">
+            <div class="fw-semibold" style="font-size:0.85rem;">{{ acc.nombre_completo }}</div>
+            <small class="text-muted">@{{ acc.username }} &mdash;
+              {% if acc.rol == 'ADMIN' %}Administrador{% elif acc.rol == 'VENDEDOR' %}Vendedor{% elif acc.rol == 'BODEGUERO' %}Bodeguero{% endif %}
+            </small>
+          </div>
+          <div class="d-flex gap-1">
+            <a href="/cambiar-cuenta/{{ acc.user_id }}" class="btn btn-sm btn-outline-primary" title="Cambiar a esta cuenta">
+              <i class="bi bi-box-arrow-in-right"></i>
+            </a>
+            <a href="/cerrar-cuenta/{{ acc.user_id }}" class="btn btn-sm btn-outline-secondary" title="Remover sesion guardada">
+              <i class="bi bi-x-lg"></i>
+            </a>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="mt-3 d-flex gap-2 flex-wrap">
+        <a href="/login?agregar=1" class="btn btn-sm btn-outline-primary">
+          <i class="bi bi-person-plus me-1"></i>Agregar otra cuenta
+        </a>
+        <a href="/logout" class="btn btn-sm btn-outline-danger" onclick="return confirm('¿Cerrar todas las sesiones?')">
+          <i class="bi bi-box-arrow-right me-1"></i>Cerrar todas las sesiones
+        </a>
+      </div>
     </div>
   </div>
 
@@ -194,10 +250,36 @@ document.getElementById('passwordForm').addEventListener('submit', function(e) {
 // Preview de imagen antes de subir
 document.getElementById('fotoInput').addEventListener('change', function(e) {
   const file = e.target.files[0];
-  if (file && file.size > 2 * 1024 * 1024) {
+  if (!file) return;
+
+  if (file.size > 2 * 1024 * 1024) {
     alert('La imagen no puede superar 2 MB.');
     e.target.value = '';
+    return;
   }
+
+  const allowed = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  if (!allowed.includes(file.type)) {
+    alert('Formato no permitido. Usa JPG, PNG, GIF o WebP.');
+    e.target.value = '';
+    return;
+  }
+
+  // Mostrar preview
+  const reader = new FileReader();
+  reader.onload = function(ev) {
+    let preview = document.getElementById('avatarPreview');
+    let placeholder = document.getElementById('avatarPlaceholder');
+    if (preview) {
+      preview.src = ev.target.result;
+      preview.classList.remove('d-none');
+      preview.style.border = '3px solid #0d6efd';
+    }
+    if (placeholder) {
+      placeholder.classList.add('d-none');
+    }
+  };
+  reader.readAsDataURL(file);
 });
 </script>
 {% endblock %}

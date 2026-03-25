@@ -13,7 +13,13 @@ def lista_proveedores(request: Request, db: Session = Depends(get_db),
                       buscar: str = None, msg: str = None, error: str = None):
     query = db.query(models.Proveedor).filter(models.Proveedor.activo == True)
     if buscar:
-        query = query.filter(models.Proveedor.nombre.ilike(f"%{buscar}%"))
+        query = query.filter(
+            models.Proveedor.nombre.ilike(f"%{buscar}%") |
+            models.Proveedor.contacto.ilike(f"%{buscar}%") |
+            models.Proveedor.telefono.ilike(f"%{buscar}%") |
+            models.Proveedor.email.ilike(f"%{buscar}%") |
+            models.Proveedor.nit_ruc.ilike(f"%{buscar}%")
+        )
     proveedores = query.order_by(models.Proveedor.nombre).all()
     return templates.TemplateResponse("proveedores/lista.html", {
         "request": request,

@@ -19,6 +19,7 @@ class Usuario(Base):
     telefono = Column(String(50), default="")
     foto = Column(String(255), default="")
     rol = Column(String(20), nullable=False, default="VENDEDOR")  # ADMIN, VENDEDOR, BODEGUERO
+    permisos = Column(Text, default="")  # comma-separated module keys (empty = default by role)
     activo = Column(Boolean, default=True)
     ultimo_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)

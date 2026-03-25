@@ -17,43 +17,132 @@
 {% endif %}
 
 <div class="row g-4 mb-4">
-  <div class="col-md-6">
-    <div class="form-card text-center">
+  <!-- Descargar -->
+  <div class="col-md-4">
+    <div class="form-card text-center h-100">
       <i class="bi bi-download text-primary" style="font-size:2.5rem"></i>
       <h5 class="mt-2">Descargar Backup</h5>
-      <p class="text-muted small">Descarga una copia de la base de datos completa.</p>
-      <a href="/backup/descargar" class="btn btn-primary"><i class="bi bi-download me-1"></i>Descargar Ahora</a>
+      <p class="text-muted small">Genera y descarga una copia completa de la base de datos.</p>
+      <a href="/backup/descargar" class="btn btn-primary"><i class="bi bi-download me-1"></i>Descargar</a>
     </div>
   </div>
-  <div class="col-md-6">
-    <div class="form-card text-center">
+
+  <!-- Crear local -->
+  <div class="col-md-4">
+    <div class="form-card text-center h-100">
       <i class="bi bi-hdd text-success" style="font-size:2.5rem"></i>
       <h5 class="mt-2">Backup Local</h5>
       <p class="text-muted small">Guarda una copia en la carpeta backups/ del servidor.</p>
       <form method="POST" action="/backup/crear" class="d-inline">
-        <button type="submit" class="btn btn-success"><i class="bi bi-hdd me-1"></i>Crear Backup Local</button>
+        <button type="submit" class="btn btn-success"><i class="bi bi-hdd me-1"></i>Crear Backup</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Subir backup -->
+  <div class="col-md-4">
+    <div class="form-card text-center h-100">
+      <i class="bi bi-upload text-warning" style="font-size:2.5rem"></i>
+      <h5 class="mt-2">Subir Backup</h5>
+      <p class="text-muted small">Sube un archivo .sql para guardarlo o restaurarlo despues.</p>
+      <form method="POST" action="/backup/subir" enctype="multipart/form-data" id="uploadForm">
+        <div class="d-flex gap-2 justify-content-center align-items-center flex-wrap">
+          <input type="file" name="archivo" accept=".sql" class="form-control form-control-sm"
+                 style="max-width:220px" required id="backupFileInput">
+          <button type="submit" class="btn btn-warning" id="btnSubir">
+            <i class="bi bi-upload me-1"></i>Subir
+          </button>
+        </div>
+        <div class="form-text mt-1">Solo archivos .sql, maximo 50 MB.</div>
       </form>
     </div>
   </div>
 </div>
 
-{% if backups %}
+<!-- Lista de backups locales -->
 <div class="table-card">
-  <div class="p-3 border-bottom"><h6 class="mb-0 fw-bold">Backups Locales Existentes</h6></div>
+  <div class="p-3 border-bottom d-flex justify-content-between align-items-center">
+    <h6 class="mb-0 fw-bold"><i class="bi bi-folder2-open me-2"></i>Backups Locales</h6>
+    <span class="badge bg-secondary">{{ backups | length }} archivo(s)</span>
+  </div>
   <div class="table-responsive">
-    <table class="table table-hover">
-      <thead><tr><th>Archivo</th><th>Fecha</th><th class="text-end">Tamaño</th></tr></thead>
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Archivo</th>
+          <th>Fecha</th>
+          <th class="text-end">Tamano</th>
+          <th class="text-end">Acciones</th>
+        </tr>
+      </thead>
       <tbody>
         {% for b in backups %}
         <tr>
-          <td><i class="bi bi-file-earmark-code me-1"></i>{{ b.filename }}</td>
+          <td>
+            <i class="bi bi-file-earmark-code me-1 text-primary"></i>
+            <span class="fw-medium">{{ b.filename }}</span>
+          </td>
           <td>{{ b.date.strftime('%d/%m/%Y %H:%M') }}</td>
           <td class="text-end">{{ b.size_mb }} MB</td>
+          <td class="text-end table-actions">
+            <a href="/backup/descargar-local/{{ b.filename }}" class="btn btn-sm btn-outline-primary" title="Descargar">
+              <i class="bi bi-download"></i>
+            </a>
+            <form method="POST" action="/backup/restaurar/{{ b.filename }}" class="d-inline"
+                  onsubmit="return confirm('¿Restaurar el backup {{ b.filename }}?\n\nEsta accion sobrescribira los datos actuales de la base de datos. Asegurate de tener un backup reciente antes de continuar.')">
+              <button type="submit" class="btn btn-sm btn-outline-warning" title="Restaurar">
+                <i class="bi bi-arrow-counterclockwise"></i>
+              </button>
+            </form>
+            <form method="POST" action="/backup/eliminar/{{ b.filename }}" class="d-inline"
+                  onsubmit="return confirm('¿Eliminar el backup {{ b.filename }}?')">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
+        {% if not backups %}
+        <tr>
+          <td colspan="4" class="text-center text-muted py-5">
+            <i class="bi bi-folder2 fs-2 d-block mb-2"></i>
+            No hay backups locales. Crea uno o sube un archivo .sql.
+          </td>
+        </tr>
+        {% endif %}
       </tbody>
     </table>
   </div>
 </div>
-{% endif %}
+
+<!-- Info -->
+<div class="form-card mt-4">
+  <h6 class="fw-bold mb-2"><i class="bi bi-info-circle me-2 text-info"></i>Informacion</h6>
+  <ul class="mb-0 small text-muted">
+    <li><strong>Descargar:</strong> genera un dump SQL completo y lo descarga al navegador.</li>
+    <li><strong>Backup Local:</strong> guarda el dump en la carpeta backups/ del servidor para uso futuro.</li>
+    <li><strong>Subir:</strong> permite subir un archivo .sql previamente descargado para almacenarlo en el servidor.</li>
+    <li><strong>Restaurar:</strong> ejecuta las sentencias SQL del backup seleccionado sobre la base de datos actual.</li>
+    <li class="text-danger"><strong>Precaucion:</strong> restaurar un backup puede sobrescribir datos actuales. Siempre crea un backup antes de restaurar.</li>
+  </ul>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('backupFileInput').addEventListener('change', function(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (!file.name.endsWith('.sql')) {
+    alert('Solo se permiten archivos .sql');
+    e.target.value = '';
+    return;
+  }
+  if (file.size > 50 * 1024 * 1024) {
+    alert('El archivo no puede superar 50 MB.');
+    e.target.value = '';
+  }
+});
+</script>
 {% endblock %}

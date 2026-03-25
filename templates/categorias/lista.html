@@ -25,6 +25,22 @@
   </button>
 </div>
 
+<!-- Busqueda -->
+<div class="search-bar mb-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" name="buscar" class="form-control" placeholder="Buscar por nombre o descripcion..." value="{{ buscar }}">
+      </div>
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary btn-sm">Buscar</button>
+      {% if buscar %}<a href="/categorias" class="btn btn-outline-secondary btn-sm ms-1">Limpiar</a>{% endif %}
+    </div>
+  </form>
+</div>
+
 <div class="row g-3">
   <!-- Lista de categorías -->
   <div class="col-md-7">

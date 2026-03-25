@@ -6,6 +6,7 @@ import os
 import json
 from datetime import datetime
 from functools import wraps
+from typing import List
 
 from fastapi import Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
@@ -118,6 +119,95 @@ def require_role(*roles):
             raise HTTPException(status_code=403, detail="No tienes permisos para acceder a esta sección")
         return user
     return dependency
+
+
+# ── Permission management ────────────────────────────────
+MODULOS_DISPONIBLES = [
+    ("dashboard", "Dashboard"),
+    ("productos", "Productos"),
+    ("categorias", "Categorias"),
+    ("inventario", "Movimientos de Inventario"),
+    ("ventas_pos", "Punto de Venta"),
+    ("ventas_historial", "Historial de Ventas"),
+    ("clientes", "Clientes"),
+    ("caja", "Caja Registradora"),
+    ("proveedores", "Proveedores"),
+    ("acreedores", "Acreedores"),
+    ("deudas", "Cuentas por Pagar"),
+    ("facturas", "Cuentas por Cobrar"),
+    ("reportes", "Reportes"),
+]
+
+PERMISOS_POR_ROL = {
+    "ADMIN": [m[0] for m in MODULOS_DISPONIBLES],
+    "VENDEDOR": [
+        "dashboard", "productos", "ventas_pos", "ventas_historial",
+        "clientes", "caja", "acreedores", "deudas", "facturas", "reportes",
+    ],
+    "BODEGUERO": [
+        "dashboard", "productos", "categorias", "inventario",
+        "proveedores", "reportes",
+    ],
+}
+
+
+def get_user_permisos(user) -> list:
+    """Obtiene la lista de permisos del usuario. Si tiene permisos personalizados los usa, si no los del rol."""
+    if user.permisos and user.permisos.strip():
+        return [p.strip() for p in user.permisos.split(",") if p.strip()]
+    return PERMISOS_POR_ROL.get(user.rol, [])
+
+
+def user_has_permiso(user, modulo: str) -> bool:
+    """Verifica si el usuario tiene acceso a un modulo."""
+    if user.rol == "ADMIN":
+        return True
+    return modulo in get_user_permisos(user)
+
+
+def require_permiso(modulo: str):
+    """Factory de dependencia que exige acceso a un modulo."""
+    def dependency(request: Request) -> models.Usuario:
+        user = getattr(request.state, "user", None)
+        if not user:
+            raise HTTPException(status_code=303, headers={"Location": "/login"})
+        if not user_has_permiso(user, modulo):
+            raise HTTPException(status_code=403, detail="No tienes permisos para acceder a esta seccion")
+        return user
+    return dependency
+
+
+# ── Multi-account session management ─────────────────────
+ACCOUNTS_COOKIE = "techstock_accounts"
+
+
+def get_saved_accounts(request: Request) -> list:
+    """Lee las cuentas guardadas de la cookie."""
+    cookie = request.cookies.get(ACCOUNTS_COOKIE)
+    if not cookie:
+        return []
+    s = get_serializer()
+    try:
+        return s.loads(cookie, max_age=SESSION_MAX_AGE)
+    except (BadSignature, SignatureExpired):
+        return []
+
+
+def save_accounts_cookie(response, accounts: list):
+    """Guarda la lista de cuentas en una cookie firmada."""
+    s = get_serializer()
+    value = s.dumps(accounts)
+    response.set_cookie(
+        ACCOUNTS_COOKIE, value,
+        httponly=True, samesite="lax", max_age=SESSION_MAX_AGE,
+    )
+    return response
+
+
+def remove_accounts_cookie(response):
+    """Elimina la cookie de cuentas guardadas."""
+    response.delete_cookie(ACCOUNTS_COOKIE)
+    return response
 
 
 # ── Audit trail ───────────────────────────────────────────

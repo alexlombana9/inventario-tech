@@ -10,11 +10,18 @@ router = APIRouter(prefix="/categorias", tags=["categorias"])
 
 @router.get("")
 def lista_categorias(request: Request, db: Session = Depends(get_db),
-                     msg: str = None, error: str = None):
-    categorias = db.query(models.Categoria).order_by(models.Categoria.nombre).all()
+                     buscar: str = None, msg: str = None, error: str = None):
+    query = db.query(models.Categoria)
+    if buscar:
+        query = query.filter(
+            models.Categoria.nombre.ilike(f"%{buscar}%") |
+            models.Categoria.descripcion.ilike(f"%{buscar}%")
+        )
+    categorias = query.order_by(models.Categoria.nombre).all()
     return templates.TemplateResponse("categorias/lista.html", {
         "request": request,
         "categorias": categorias,
+        "buscar": buscar or "",
         "msg": msg,
         "error": error,
     })

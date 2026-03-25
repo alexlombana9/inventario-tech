@@ -25,15 +25,34 @@
 </div>
 {% endif %}
 
-<!-- Búsqueda -->
+<!-- Filtros -->
 <div class="search-bar">
-  <form method="GET" class="d-flex gap-2">
-    <input type="text" name="buscar" class="form-control" placeholder="Buscar por nombre o usuario..."
-           value="{{ buscar }}">
-    <button class="btn btn-primary"><i class="bi bi-search"></i></button>
-    {% if buscar %}
-    <a href="/usuarios" class="btn btn-outline-secondary"><i class="bi bi-x-lg"></i></a>
-    {% endif %}
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-md-4">
+      <input type="text" name="buscar" class="form-control form-control-sm"
+             placeholder="Buscar por nombre, usuario o email..." value="{{ buscar }}">
+    </div>
+    <div class="col-md-2">
+      <select name="rol" class="form-select form-select-sm">
+        <option value="">Todos los roles</option>
+        {% for r_val, r_label in roles %}
+        <option value="{{ r_val }}" {% if rol == r_val %}selected{% endif %}>{{ r_label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <select name="estado" class="form-select form-select-sm">
+        <option value="">Todos los estados</option>
+        <option value="activo" {% if estado == 'activo' %}selected{% endif %}>Activo</option>
+        <option value="inactivo" {% if estado == 'inactivo' %}selected{% endif %}>Inactivo</option>
+      </select>
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary btn-sm"><i class="bi bi-search"></i></button>
+      {% if buscar or rol or estado %}
+      <a href="/usuarios" class="btn btn-outline-secondary btn-sm ms-1"><i class="bi bi-x-lg"></i></a>
+      {% endif %}
+    </div>
   </form>
 </div>
 
