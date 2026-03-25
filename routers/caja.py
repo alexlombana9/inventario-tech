@@ -165,8 +165,10 @@ def historial_cajas(
     request: Request,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
-    pagina: int = 1,
+    pagina: str = None,
 ):
+    pag = int(pagina) if pagina and pagina.strip() else 1
+
     query = db.query(models.Caja)
 
     if current_user.rol != "ADMIN":
@@ -174,13 +176,13 @@ def historial_cajas(
 
     total = query.count()
     por_pagina = 20
-    cajas = query.order_by(models.Caja.fecha_apertura.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
+    cajas = query.order_by(models.Caja.fecha_apertura.desc()).offset((pag - 1) * por_pagina).limit(por_pagina).all()
     total_paginas = (total + por_pagina - 1) // por_pagina
 
     return templates.TemplateResponse("caja/historial.html", {
         "request": request,
         "cajas": cajas,
-        "pagina": pagina,
+        "pagina": pag,
         "total_paginas": total_paginas,
         "total": total,
     })

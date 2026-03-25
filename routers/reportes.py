@@ -20,14 +20,17 @@ def reportes_index(request: Request):
 def reporte_stock(
     request: Request,
     db: Session = Depends(get_db),
-    categoria_id: int = None,
-    solo_bajo: bool = False
+    categoria_id: str = None,
+    solo_bajo: str = None
 ):
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
+
     query = db.query(models.Producto).filter(models.Producto.activo == True)
 
-    if categoria_id:
-        query = query.filter(models.Producto.categoria_id == categoria_id)
-    if solo_bajo:
+    if cat_id:
+        query = query.filter(models.Producto.categoria_id == cat_id)
+    if es_solo_bajo:
         query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
 
     productos = query.order_by(models.Producto.nombre).all()
@@ -41,8 +44,8 @@ def reporte_stock(
         "request": request,
         "productos": productos,
         "categorias": categorias,
-        "categoria_id": categoria_id,
-        "solo_bajo": solo_bajo,
+        "categoria_id": cat_id,
+        "solo_bajo": es_solo_bajo,
         "valor_total": valor_total,
         "valor_venta": valor_venta,
         "total_bajo": total_bajo,
@@ -57,7 +60,7 @@ def reporte_movimientos(
     fecha_desde: str = None,
     fecha_hasta: str = None,
     tipo: str = None,
-    categoria_id: int = None
+    categoria_id: str = None
 ):
     # Defaults: último mes
     if not fecha_desde:
@@ -82,8 +85,9 @@ def reporte_movimientos(
 
     movimientos = query.order_by(models.MovimientoInventario.fecha.desc()).all()
 
-    if categoria_id:
-        movimientos = [m for m in movimientos if m.producto and m.producto.categoria_id == categoria_id]
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    if cat_id:
+        movimientos = [m for m in movimientos if m.producto and m.producto.categoria_id == cat_id]
 
     total_entradas = sum(m.cantidad for m in movimientos if m.tipo == "ENTRADA")
     total_salidas = sum(m.cantidad for m in movimientos if m.tipo == "SALIDA")
@@ -99,7 +103,7 @@ def reporte_movimientos(
         "fecha_desde": fecha_desde,
         "fecha_hasta": fecha_hasta,
         "tipo": tipo or "",
-        "categoria_id": categoria_id,
+        "categoria_id": cat_id,
         "total_entradas": total_entradas,
         "total_salidas": total_salidas,
         "valor_entradas": valor_entradas,
@@ -111,15 +115,18 @@ def reporte_movimientos(
 @router.get("/stock/excel")
 def reporte_stock_excel(
     db: Session = Depends(get_db),
-    categoria_id: int = None,
-    solo_bajo: bool = False
+    categoria_id: str = None,
+    solo_bajo: str = None
 ):
     from utils.excel import generate_excel
 
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
+
     query = db.query(models.Producto).filter(models.Producto.activo == True)
-    if categoria_id:
-        query = query.filter(models.Producto.categoria_id == categoria_id)
-    if solo_bajo:
+    if cat_id:
+        query = query.filter(models.Producto.categoria_id == cat_id)
+    if es_solo_bajo:
         query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
     productos = query.order_by(models.Producto.nombre).all()
 
@@ -202,8 +209,8 @@ def reporte_movimientos_excel(
 @router.get("/stock/pdf")
 def reporte_stock_pdf(
     db: Session = Depends(get_db),
-    categoria_id: int = None,
-    solo_bajo: bool = False
+    categoria_id: str = None,
+    solo_bajo: str = None
 ):
     from reportlab.lib.pagesizes import A4, landscape
     from reportlab.lib import colors
@@ -212,10 +219,13 @@ def reporte_stock_pdf(
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
+
     query = db.query(models.Producto).filter(models.Producto.activo == True)
-    if categoria_id:
-        query = query.filter(models.Producto.categoria_id == categoria_id)
-    if solo_bajo:
+    if cat_id:
+        query = query.filter(models.Producto.categoria_id == cat_id)
+    if es_solo_bajo:
         query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
     productos = query.order_by(models.Producto.nombre).all()
 

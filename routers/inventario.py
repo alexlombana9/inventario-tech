@@ -14,18 +14,21 @@ router = APIRouter(prefix="/inventario", tags=["inventario"])
 def lista_movimientos(
     request: Request,
     db: Session = Depends(get_db),
-    producto_id: int = None,
+    producto_id: str = None,
     tipo: str = None,
     fecha_desde: str = None,
     fecha_hasta: str = None,
     msg: str = None,
     error: str = None,
-    pagina: int = 1
+    pagina: str = None
 ):
+    prod_id = int(producto_id) if producto_id and producto_id.strip() else None
+    pag = int(pagina) if pagina and pagina.strip() else 1
+
     query = db.query(models.MovimientoInventario)
 
-    if producto_id:
-        query = query.filter(models.MovimientoInventario.producto_id == producto_id)
+    if prod_id:
+        query = query.filter(models.MovimientoInventario.producto_id == prod_id)
     if tipo and tipo in ("ENTRADA", "SALIDA", "AJUSTE"):
         query = query.filter(models.MovimientoInventario.tipo == tipo)
     if fecha_desde:
@@ -44,7 +47,7 @@ def lista_movimientos(
 
     total = query.count()
     por_pagina = 20
-    movimientos = query.order_by(models.MovimientoInventario.fecha.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
+    movimientos = query.order_by(models.MovimientoInventario.fecha.desc()).offset((pag - 1) * por_pagina).limit(por_pagina).all()
     total_paginas = (total + por_pagina - 1) // por_pagina
 
     productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre).all()
@@ -53,12 +56,12 @@ def lista_movimientos(
         "request": request,
         "movimientos": movimientos,
         "productos": productos,
-        "producto_id": producto_id,
+        "producto_id": prod_id,
         "tipo": tipo or "",
         "fecha_desde": fecha_desde or "",
         "fecha_hasta": fecha_hasta or "",
         "total": total,
-        "pagina": pagina,
+        "pagina": pag,
         "total_paginas": total_paginas,
         "msg": msg,
         "error": error,

@@ -13,11 +13,14 @@ def lista_productos(
     request: Request,
     db: Session = Depends(get_db),
     buscar: str = None,
-    categoria_id: int = None,
-    stock_bajo: bool = False,
+    categoria_id: str = None,
+    stock_bajo: str = None,
     msg: str = None,
     error: str = None
 ):
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    es_stock_bajo = stock_bajo in ("true", "True", "1", "on") if stock_bajo else False
+
     query = db.query(models.Producto).filter(models.Producto.activo == True)
 
     if buscar:
@@ -25,9 +28,9 @@ def lista_productos(
             models.Producto.nombre.ilike(f"%{buscar}%") |
             models.Producto.codigo.ilike(f"%{buscar}%")
         )
-    if categoria_id:
-        query = query.filter(models.Producto.categoria_id == categoria_id)
-    if stock_bajo:
+    if cat_id:
+        query = query.filter(models.Producto.categoria_id == cat_id)
+    if es_stock_bajo:
         query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
 
     productos = query.order_by(models.Producto.nombre).all()
@@ -38,8 +41,8 @@ def lista_productos(
         "productos": productos,
         "categorias": categorias,
         "buscar": buscar or "",
-        "categoria_id": categoria_id,
-        "stock_bajo": stock_bajo,
+        "categoria_id": cat_id,
+        "stock_bajo": es_stock_bajo,
         "msg": msg,
         "error": error,
     })

@@ -247,7 +247,12 @@
       <div class="dropdown ms-2">
         <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
                 data-bs-toggle="dropdown" aria-expanded="false">
-          <i class="bi bi-person-circle me-1"></i>
+          {% if request.state.user.foto %}
+            <img src="/static/uploads/avatars/{{ request.state.user.foto }}" alt=""
+                 class="rounded-circle me-1" style="width:22px; height:22px; object-fit:cover; vertical-align:middle;">
+          {% else %}
+            <i class="bi bi-person-circle me-1"></i>
+          {% endif %}
           <span class="d-none d-sm-inline">{{ request.state.user.nombre_completo }}</span>
         </button>
         <ul class="dropdown-menu dropdown-menu-end">

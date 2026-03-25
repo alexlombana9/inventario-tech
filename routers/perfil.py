@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Request, Depends, Form
+import os
+import uuid
+from fastapi import APIRouter, Request, Depends, Form, UploadFile, File
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
@@ -8,6 +10,10 @@ from auth import require_auth, hash_password, verify_password, set_flash, log_au
 import models
 
 router = APIRouter(prefix="/perfil", tags=["perfil"])
+
+UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads", "avatars")
+ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+MAX_FILE_SIZE = 2 * 1024 * 1024  # 2 MB
 
 
 @router.get("")
@@ -47,6 +53,68 @@ def actualizar_perfil(
 
     resp = RedirectResponse("/perfil", status_code=303)
     return set_flash(resp, "Perfil actualizado correctamente")
+
+
+@router.post("/foto")
+async def subir_foto(
+    request: Request,
+    foto: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+):
+    # Validar extensión
+    ext = os.path.splitext(foto.filename or "")[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        resp = RedirectResponse("/perfil", status_code=303)
+        return set_flash(resp, "Formato no permitido. Usa JPG, PNG, GIF o WebP.", "error")
+
+    # Leer contenido y validar tamaño
+    content = await foto.read()
+    if len(content) > MAX_FILE_SIZE:
+        resp = RedirectResponse("/perfil", status_code=303)
+        return set_flash(resp, "La imagen no puede superar 2 MB.", "error")
+
+    # Crear directorio si no existe
+    os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+    # Eliminar foto anterior si existe
+    if current_user.foto:
+        old_path = os.path.join(UPLOAD_DIR, current_user.foto)
+        if os.path.isfile(old_path):
+            os.remove(old_path)
+
+    # Guardar con nombre único
+    filename = f"{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    current_user.foto = filename
+    db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "UPDATE", "perfil", current_user.id,
+              "Foto de perfil actualizada", ip)
+
+    resp = RedirectResponse("/perfil", status_code=303)
+    return set_flash(resp, "Foto de perfil actualizada correctamente")
+
+
+@router.post("/foto/eliminar")
+def eliminar_foto(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+):
+    if current_user.foto:
+        old_path = os.path.join(UPLOAD_DIR, current_user.foto)
+        if os.path.isfile(old_path):
+            os.remove(old_path)
+        current_user.foto = ""
+        db.commit()
+
+    resp = RedirectResponse("/perfil", status_code=303)
+    return set_flash(resp, "Foto de perfil eliminada")
 
 
 @router.post("/password")

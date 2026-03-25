@@ -229,8 +229,10 @@ def historial_ventas(
     buscar: str = None,
     msg: str = None,
     error: str = None,
-    pagina: int = 1,
+    pagina: str = None,
 ):
+    pag = int(pagina) if pagina and pagina.strip() else 1
+
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
     if not fecha_hasta:
@@ -245,7 +247,7 @@ def historial_ventas(
     except ValueError:
         pass
 
-    if estado:
+    if estado and estado.strip():
         query = query.filter(models.Venta.estado == estado)
     if buscar:
         query = query.filter(
@@ -255,7 +257,7 @@ def historial_ventas(
 
     total = query.count()
     por_pagina = 20
-    ventas = query.order_by(models.Venta.fecha.desc()).offset((pagina - 1) * por_pagina).limit(por_pagina).all()
+    ventas = query.order_by(models.Venta.fecha.desc()).offset((pag - 1) * por_pagina).limit(por_pagina).all()
     total_paginas = (total + por_pagina - 1) // por_pagina
 
     total_ventas = db.query(func.sum(models.Venta.total)).filter(
@@ -273,7 +275,7 @@ def historial_ventas(
         "buscar": buscar or "",
         "total": total,
         "total_ventas": total_ventas,
-        "pagina": pagina,
+        "pagina": pag,
         "total_paginas": total_paginas,
         "msg": msg,
         "error": error,

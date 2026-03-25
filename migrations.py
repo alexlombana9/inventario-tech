@@ -117,6 +117,15 @@ def run_migrations(engine):
                 migrations_applied += 1
                 print("  [Migration] usuarios: agregada columna telefono")
 
+        # ── Agregar foto a usuarios ──
+        if table_exists(conn, "usuarios"):
+            columns = get_table_columns(conn, "usuarios")
+            if "foto" not in columns:
+                conn.execute(text("ALTER TABLE usuarios ADD COLUMN foto VARCHAR(255) DEFAULT ''"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] usuarios: agregada columna foto")
+
     if migrations_applied > 0:
         print(f"  [Migration] {migrations_applied} migración(es) aplicada(s)")
     return migrations_applied
