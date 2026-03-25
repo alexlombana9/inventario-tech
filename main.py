@@ -84,6 +84,12 @@ def guia(request: Request):
     return templates.TemplateResponse("guia/index.html", ctx)
 
 
+@app.get("/legal")
+def legal(request: Request):
+    ctx = _base_context(request)
+    return templates.TemplateResponse("legal/index.html", ctx)
+
+
 @app.get("/")
 def index(request: Request, db: Session = Depends(get_db)):
     hoy = date.today()

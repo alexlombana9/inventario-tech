@@ -64,6 +64,11 @@
             <label class="btn btn-outline-danger" for="tipoDeudas">
               <i class="bi bi-credit-card-2-back me-1"></i>Deudas
             </label>
+
+            <input type="radio" class="btn-check" name="tipo" id="tipoFacturas" value="facturas">
+            <label class="btn btn-outline-info" for="tipoFacturas">
+              <i class="bi bi-receipt me-1"></i>Facturas
+            </label>
           </div>
         </div>
 
@@ -101,7 +106,7 @@
         <li>No importa el orden de las columnas, el sistema las detecta por nombre.</li>
         <li>Las columnas opcionales se pueden omitir, el sistema usara valores por defecto.</li>
         <li>Si un producto con el mismo <strong>codigo</strong> ya existe, se <strong>actualiza</strong> en vez de duplicarse.</li>
-        <li>Orden recomendado de importacion: <strong>Categorias</strong> &rarr; <strong>Proveedores</strong> &rarr; <strong>Productos</strong> &rarr; <strong>Clientes</strong> &rarr; <strong>Acreedores</strong> &rarr; <strong>Deudas</strong>.</li>
+        <li>Orden recomendado de importacion: <strong>Categorias</strong> &rarr; <strong>Proveedores</strong> &rarr; <strong>Productos</strong> &rarr; <strong>Clientes</strong> &rarr; <strong>Acreedores</strong> &rarr; <strong>Deudas</strong> &rarr; <strong>Facturas</strong>.</li>
         <li>Las fechas se aceptan en formatos: <code>2026-01-15</code>, <code>15/01/2026</code>, <code>15-01-2026</code>.</li>
       </ul>
     </div>
@@ -131,6 +136,9 @@
         </a>
         <a href="/importar/plantilla/deudas" class="btn btn-outline-success btn-sm">
           <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Deudas
+        </a>
+        <a href="/importar/plantilla/facturas" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Facturas
         </a>
       </div>
     </div>
@@ -258,6 +266,31 @@
           El <strong>estado</strong> (PENDIENTE, PARCIAL, PAGADO) se calcula segun monto_pagado.
         </div>
       </div>
+
+      <!-- Facturas info -->
+      <div id="infoFacturas" style="display:none;">
+        <h6 class="fw-semibold">Facturas / Cuentas por Cobrar</h6>
+        <table class="table table-sm small">
+          <tbody>
+            <tr><td><code>cliente_nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre del cliente</td></tr>
+            <tr><td><code>concepto</code></td><td><span class="badge bg-danger">Requerido</span> Descripcion del servicio o producto</td></tr>
+            <tr><td><code>monto_total</code></td><td><span class="badge bg-danger">Requerido</span> Monto total de la factura</td></tr>
+            <tr><td><code>numero_factura</code></td><td>Numero unico (se genera automaticamente si se omite)</td></tr>
+            <tr><td><code>cliente_documento</code></td><td>Cedula, NIT o documento del cliente</td></tr>
+            <tr><td><code>cliente_telefono</code></td><td>Telefono del cliente</td></tr>
+            <tr><td><code>cliente_email</code></td><td>Correo electronico del cliente</td></tr>
+            <tr><td><code>monto_cobrado</code></td><td>Cuanto se ha cobrado (0 si es nueva)</td></tr>
+            <tr><td><code>fecha_emision</code></td><td>Fecha de emision de la factura</td></tr>
+            <tr><td><code>fecha_vencimiento</code></td><td>Fecha limite de cobro</td></tr>
+            <tr><td><code>notas</code></td><td>Notas o condiciones de cobro</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-info small py-2">
+          <i class="bi bi-lightbulb me-1"></i>
+          Si <strong>numero_factura</strong> ya existe, la fila se omite. Si no se proporciona, se genera automaticamente (FAC-0001, FAC-0002...).
+          El <strong>estado</strong> (PENDIENTE, PARCIAL, PAGADO) se calcula segun monto_cobrado.
+        </div>
+      </div>
     </div>
   </div>
 
@@ -267,7 +300,7 @@
 {% block scripts %}
 <script>
 // Toggle info panels based on selected type
-const infoPanels = ['Productos', 'Categorias', 'Clientes', 'Proveedores', 'Acreedores', 'Deudas'];
+const infoPanels = ['Productos', 'Categorias', 'Clientes', 'Proveedores', 'Acreedores', 'Deudas', 'Facturas'];
 document.querySelectorAll('input[name="tipo"]').forEach(radio => {
   radio.addEventListener('change', function() {
     infoPanels.forEach(p => {
@@ -307,7 +340,8 @@ document.getElementById('archivo').addEventListener('change', function(e) {
 document.getElementById('importForm').addEventListener('submit', function(e) {
   const tipoLabels = {
     productos: 'productos', categorias: 'categorias', clientes: 'clientes',
-    proveedores: 'proveedores', acreedores: 'acreedores', deudas: 'deudas'
+    proveedores: 'proveedores', acreedores: 'acreedores', deudas: 'deudas',
+    facturas: 'facturas'
   };
   const tipo = document.querySelector('input[name="tipo"]:checked').value;
   const archivo = document.getElementById('archivo').files[0];

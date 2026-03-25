@@ -90,6 +90,15 @@ def descargar_plantilla(
             "widths": [30, 50],
             "ejemplo": ["Perifericos", "Teclados, mouse, audífonos y otros perifericos"],
         },
+        "facturas": {
+            "headers": ["numero_factura", "cliente_nombre", "cliente_documento", "cliente_telefono",
+                        "cliente_email", "concepto", "monto_total", "monto_cobrado",
+                        "fecha_emision", "fecha_vencimiento", "notas"],
+            "widths": [16, 25, 18, 15, 22, 35, 16, 16, 16, 18, 30],
+            "ejemplo": ["FAC-0001", "Juan Perez", "1234567890", "3001234567",
+                        "juan@email.com", "Servicio de mantenimiento", 500000, 0,
+                        "2026-01-15", "2026-02-15", "Cobro a 30 dias"],
+        },
     }
 
     if tipo not in plantillas:
@@ -178,6 +187,8 @@ async def procesar_importacion(
         result = _importar_deudas(db, headers, data_rows, current_user, request)
     elif tipo == "categorias":
         result = _importar_categorias(db, headers, data_rows, current_user, request)
+    elif tipo == "facturas":
+        result = _importar_facturas(db, headers, data_rows, current_user, request)
     else:
         return RedirectResponse("/importar?error=Tipo+de+importación+no+válido", status_code=303)
 
@@ -675,6 +686,114 @@ def _importar_categorias(db: Session, headers: list, data_rows: list, user, requ
     msg = f"Importacion completada: {creados} categorias creadas"
     if omitidos:
         msg += f", {omitidos} omitidas (duplicadas o vacias)"
+    return RedirectResponse(f"/importar?msg={msg.replace(' ', '+')}", status_code=303)
+
+
+# ── Importar Facturas / Cuentas por Cobrar ──────────────────
+
+def _importar_facturas(db: Session, headers: list, data_rows: list, user, request: Request):
+    col_num = _col_index(headers, "numero_factura")
+    col_cliente = _col_index(headers, "cliente_nombre")
+    col_doc = _col_index(headers, "cliente_documento")
+    col_tel = _col_index(headers, "cliente_telefono")
+    col_email = _col_index(headers, "cliente_email")
+    col_concepto = _col_index(headers, "concepto")
+    col_monto = _col_index(headers, "monto_total")
+    col_cobrado = _col_index(headers, "monto_cobrado")
+    col_emision = _col_index(headers, "fecha_emision")
+    col_venc = _col_index(headers, "fecha_vencimiento")
+    col_notas = _col_index(headers, "notas")
+
+    if col_cliente is None or col_concepto is None or col_monto is None:
+        return RedirectResponse(
+            "/importar?error=El+archivo+debe+tener+las+columnas+'cliente_nombre',+'concepto'+y+'monto_total'",
+            status_code=303,
+        )
+
+    creados = 0
+    omitidos = 0
+    errores = 0
+
+    # Generar siguiente numero si no se proporciona columna
+    ultimo = db.query(models.Factura).order_by(models.Factura.id.desc()).first()
+    next_num = 1
+    if ultimo:
+        try:
+            next_num = int(ultimo.numero_factura.split("-")[-1]) + 1
+        except (ValueError, IndexError):
+            next_num = ultimo.id + 1
+
+    for i, row in enumerate(data_rows, start=2):
+        cliente = _cell_str(row, col_cliente)
+        concepto = _cell_str(row, col_concepto)
+        monto_total = _cell_float(row, col_monto)
+
+        if not cliente or not concepto or monto_total <= 0:
+            errores += 1
+            continue
+
+        # Numero de factura
+        num_factura = _cell_str(row, col_num)
+        if not num_factura:
+            num_factura = f"FAC-{next_num:04d}"
+            next_num += 1
+
+        # Verificar duplicado por numero_factura
+        existente = db.query(models.Factura).filter(
+            models.Factura.numero_factura == num_factura
+        ).first()
+        if existente:
+            omitidos += 1
+            continue
+
+        # Parsear fechas
+        fecha_emision = _parse_date(_cell_str(row, col_emision))
+        fecha_venc = _parse_date(_cell_str(row, col_venc))
+
+        monto_cobrado = _cell_float(row, col_cobrado)
+        if monto_cobrado > monto_total:
+            monto_cobrado = monto_total
+
+        # Calcular estado
+        if monto_cobrado >= monto_total:
+            estado = "PAGADO"
+        elif monto_cobrado > 0:
+            estado = "PARCIAL"
+        else:
+            estado = "PENDIENTE"
+
+        factura = models.Factura(
+            numero_factura=num_factura,
+            cliente_nombre=cliente,
+            cliente_documento=_cell_str(row, col_doc),
+            cliente_telefono=_cell_str(row, col_tel),
+            cliente_email=_cell_str(row, col_email),
+            concepto=concepto,
+            monto_total=monto_total,
+            monto_cobrado=monto_cobrado,
+            fecha_emision=fecha_emision or datetime.now(),
+            fecha_vencimiento=fecha_venc,
+            estado=estado,
+            notas=_cell_str(row, col_notas),
+        )
+        db.add(factura)
+        creados += 1
+        next_num += 1
+
+    db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, user, "CREATE", "importacion", None,
+              f"Importación facturas: {creados} creadas, {omitidos} omitidas, {errores} errores", ip)
+
+    msg_parts = []
+    if creados:
+        msg_parts.append(f"{creados} facturas creadas")
+    if omitidos:
+        msg_parts.append(f"{omitidos} omitidas (duplicadas)")
+    if errores:
+        msg_parts.append(f"{errores} filas con datos incompletos")
+    msg = "Importación completada: " + ", ".join(msg_parts) if msg_parts else "No se importaron datos"
     return RedirectResponse(f"/importar?msg={msg.replace(' ', '+')}", status_code=303)
 
 

@@ -42,6 +42,9 @@ def lista_facturas(
     db: Session = Depends(get_db),
     estado: str = None,
     buscar: str = None,
+    fecha_desde: str = None,
+    fecha_hasta: str = None,
+    vencidas: str = None,
     msg: str = None,
     error: str = None,
 ):
@@ -49,10 +52,31 @@ def lista_facturas(
     if estado:
         query = query.filter(models.Factura.estado == estado)
     if buscar:
+        term = f"%{buscar}%"
         query = query.filter(
-            models.Factura.cliente_nombre.ilike(f"%{buscar}%") |
-            models.Factura.numero_factura.ilike(f"%{buscar}%")
+            models.Factura.cliente_nombre.ilike(term) |
+            models.Factura.numero_factura.ilike(term) |
+            models.Factura.concepto.ilike(term) |
+            models.Factura.cliente_documento.ilike(term)
         )
+    if fecha_desde:
+        try:
+            fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
+            query = query.filter(models.Factura.fecha_emision >= fd)
+        except ValueError:
+            pass
+    if fecha_hasta:
+        try:
+            fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.filter(models.Factura.fecha_emision <= fh)
+        except ValueError:
+            pass
+    if vencidas == "1":
+        query = query.filter(
+            models.Factura.fecha_vencimiento < datetime.now(),
+            models.Factura.estado != "PAGADO",
+        )
+
     facturas = query.order_by(models.Factura.fecha_vencimiento.asc().nullsfirst(),
                               models.Factura.created_at.desc()).all()
 
@@ -66,6 +90,9 @@ def lista_facturas(
         "total_vencidas": total_vencidas,
         "estado": estado or "",
         "buscar": buscar or "",
+        "fecha_desde": fecha_desde or "",
+        "fecha_hasta": fecha_hasta or "",
+        "vencidas": vencidas or "",
         "msg": msg,
         "error": error,
     })
