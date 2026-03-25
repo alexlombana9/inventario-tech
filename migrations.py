@@ -49,6 +49,60 @@ def run_migrations(engine):
                 migrations_applied += 1
                 print("  [Migration] movimientos_inventario: agregada columna venta_id")
 
+        # ── Crear tabla acreedores ──
+        if not table_exists(conn, "acreedores"):
+            conn.execute(text("""
+                CREATE TABLE acreedores (
+                    id SERIAL PRIMARY KEY,
+                    nombre VARCHAR(200) NOT NULL,
+                    tipo VARCHAR(20) DEFAULT 'OTRO',
+                    documento VARCHAR(50) DEFAULT '',
+                    telefono VARCHAR(50) DEFAULT '',
+                    email VARCHAR(100) DEFAULT '',
+                    direccion TEXT DEFAULT '',
+                    notas TEXT DEFAULT '',
+                    activo BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("CREATE INDEX ix_acreedores_id ON acreedores (id)"))
+            conn.commit()
+            migrations_applied += 1
+            print("  [Migration] acreedores: tabla creada")
+
+        # ── Agregar referencia y precio_venta_minimo a productos ──
+        if table_exists(conn, "productos"):
+            columns = get_table_columns(conn, "productos")
+            if "referencia" not in columns:
+                conn.execute(text("ALTER TABLE productos ADD COLUMN referencia VARCHAR(100) DEFAULT ''"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] productos: agregada columna referencia")
+            if "precio_venta_minimo" not in columns:
+                conn.execute(text("ALTER TABLE productos ADD COLUMN precio_venta_minimo FLOAT DEFAULT 0.0"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] productos: agregada columna precio_venta_minimo")
+
+        # ── Agregar precio_costo a detalle_venta ──
+        if table_exists(conn, "detalle_venta"):
+            columns = get_table_columns(conn, "detalle_venta")
+            if "precio_costo" not in columns:
+                conn.execute(text("ALTER TABLE detalle_venta ADD COLUMN precio_costo FLOAT DEFAULT 0.0"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] detalle_venta: agregada columna precio_costo")
+
+        # ── Agregar acreedor_id a deudas ──
+        if table_exists(conn, "deudas"):
+            columns = get_table_columns(conn, "deudas")
+            if "acreedor_id" not in columns:
+                conn.execute(text("ALTER TABLE deudas ADD COLUMN acreedor_id INTEGER NULL"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] deudas: agregada columna acreedor_id")
+
     if migrations_applied > 0:
         print(f"  [Migration] {migrations_applied} migración(es) aplicada(s)")
     return migrations_applied

@@ -39,7 +39,7 @@
       <div class="p-3 border-bottom"><h6 class="mb-0 fw-bold">Productos Vendidos</h6></div>
       <div class="table-responsive">
         <table class="table">
-          <thead><tr><th>Código</th><th>Producto</th><th class="text-center">Cant.</th><th class="text-end">Precio</th><th class="text-end">Subtotal</th></tr></thead>
+          <thead><tr><th>Código</th><th>Producto</th><th class="text-center">Cant.</th><th class="text-end">Precio</th><th class="text-end">Subtotal</th><th class="text-end">Ganancia</th></tr></thead>
           <tbody>
             {% for d in venta.detalles %}
             <tr>
@@ -48,11 +48,16 @@
               <td class="text-center">{{ d.cantidad | numero }}</td>
               <td class="text-end">{{ d.precio_unitario | moneda }}</td>
               <td class="text-end fw-bold">{{ d.subtotal | moneda }}</td>
+              <td class="text-end text-{{ 'success' if d.ganancia >= 0 else 'danger' }}">{{ d.ganancia | moneda }}</td>
             </tr>
             {% endfor %}
           </tbody>
           <tfoot>
-            <tr class="fw-bold"><td colspan="4" class="text-end">Total:</td><td class="text-end text-primary">{{ venta.total | moneda }}</td></tr>
+            <tr class="fw-bold">
+              <td colspan="4" class="text-end">Total:</td>
+              <td class="text-end text-primary">{{ venta.total | moneda }}</td>
+              <td class="text-end text-success">{{ venta.ganancia_total | moneda }}</td>
+            </tr>
           </tfoot>
         </table>
       </div>

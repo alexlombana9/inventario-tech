@@ -53,11 +53,12 @@ def descargar_plantilla(
 
     plantillas = {
         "productos": {
-            "headers": ["codigo", "nombre", "descripcion", "categoria", "proveedor",
-                        "precio_costo", "precio_venta", "stock_actual", "stock_minimo", "unidad_medida"],
-            "widths": [15, 30, 35, 18, 20, 15, 15, 14, 14, 14],
-            "ejemplo": ["PROD-001", "Teclado Mecánico", "Teclado gaming RGB", "Periféricos",
-                        "TechDistribuidor", 45000, 89000, 25, 5, "UND"],
+            "headers": ["codigo", "referencia", "nombre", "descripcion", "categoria", "proveedor",
+                        "precio_costo", "precio_venta", "precio_venta_minimo",
+                        "stock_actual", "stock_minimo", "unidad_medida"],
+            "widths": [15, 15, 30, 35, 18, 20, 16, 16, 18, 14, 14, 14],
+            "ejemplo": ["PROD-001", "REF-001", "Teclado Mecánico", "Teclado gaming RGB", "Periféricos",
+                        "TechDistribuidor", 45000, 89000, 75000, 25, 5, "UND"],
         },
         "clientes": {
             "headers": ["nombre", "tipo_documento", "documento", "telefono", "email", "direccion", "notas"],
@@ -70,6 +71,19 @@ def descargar_plantilla(
             "widths": [25, 20, 15, 25, 30, 18],
             "ejemplo": ["TechDistribuidor S.A.", "María López", "6011234567",
                         "ventas@techdist.com", "Av. Industrial 456", "900123456-1"],
+        },
+        "acreedores": {
+            "headers": ["nombre", "tipo", "documento", "telefono", "email", "direccion", "notas"],
+            "widths": [28, 16, 18, 15, 25, 30, 30],
+            "ejemplo": ["Distribuidora XYZ", "PROVEEDOR", "900123456-1", "3001234567",
+                        "cobros@xyz.com", "Av. Industrial 456", "Pago a 30 días"],
+        },
+        "deudas": {
+            "headers": ["concepto", "acreedor_nombre", "acreedor_tipo",
+                        "monto_total", "monto_pagado", "fecha_deuda", "fecha_vencimiento", "notas"],
+            "widths": [35, 25, 16, 16, 16, 16, 18, 30],
+            "ejemplo": ["Compra mercancía Factura #1234", "Distribuidora XYZ", "PROVEEDOR",
+                        500000, 150000, "2026-01-15", "2026-04-15", "Pago en 3 cuotas"],
         },
     }
 
@@ -153,6 +167,10 @@ async def procesar_importacion(
         result = _importar_clientes(db, headers, data_rows, current_user, request)
     elif tipo == "proveedores":
         result = _importar_proveedores(db, headers, data_rows, current_user, request)
+    elif tipo == "acreedores":
+        result = _importar_acreedores(db, headers, data_rows, current_user, request)
+    elif tipo == "deudas":
+        result = _importar_deudas(db, headers, data_rows, current_user, request)
     else:
         return RedirectResponse("/importar?error=Tipo+de+importación+no+válido", status_code=303)
 
@@ -191,12 +209,14 @@ def _cell_float(row, idx, default=0.0) -> float:
 
 def _importar_productos(db: Session, headers: list, data_rows: list, user, request: Request):
     col_codigo = _col_index(headers, "codigo")
+    col_ref = _col_index(headers, "referencia")
     col_nombre = _col_index(headers, "nombre")
     col_desc = _col_index(headers, "descripcion")
     col_cat = _col_index(headers, "categoria")
     col_prov = _col_index(headers, "proveedor")
     col_pcosto = _col_index(headers, "precio_costo")
     col_pventa = _col_index(headers, "precio_venta")
+    col_pvmin = _col_index(headers, "precio_venta_minimo")
     col_stock = _col_index(headers, "stock_actual")
     col_smin = _col_index(headers, "stock_minimo")
     col_um = _col_index(headers, "unidad_medida")
@@ -252,6 +272,9 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
 
         if existente:
             existente.nombre = nombre
+            ref = _cell_str(row, col_ref)
+            if ref:
+                existente.referencia = ref
             existente.descripcion = _cell_str(row, col_desc) or existente.descripcion
             if categoria_id:
                 existente.categoria_id = categoria_id
@@ -259,10 +282,13 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
                 existente.proveedor_id = proveedor_id
             pc = _cell_float(row, col_pcosto)
             pv = _cell_float(row, col_pventa)
+            pvmin = _cell_float(row, col_pvmin)
             if pc > 0:
                 existente.precio_costo = pc
             if pv > 0:
                 existente.precio_venta = pv
+            if pvmin > 0:
+                existente.precio_venta_minimo = pvmin
             stock_new = _cell_float(row, col_stock)
             if col_stock is not None and stock_new > 0:
                 existente.stock_actual = stock_new
@@ -277,12 +303,14 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
             stock_val = _cell_float(row, col_stock)
             producto = models.Producto(
                 codigo=codigo,
+                referencia=_cell_str(row, col_ref),
                 nombre=nombre,
                 descripcion=_cell_str(row, col_desc),
                 categoria_id=categoria_id,
                 proveedor_id=proveedor_id,
                 precio_costo=_cell_float(row, col_pcosto),
                 precio_venta=_cell_float(row, col_pventa),
+                precio_venta_minimo=_cell_float(row, col_pvmin),
                 stock_actual=stock_val,
                 stock_minimo=_cell_float(row, col_smin),
                 unidad_medida=_cell_str(row, col_um) or "UND",
@@ -438,3 +466,171 @@ def _importar_proveedores(db: Session, headers: list, data_rows: list, user, req
     if omitidos:
         msg += f", {omitidos} omitidos (duplicados o vacíos)"
     return RedirectResponse(f"/importar?msg={msg.replace(' ', '+')}", status_code=303)
+
+
+# ── Importar Acreedores ────────────────────────────────────────
+
+def _importar_acreedores(db: Session, headers: list, data_rows: list, user, request: Request):
+    col_nombre = _col_index(headers, "nombre")
+    col_tipo = _col_index(headers, "tipo")
+    col_doc = _col_index(headers, "documento")
+    col_tel = _col_index(headers, "telefono")
+    col_email = _col_index(headers, "email")
+    col_dir = _col_index(headers, "direccion")
+    col_notas = _col_index(headers, "notas")
+
+    if col_nombre is None:
+        return RedirectResponse(
+            "/importar?error=El+archivo+debe+tener+la+columna+'nombre'",
+            status_code=303,
+        )
+
+    TIPOS_VALIDOS = {"PROVEEDOR", "BANCO", "PERSONA", "OTRO"}
+    creados = 0
+    omitidos = 0
+
+    for i, row in enumerate(data_rows, start=2):
+        nombre = _cell_str(row, col_nombre)
+        if not nombre:
+            omitidos += 1
+            continue
+
+        # Verificar duplicado por nombre
+        existente = db.query(models.Acreedor).filter(
+            models.Acreedor.nombre.ilike(nombre),
+            models.Acreedor.activo == True,
+        ).first()
+        if existente:
+            omitidos += 1
+            continue
+
+        tipo = _cell_str(row, col_tipo).upper()
+        if tipo not in TIPOS_VALIDOS:
+            tipo = "OTRO"
+
+        acreedor = models.Acreedor(
+            nombre=nombre,
+            tipo=tipo,
+            documento=_cell_str(row, col_doc),
+            telefono=_cell_str(row, col_tel),
+            email=_cell_str(row, col_email),
+            direccion=_cell_str(row, col_dir),
+            notas=_cell_str(row, col_notas),
+        )
+        db.add(acreedor)
+        creados += 1
+
+    db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, user, "CREATE", "importacion", None,
+              f"Importación acreedores: {creados} creados, {omitidos} omitidos", ip)
+
+    msg = f"Importación completada: {creados} acreedores creados"
+    if omitidos:
+        msg += f", {omitidos} omitidos (duplicados o vacíos)"
+    return RedirectResponse(f"/importar?msg={msg.replace(' ', '+')}", status_code=303)
+
+
+# ── Importar Deudas ────────────────────────────────────────────
+
+def _importar_deudas(db: Session, headers: list, data_rows: list, user, request: Request):
+    col_concepto = _col_index(headers, "concepto")
+    col_acr_nombre = _col_index(headers, "acreedor_nombre")
+    col_acr_tipo = _col_index(headers, "acreedor_tipo")
+    col_monto = _col_index(headers, "monto_total")
+    col_pagado = _col_index(headers, "monto_pagado")
+    col_fecha = _col_index(headers, "fecha_deuda")
+    col_venc = _col_index(headers, "fecha_vencimiento")
+    col_notas = _col_index(headers, "notas")
+
+    if col_concepto is None or col_acr_nombre is None or col_monto is None:
+        return RedirectResponse(
+            "/importar?error=El+archivo+debe+tener+las+columnas+'concepto',+'acreedor_nombre'+y+'monto_total'",
+            status_code=303,
+        )
+
+    TIPOS_VALIDOS = {"PROVEEDOR", "BANCO", "PERSONA", "OTRO"}
+    creados = 0
+    errores = 0
+    acr_cache = {}
+
+    for i, row in enumerate(data_rows, start=2):
+        concepto = _cell_str(row, col_concepto)
+        acr_nombre = _cell_str(row, col_acr_nombre)
+        monto_total = _cell_float(row, col_monto)
+
+        if not concepto or not acr_nombre or monto_total <= 0:
+            errores += 1
+            continue
+
+        acr_tipo = _cell_str(row, col_acr_tipo).upper()
+        if acr_tipo not in TIPOS_VALIDOS:
+            acr_tipo = "OTRO"
+
+        # Buscar acreedor registrado por nombre (cache)
+        acreedor_id = None
+        if acr_nombre not in acr_cache:
+            acr_obj = db.query(models.Acreedor).filter(
+                models.Acreedor.nombre.ilike(acr_nombre),
+                models.Acreedor.activo == True,
+            ).first()
+            acr_cache[acr_nombre] = acr_obj.id if acr_obj else None
+        acreedor_id = acr_cache[acr_nombre]
+
+        # Parsear fechas
+        fecha_deuda = _parse_date(_cell_str(row, col_fecha))
+        fecha_venc = _parse_date(_cell_str(row, col_venc))
+
+        monto_pagado = _cell_float(row, col_pagado)
+        if monto_pagado > monto_total:
+            monto_pagado = monto_total
+
+        # Calcular estado
+        if monto_pagado >= monto_total:
+            estado = "PAGADO"
+        elif monto_pagado > 0:
+            estado = "PARCIAL"
+        else:
+            estado = "PENDIENTE"
+
+        deuda = models.Deuda(
+            concepto=concepto,
+            acreedor_nombre=acr_nombre,
+            acreedor_tipo=acr_tipo,
+            acreedor_id=acreedor_id,
+            monto_total=monto_total,
+            monto_pagado=monto_pagado,
+            fecha_deuda=fecha_deuda or datetime.now(),
+            fecha_vencimiento=fecha_venc,
+            estado=estado,
+            notas=_cell_str(row, col_notas),
+        )
+        db.add(deuda)
+        creados += 1
+
+    db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, user, "CREATE", "importacion", None,
+              f"Importación deudas: {creados} creadas, {errores} errores", ip)
+
+    msg_parts = []
+    if creados:
+        msg_parts.append(f"{creados} deudas creadas")
+    if errores:
+        msg_parts.append(f"{errores} filas omitidas")
+    msg = "Importación completada: " + ", ".join(msg_parts) if msg_parts else "No se importaron datos"
+    return RedirectResponse(f"/importar?msg={msg.replace(' ', '+')}", status_code=303)
+
+
+def _parse_date(val: str):
+    """Intenta parsear una fecha en varios formatos comunes."""
+    if not val:
+        return None
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d", "%d.%m.%Y"):
+        try:
+            return datetime.strptime(val.strip(), fmt)
+        except ValueError:
+            continue
+    return None

@@ -199,11 +199,49 @@ pip install -r requirements.txt -q
 ok "Dependencias instaladas."
 
 # ══════════════════════════════════════════════════════════
-#  PASO 5/6: Inicializar base de datos
+#  PASO 5/7: Credenciales del usuario administrador (ROOT)
 # ══════════════════════════════════════════════════════════
 echo ""
 echo -e " ${B}══════════════════════════════════════════════════════════${N}"
-echo -e " ${B}${C}[5/6]${N} ${B}Inicializando base de datos...${N}"
+echo -e " ${B}${C}[5/7]${N} ${B}Configurando usuario administrador (ROOT)...${N}"
+echo -e " ${B}══════════════════════════════════════════════════════════${N}"
+echo ""
+echo -e "   ${D}Configure las credenciales del usuario principal.${N}"
+echo -e "   ${D}Presione ENTER para usar el valor por defecto [entre corchetes].${N}"
+echo ""
+
+ADMIN_USERNAME="admin"
+ADMIN_PASSWORD=""
+ADMIN_NAME="Administrador"
+
+read -p "   Usuario administrador [admin]: " input
+ADMIN_USERNAME="${input:-admin}"
+
+read -sp "   Contrasena del administrador: " input
+echo
+if [ -z "$input" ]; then
+    ADMIN_PASSWORD="admin123"
+    warn "Se usara la contrasena por defecto: admin123"
+    echo -e "   ${Y}  Cambiela despues del primer inicio de sesion.${N}"
+else
+    ADMIN_PASSWORD="$input"
+fi
+
+read -p "   Nombre completo [Administrador]: " input
+ADMIN_NAME="${input:-Administrador}"
+
+echo ""
+ok "Usuario: $ADMIN_USERNAME"
+ok "Nombre:  $ADMIN_NAME"
+
+export ADMIN_USERNAME ADMIN_PASSWORD ADMIN_NAME
+
+# ══════════════════════════════════════════════════════════
+#  PASO 6/7: Inicializar base de datos
+# ══════════════════════════════════════════════════════════
+echo ""
+echo -e " ${B}══════════════════════════════════════════════════════════${N}"
+echo -e " ${B}${C}[6/7]${N} ${B}Inicializando base de datos...${N}"
 echo -e " ${B}══════════════════════════════════════════════════════════${N}"
 
 spin "Creando tablas y datos iniciales..."
@@ -220,16 +258,16 @@ db.close()
 "
 ok "Tablas creadas."
 ok "Migraciones aplicadas."
-ok "Usuario admin creado (admin / admin123)."
+ok "Usuario '$ADMIN_USERNAME' creado."
 
 mkdir -p backups static/uploads
 
 # ══════════════════════════════════════════════════════════
-#  PASO 6/6: Verificacion final
+#  PASO 7/7: Verificacion final
 # ══════════════════════════════════════════════════════════
 echo ""
 echo -e " ${B}══════════════════════════════════════════════════════════${N}"
-echo -e " ${B}${C}[6/6]${N} ${B}Verificacion final...${N}"
+echo -e " ${B}${C}[7/7]${N} ${B}Verificacion final...${N}"
 echo -e " ${B}══════════════════════════════════════════════════════════${N}"
 
 python -c "from database import engine; c=engine.connect(); c.close()" 2>/dev/null
@@ -265,10 +303,8 @@ echo ""
 echo -e " ${B}Datos de acceso:${N}"
 echo ""
 echo -e "   ${C}URL:${N}       http://localhost:8000"
-echo -e "   ${C}Usuario:${N}   admin"
-echo -e "   ${C}Clave:${N}     admin123"
-echo ""
-echo -e " ${Y}  ⚠ Cambie la contrasena del admin despues del primer inicio.${N}"
+echo -e "   ${C}Usuario:${N}   $ADMIN_USERNAME"
+echo -e "   ${C}Nombre:${N}    $ADMIN_NAME"
 echo ""
 
 read -p "   Desea iniciar TechStock ahora? (s/n): " -n 1 -r

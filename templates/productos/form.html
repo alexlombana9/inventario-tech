@@ -30,6 +30,15 @@
         <small class="text-muted">Identificador único del producto</small>
       </div>
 
+      <!-- Referencia -->
+      <div class="col-md-3">
+        <label class="form-label" for="referencia">Referencia</label>
+        <input type="text" id="referencia" name="referencia" class="form-control"
+               value="{{ producto.referencia if producto else '' }}"
+               placeholder="Ej: REF-001, SKU externo">
+        <small class="text-muted">Referencia del proveedor o fabricante</small>
+      </div>
+
       <!-- Nombre -->
       <div class="col-md-6">
         <label class="form-label" for="nombre">Nombre del Producto <span class="text-danger">*</span></label>
@@ -107,6 +116,15 @@
               <input type="number" id="precio_venta" name="precio_venta" class="form-control"
                      min="0" step="0.01" value="{{ '%.2f' | format(producto.precio_venta) if producto else '0.00' }}">
             </div>
+          </div>
+          <div class="col-md-3">
+            <label class="form-label" for="precio_venta_minimo">Precio Venta Mínimo</label>
+            <div class="input-group">
+              <span class="input-group-text">$</span>
+              <input type="number" id="precio_venta_minimo" name="precio_venta_minimo" class="form-control"
+                     min="0" step="0.01" value="{{ '%.2f' | format(producto.precio_venta_minimo) if producto else '0.00' }}">
+            </div>
+            <small class="text-muted">Precio mínimo permitido en ventas</small>
           </div>
         </div>
       </div>

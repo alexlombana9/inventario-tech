@@ -62,11 +62,13 @@ def nuevo_producto_form(request: Request, db: Session = Depends(get_db)):
 def crear_producto(
     codigo: str = Form(...),
     nombre: str = Form(...),
+    referencia: str = Form(""),
     descripcion: str = Form(""),
     categoria_id: str = Form(""),
     proveedor_id: str = Form(""),
     precio_costo: float = Form(0.0),
     precio_venta: float = Form(0.0),
+    precio_venta_minimo: float = Form(0.0),
     stock_actual: float = Form(0.0),
     stock_minimo: float = Form(0.0),
     unidad_medida: str = Form("UND"),
@@ -78,12 +80,14 @@ def crear_producto(
 
     producto = models.Producto(
         codigo=codigo.strip().upper(),
+        referencia=referencia.strip(),
         nombre=nombre.strip(),
         descripcion=descripcion.strip(),
         categoria_id=int(categoria_id) if categoria_id else None,
         proveedor_id=int(proveedor_id) if proveedor_id else None,
         precio_costo=precio_costo,
         precio_venta=precio_venta,
+        precio_venta_minimo=precio_venta_minimo,
         stock_actual=stock_actual,
         stock_minimo=stock_minimo,
         unidad_medida=unidad_medida.strip().upper() or "UND",
@@ -129,11 +133,13 @@ def actualizar_producto(
     prod_id: int,
     codigo: str = Form(...),
     nombre: str = Form(...),
+    referencia: str = Form(""),
     descripcion: str = Form(""),
     categoria_id: str = Form(""),
     proveedor_id: str = Form(""),
     precio_costo: float = Form(0.0),
     precio_venta: float = Form(0.0),
+    precio_venta_minimo: float = Form(0.0),
     stock_minimo: float = Form(0.0),
     unidad_medida: str = Form("UND"),
     db: Session = Depends(get_db)
@@ -150,12 +156,14 @@ def actualizar_producto(
         return RedirectResponse(f"/productos/{prod_id}/editar?error=Ya+existe+otro+producto+con+ese+código", status_code=303)
 
     producto.codigo = codigo.strip().upper()
+    producto.referencia = referencia.strip()
     producto.nombre = nombre.strip()
     producto.descripcion = descripcion.strip()
     producto.categoria_id = int(categoria_id) if categoria_id else None
     producto.proveedor_id = int(proveedor_id) if proveedor_id else None
     producto.precio_costo = precio_costo
     producto.precio_venta = precio_venta
+    producto.precio_venta_minimo = precio_venta_minimo
     producto.stock_minimo = stock_minimo
     producto.unidad_medida = unidad_medida.strip().upper() or "UND"
     db.commit()

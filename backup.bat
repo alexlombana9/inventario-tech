@@ -33,19 +33,27 @@ if exist ".env" (
 
 REM Parsear DATABASE_URL si existe
 if defined DATABASE_URL (
-    REM Extraer componentes con Python
-    if exist "venv\Scripts\python.exe" (
-        for /f "tokens=1,2,3,4,5 delims=|" %%a in ('venv\Scripts\python -c "from urllib.parse import urlparse; p=urlparse(r'!DATABASE_URL!'); print(f'{p.hostname}|{p.port or 5432}|{p.username or \"postgres\"}|{p.password or \"postgres\"}|{(p.path or \"/inventario\").lstrip(\"/\")}')" 2^>nul') do (
-            set "PG_HOST=%%a"
-            set "PG_PORT=%%b"
-            set "PG_USER=%%c"
-            set "PG_PASS=%%d"
-            set "PG_DBNAME=%%e"
-        )
+    REM Extraer componentes de postgresql://user:pass@host:port/dbname
+    set "TMPURL=!DATABASE_URL:postgresql://=!"
+    for /f "tokens=1,2 delims=@" %%a in ("!TMPURL!") do (
+        set "USERPASS=%%a"
+        set "HOSTREST=%%b"
+    )
+    for /f "tokens=1,* delims=:" %%a in ("!USERPASS!") do (
+        set "PG_USER=%%a"
+        set "PG_PASS=%%b"
+    )
+    for /f "tokens=1,2 delims=/" %%a in ("!HOSTREST!") do (
+        set "HOSTPORT=%%a"
+        set "PG_DBNAME=%%b"
+    )
+    for /f "tokens=1,2 delims=:" %%a in ("!HOSTPORT!") do (
+        set "PG_HOST=%%a"
+        if not "%%b"=="" set "PG_PORT=%%b"
     )
 ) else (
     echo   %YELLOW%[AVISO]%RESET% No se encontro archivo .env. Usando valores por defecto.
-    echo   Ejecute setup.bat para configurar la conexion.
+    echo   Ejecute instalar.bat para configurar la conexion.
     echo.
 )
 
@@ -117,8 +125,8 @@ if not defined PGDUMP_CMD (
     goto :pause_menu
 )
 
-for /f "delims=" %%T in ('venv\Scripts\python -c "from datetime import datetime; print(datetime.now().strftime('%%Y%%m%%d_%%H%%M%%S'))" 2^>nul') do set "TIMESTAMP=%%T"
-if not defined TIMESTAMP set "TIMESTAMP=backup"
+set "TIMESTAMP=%date:~-4%%date:~-7,2%%date:~-10,2%_%time:~0,2%%time:~3,2%%time:~6,2%"
+set "TIMESTAMP=!TIMESTAMP: =0!"
 set "FILENAME=techstock_full_!TIMESTAMP!.sql"
 set "FILEPATH=!BACKUP_DIR!\!FILENAME!"
 
@@ -155,8 +163,8 @@ if not defined PGDUMP_CMD (
     goto :pause_menu
 )
 
-for /f "delims=" %%T in ('venv\Scripts\python -c "from datetime import datetime; print(datetime.now().strftime('%%Y%%m%%d_%%H%%M%%S'))" 2^>nul') do set "TIMESTAMP=%%T"
-if not defined TIMESTAMP set "TIMESTAMP=backup"
+set "TIMESTAMP=%date:~-4%%date:~-7,2%%date:~-10,2%_%time:~0,2%%time:~3,2%%time:~6,2%"
+set "TIMESTAMP=!TIMESTAMP: =0!"
 set "FILENAME=techstock_data_!TIMESTAMP!.sql"
 set "FILEPATH=!BACKUP_DIR!\!FILENAME!"
 
@@ -216,8 +224,9 @@ echo.
 echo   %YELLOW%ATENCION: Esto reemplazara TODOS los datos actuales de la base de datos.%RESET%
 echo   Archivo: !SELECTED!
 echo.
-choice /c SN /m "  Esta seguro de continuar? (S/N)"
-if !errorlevel! neq 1 goto :menu
+set "RESP="
+set /p "RESP=  Esta seguro de continuar? (S/N): "
+if /i not "!RESP!"=="S" goto :menu
 
 echo.
 echo   Restaurando base de datos...
@@ -238,7 +247,7 @@ REM Restaurar el dump SQL
 "!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -d !PG_DBNAME! -f "!BACKUP_DIR!\!SELECTED!" > nul 2>&1
 
 if %errorlevel% neq 0 (
-    echo   %YELLOW%[AVISO]%RESET% La restauracion termino con advertencias (puede ser normal).
+    echo   %YELLOW%[AVISO]%RESET% La restauracion termino con advertencias ^(puede ser normal^).
 ) else (
     echo   %GREEN%[OK]%RESET% Base de datos restaurada exitosamente desde: !SELECTED!
 )
@@ -271,12 +280,12 @@ for /f "delims=" %%F in ('dir /b /o-d "%BACKUP_DIR%\*.sql" 2^>nul') do (
 
 if !COUNT! equ 0 (
     echo.
-    echo   (No hay backups)
+    echo   ^(No hay backups^)
 ) else (
     set /a "TOTAL_KB=!TOTAL_SIZE!/1024"
     set /a "TOTAL_MB=!TOTAL_SIZE!/1048576"
     echo   ---------------------------------------------------------
-    echo   Total: !COUNT! archivo(s), ~!TOTAL_MB! MB
+    echo   Total: !COUNT! archivos, ~!TOTAL_MB! MB
 )
 goto :pause_menu
 
@@ -306,7 +315,7 @@ if !DELETED! equ 0 (
     echo   No hay backups antiguos para eliminar.
 ) else (
     echo.
-    echo   %GREEN%[OK]%RESET% !DELETED! backup(s) eliminado(s). Se conservaron las ultimas !KEEP! copias.
+    echo   %GREEN%[OK]%RESET% !DELETED! backups eliminados. Se conservaron las ultimas !KEEP! copias.
 )
 goto :pause_menu
 
@@ -333,33 +342,34 @@ if "!FREQ!"=="4" goto :eliminar_tarea
 set "TASK_SCRIPT=%~dp0backup_auto.bat"
 set "TASK_NAME=TechStock_Backup_Auto"
 
-REM Crear script automatico que usa Python para timestamps
-(
-echo @echo off
-echo chcp 65001 ^> nul 2^>^&1
-echo setlocal enabledelayedexpansion
-echo cd /d "%%~dp0"
-echo if exist ".env" for /f "usebackq tokens=1,* delims==" %%%%a in ^(".env"^) do set "%%%%a=%%%%b"
-echo set "PGDUMP_CMD="
-echo where pg_dump ^> nul 2^>^&1
-echo if %%errorlevel%% equ 0 ^(set "PGDUMP_CMD=pg_dump"^) else ^(
-echo     for %%%%V in ^(17 16 15 14^) do if exist "C:\Program Files\PostgreSQL\%%%%V\bin\pg_dump.exe" set "PGDUMP_CMD=C:\Program Files\PostgreSQL\%%%%V\bin\pg_dump.exe"
-echo ^)
-echo if not defined PGDUMP_CMD exit /b 1
-echo for /f "delims=" %%%%T in ^('venv\Scripts\python -c "from datetime import datetime; print^(datetime.now^(^).strftime^('%%%%%%%%Y%%%%%%%%m%%%%%%%%d_%%%%%%%%H%%%%%%%%M%%%%%%%%S'^)^)" 2^^^>nul'^) do set "TS=%%%%T"
-echo if not defined TS set "TS=auto"
-echo if exist "venv\Scripts\python.exe" ^(
-echo     for /f "tokens=1,2,3,4,5 delims=|" %%%%a in ^('venv\Scripts\python -c "from urllib.parse import urlparse; p=urlparse^(r'%%DATABASE_URL%%'^); print^(f'{p.hostname}^|{p.port or 5432}^|{p.username or \"postgres\"}^|{p.password or \"postgres\"}^|{^(p.path or \"/inventario\"^).lstrip^(\"/\"^)}'^)" 2^^^>nul'^) do ^(
-echo         set "PGPASSWORD=%%%%d"
-echo         "%%PGDUMP_CMD%%" -h %%%%a -p %%%%b -U %%%%c -d %%%%e --no-owner --no-acl -f "backups\techstock_auto_%%TS%%.sql" 2^^^>nul
-echo     ^)
-echo ^)
-echo set "N=0"
-echo for /f "delims=" %%%%F in ^('dir /b /o-d "backups\techstock_auto_*.sql" 2^^^>nul'^) do ^(
-echo     set /a "N+=1"
-echo     if %%N%% gtr 30 del "backups\%%%%F"
-echo ^)
-) > "!TASK_SCRIPT!"
+REM Crear script automatico sin dependencia de Python
+> "!TASK_SCRIPT!" (
+    echo @echo off
+    echo chcp 65001 ^> nul 2^>^&1
+    echo setlocal enabledelayedexpansion
+    echo cd /d "%%~dp0"
+    echo set "PG_HOST=!PG_HOST!"
+    echo set "PG_PORT=!PG_PORT!"
+    echo set "PG_USER=!PG_USER!"
+    echo set "PG_PASS=!PG_PASS!"
+    echo set "PG_DBNAME=!PG_DBNAME!"
+    echo set "PGPASSWORD=!PG_PASS!"
+    echo set "PGDUMP_CMD="
+    echo where pg_dump ^> nul 2^>^&1
+    echo if %%errorlevel%% equ 0 ^(set "PGDUMP_CMD=pg_dump"^) else ^(
+    echo     for %%%%V in ^(17 16 15 14^) do if exist "C:\Program Files\PostgreSQL\%%%%V\bin\pg_dump.exe" set "PGDUMP_CMD=C:\Program Files\PostgreSQL\%%%%V\bin\pg_dump.exe"
+    echo ^)
+    echo if not defined PGDUMP_CMD exit /b 1
+    echo if not exist "backups" mkdir "backups"
+    echo set "TS=%%date:~-4%%%%date:~-7,2%%%%date:~-10,2%%_%%time:~0,2%%%%time:~3,2%%%%time:~6,2%%"
+    echo set "TS=!TS: =0!"
+    echo "%%PGDUMP_CMD%%" -h %%PG_HOST%% -p %%PG_PORT%% -U %%PG_USER%% -d %%PG_DBNAME%% --no-owner --no-acl -f "backups\techstock_auto_!TS!.sql" 2^>nul
+    echo set "N=0"
+    echo for /f "delims=" %%%%F in ^('dir /b /o-d "backups\techstock_auto_*.sql" 2^^^>nul'^) do ^(
+    echo     set /a "N+=1"
+    echo     if !N! gtr 30 del "backups\%%%%F"
+    echo ^)
+)
 
 if "!FREQ!"=="1" (
     schtasks /create /tn "!TASK_NAME!" /tr "\"!TASK_SCRIPT!\"" /sc DAILY /st 02:00 /f > nul 2>&1

@@ -11,7 +11,7 @@ import io
 router = APIRouter(prefix="/deudas", tags=["deudas"])
 
 METODOS_PAGO = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "CHEQUE"]
-TIPOS_ACREEDOR = ["PROVEEDOR", "LOCAL", "OTRO"]
+TIPOS_ACREEDOR = ["PROVEEDOR", "BANCO", "PERSONA", "OTRO"]
 
 
 def _actualizar_estado(deuda: models.Deuda):
@@ -68,10 +68,12 @@ def lista_deudas(
 @router.get("/nueva")
 def nueva_deuda_form(request: Request, db: Session = Depends(get_db)):
     proveedores = db.query(models.Proveedor).filter(models.Proveedor.activo == True).order_by(models.Proveedor.nombre).all()
+    acreedores = db.query(models.Acreedor).filter(models.Acreedor.activo == True).order_by(models.Acreedor.nombre).all()
     return templates.TemplateResponse("deudas/form.html", {
         "request": request,
         "deuda": None,
         "proveedores": proveedores,
+        "acreedores": acreedores,
         "tipos_acreedor": TIPOS_ACREEDOR,
         "accion": "Nueva",
         "error": None,
@@ -83,6 +85,7 @@ def crear_deuda(
     concepto: str = Form(...),
     acreedor_nombre: str = Form(...),
     acreedor_tipo: str = Form("OTRO"),
+    acreedor_id: str = Form(""),
     proveedor_id: str = Form(""),
     monto_total: float = Form(...),
     fecha_deuda: str = Form(...),
@@ -91,6 +94,7 @@ def crear_deuda(
     db: Session = Depends(get_db),
 ):
     prov_id = int(proveedor_id) if proveedor_id.strip() else None
+    acr_id = int(acreedor_id) if acreedor_id.strip() else None
     fec_deuda = datetime.strptime(fecha_deuda, "%Y-%m-%d") if fecha_deuda else datetime.now()
     fec_venc = datetime.strptime(fecha_vencimiento, "%Y-%m-%d") if fecha_vencimiento.strip() else None
 
@@ -98,6 +102,7 @@ def crear_deuda(
         concepto=concepto.strip(),
         acreedor_nombre=acreedor_nombre.strip(),
         acreedor_tipo=acreedor_tipo,
+        acreedor_id=acr_id,
         proveedor_id=prov_id,
         monto_total=monto_total,
         fecha_deuda=fec_deuda,
@@ -117,10 +122,12 @@ def editar_deuda_form(deuda_id: int, request: Request, db: Session = Depends(get
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
     proveedores = db.query(models.Proveedor).filter(models.Proveedor.activo == True).order_by(models.Proveedor.nombre).all()
+    acreedores = db.query(models.Acreedor).filter(models.Acreedor.activo == True).order_by(models.Acreedor.nombre).all()
     return templates.TemplateResponse("deudas/form.html", {
         "request": request,
         "deuda": deuda,
         "proveedores": proveedores,
+        "acreedores": acreedores,
         "tipos_acreedor": TIPOS_ACREEDOR,
         "accion": "Editar",
         "error": None,
@@ -133,6 +140,7 @@ def actualizar_deuda(
     concepto: str = Form(...),
     acreedor_nombre: str = Form(...),
     acreedor_tipo: str = Form("OTRO"),
+    acreedor_id: str = Form(""),
     proveedor_id: str = Form(""),
     monto_total: float = Form(...),
     fecha_deuda: str = Form(...),
@@ -147,6 +155,7 @@ def actualizar_deuda(
     deuda.concepto = concepto.strip()
     deuda.acreedor_nombre = acreedor_nombre.strip()
     deuda.acreedor_tipo = acreedor_tipo
+    deuda.acreedor_id = int(acreedor_id) if acreedor_id.strip() else None
     deuda.proveedor_id = int(proveedor_id) if proveedor_id.strip() else None
     deuda.monto_total = monto_total
     deuda.fecha_deuda = datetime.strptime(fecha_deuda, "%Y-%m-%d") if fecha_deuda else deuda.fecha_deuda

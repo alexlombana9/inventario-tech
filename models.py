@@ -70,12 +70,14 @@ class Producto(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String(50), unique=True, nullable=False, index=True)
+    referencia = Column(String(100), default="")
     nombre = Column(String(200), nullable=False)
     descripcion = Column(Text, default="")
     categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=True)
     proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True)
     precio_costo = Column(Float, default=0.0)
     precio_venta = Column(Float, default=0.0)
+    precio_venta_minimo = Column(Float, default=0.0)
     stock_actual = Column(Float, default=0.0)
     stock_minimo = Column(Float, default=0.0)
     unidad_medida = Column(String(20), default="UND")
@@ -119,6 +121,28 @@ class MovimientoInventario(Base):
 
 
 # ─────────────────────────────────────────────
+#  ACREEDORES
+# ─────────────────────────────────────────────
+
+class Acreedor(Base):
+    __tablename__ = "acreedores"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(200), nullable=False)
+    tipo = Column(String(20), default="OTRO")       # PROVEEDOR | BANCO | PERSONA | OTRO
+    documento = Column(String(50), default="")
+    telefono = Column(String(50), default="")
+    email = Column(String(100), default="")
+    direccion = Column(Text, default="")
+    notas = Column(Text, default="")
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    deudas = relationship("Deuda", back_populates="acreedor")
+
+
+# ─────────────────────────────────────────────
 #  CUENTAS POR PAGAR — Deudas con proveedores
 # ─────────────────────────────────────────────
 
@@ -129,6 +153,7 @@ class Deuda(Base):
     concepto = Column(String(300), nullable=False)
     acreedor_nombre = Column(String(200), nullable=False)   # a quién se le debe
     acreedor_tipo = Column(String(20), default="OTRO")      # PROVEEDOR | LOCAL | OTRO
+    acreedor_id = Column(Integer, ForeignKey("acreedores.id"), nullable=True)
     proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True)
     monto_total = Column(Float, nullable=False)
     monto_pagado = Column(Float, default=0.0)
@@ -139,6 +164,7 @@ class Deuda(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     proveedor = relationship("Proveedor", back_populates="deudas")
+    acreedor = relationship("Acreedor", back_populates="deudas")
     pagos = relationship("PagoDeuda", back_populates="deuda", cascade="all, delete-orphan")
 
     @property
@@ -308,6 +334,10 @@ class Venta(Base):
     detalles = relationship("DetalleVenta", back_populates="venta", cascade="all, delete-orphan")
     caja = relationship("Caja", back_populates="ventas")
 
+    @property
+    def ganancia_total(self):
+        return round(sum(d.ganancia for d in self.detalles), 2)
+
 
 class DetalleVenta(Base):
     __tablename__ = "detalle_venta"
@@ -319,12 +349,17 @@ class DetalleVenta(Base):
     producto_codigo = Column(String(50), default="")
     cantidad = Column(Float, nullable=False)
     precio_unitario = Column(Float, nullable=False)
+    precio_costo = Column(Float, default=0.0)
     descuento_item = Column(Float, default=0.0)
     subtotal = Column(Float, nullable=False)
     created_at = Column(DateTime, default=datetime.now)
 
     venta = relationship("Venta", back_populates="detalles")
     producto = relationship("Producto")
+
+    @property
+    def ganancia(self):
+        return round(self.subtotal - (self.precio_costo * self.cantidad), 2)
 
 
 # ─────────────────────────────────────────────

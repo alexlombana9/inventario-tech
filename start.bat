@@ -6,7 +6,7 @@ title TechStock v2.0
 REM Activar entorno virtual
 if not exist "venv\Scripts\activate.bat" (
     echo [AVISO] Entorno virtual no encontrado.
-    echo Ejecute setup.bat primero para configurar el sistema.
+    echo Ejecute instalar.bat primero para configurar el sistema.
     pause
     exit /b 1
 )

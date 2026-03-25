@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Acreedores{% endblock %}
+{% block page_title %}Finanzas &rsaquo; Acreedores{% endblock %}
+
+{% block content %}
+{% if msg %}
+<div class="alert alert-success alert-dismissible alert-auto-hide mb-3" role="alert">
+  <i class="bi bi-check-circle me-2"></i>{{ msg }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+{% if error %}
+<div class="alert alert-danger alert-dismissible mb-3" role="alert">
+  <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1><i class="bi bi-person-lines-fill me-2 text-primary"></i>Acreedores</h1>
+  <a href="/acreedores/nuevo" class="btn btn-primary">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo Acreedor
+  </a>
+</div>
+
+<!-- Filtros -->
+<div class="search-bar">
+  <form method="get" action="/acreedores" class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <label class="form-label mb-1">Buscar</label>
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" name="buscar" class="form-control" placeholder="Nombre del acreedor..." value="{{ buscar }}">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <label class="form-label mb-1">Tipo</label>
+      <select name="tipo" class="form-select form-select-sm auto-submit">
+        <option value="">Todos los tipos</option>
+        {% for t in tipos_acreedor %}
+        <option value="{{ t }}" {{ 'selected' if tipo == t }}>{{ t | capitalize }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="col-md-2">
+      <button type="submit" class="btn btn-primary btn-sm w-100">
+        <i class="bi bi-search me-1"></i>Buscar
+      </button>
+    </div>
+  </form>
+</div>
+
+<!-- Tabla -->
+<div class="table-card">
+  <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+    <span class="text-muted" style="font-size:0.82rem">
+      <strong>{{ acreedores | length }}</strong> acreedor(es)
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Tipo</th>
+          <th>Documento</th>
+          <th>Telefono</th>
+          <th>Email</th>
+          <th>Deudas</th>
+          <th class="table-actions">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in acreedores %}
+        <tr>
+          <td class="fw-medium">{{ a.nombre }}</td>
+          <td>
+            <span class="badge bg-{% if a.tipo == 'PROVEEDOR' %}primary{% elif a.tipo == 'BANCO' %}info{% elif a.tipo == 'PERSONA' %}warning text-dark{% else %}secondary{% endif %}">
+              {{ a.tipo | capitalize }}
+            </span>
+          </td>
+          <td>{{ a.documento or '—' }}</td>
+          <td>{{ a.telefono or '—' }}</td>
+          <td>{{ a.email or '—' }}</td>
+          <td>
+            {% set deudas_activas = a.deudas | selectattr('estado', 'ne', 'PAGADO') | list %}
+            {% if deudas_activas %}
+            <span class="badge bg-danger">{{ deudas_activas | length }} pendiente(s)</span>
+            {% else %}
+            <span class="text-muted">0</span>
+            {% endif %}
+          </td>
+          <td class="table-actions">
+            <a href="/acreedores/{{ a.id }}/editar" class="btn btn-sm btn-outline-secondary" title="Editar">
+              <i class="bi bi-pencil"></i>
+            </a>
+            <form method="post" action="/acreedores/{{ a.id }}/eliminar"
+                  class="d-inline form-delete" data-name="{{ a.nombre }}">
+              <button type="submit" class="btn btn-sm btn-outline-danger" title="Desactivar">
+                <i class="bi bi-trash"></i>
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% else %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-person-x fs-2 d-block mb-2"></i>
+            No se encontraron acreedores
+            {% if buscar %} para "{{ buscar }}"{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

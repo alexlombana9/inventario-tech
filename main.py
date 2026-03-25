@@ -45,7 +45,7 @@ app.add_middleware(AuthMiddleware)
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # ── Routers ──
-from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas
+from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas, acreedores
 from routers import auth_router, usuarios, configuracion, clientes, ventas, caja, backup, importar
 
 app.include_router(auth_router.router)
@@ -63,6 +63,7 @@ app.include_router(inventario.router)
 app.include_router(reportes.router)
 app.include_router(deudas.router)
 app.include_router(facturas.router)
+app.include_router(acreedores.router)
 
 
 def _base_context(request: Request) -> dict:

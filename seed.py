@@ -2,6 +2,7 @@
 Inicialización de datos por defecto para TechStock.
 Se ejecuta al iniciar la app. Todas las operaciones son idempotentes.
 """
+import os
 import logging
 from sqlalchemy.orm import Session
 from auth import hash_password
@@ -17,21 +18,31 @@ def run_seed(db: Session):
 
 
 def _seed_admin(db: Session):
-    """Crea el usuario admin por defecto si la tabla está vacía."""
+    """Crea el usuario admin por defecto si la tabla está vacía.
+
+    Lee credenciales desde variables de entorno (usadas por el instalador):
+      ADMIN_USERNAME  (default: admin)
+      ADMIN_PASSWORD  (default: admin123)
+      ADMIN_NAME      (default: Administrador)
+    """
     count = db.query(models.Usuario).count()
     if count > 0:
         return
 
+    username = os.environ.get("ADMIN_USERNAME", "admin")
+    password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    fullname = os.environ.get("ADMIN_NAME", "Administrador")
+
     admin = models.Usuario(
-        username="admin",
-        password_hash=hash_password("admin123"),
-        nombre_completo="Administrador",
+        username=username,
+        password_hash=hash_password(password),
+        nombre_completo=fullname,
         rol="ADMIN",
         activo=True,
     )
     db.add(admin)
     db.commit()
-    logger.info("Usuario admin creado (cambiar contraseña en produccion)")
+    logger.info("Usuario admin '%s' creado", username)
 
 
 def _seed_config(db: Session):

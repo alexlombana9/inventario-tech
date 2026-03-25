@@ -46,6 +46,16 @@
             <label class="btn btn-outline-primary" for="tipoProveedores">
               <i class="bi bi-truck me-1"></i>Proveedores
             </label>
+
+            <input type="radio" class="btn-check" name="tipo" id="tipoAcreedores" value="acreedores">
+            <label class="btn btn-outline-warning" for="tipoAcreedores">
+              <i class="bi bi-person-lines-fill me-1"></i>Acreedores
+            </label>
+
+            <input type="radio" class="btn-check" name="tipo" id="tipoDeudas" value="deudas">
+            <label class="btn btn-outline-danger" for="tipoDeudas">
+              <i class="bi bi-credit-card-2-back me-1"></i>Deudas
+            </label>
           </div>
         </div>
 
@@ -54,7 +64,7 @@
           <label for="archivo" class="form-label fw-semibold">Archivo Excel (.xlsx)</label>
           <input type="file" class="form-control" id="archivo" name="archivo"
                  accept=".xlsx,.xls" required>
-          <div class="form-text">Tamaño máximo: 10 MB. La primera fila debe contener los encabezados.</div>
+          <div class="form-text">Tamaño maximo: 10 MB. La primera fila debe contener los encabezados.</div>
         </div>
 
         <!-- Preview area -->
@@ -74,6 +84,19 @@
         </button>
       </form>
     </div>
+
+    <!-- ── Consejos para la administradora ── -->
+    <div class="form-card mt-3">
+      <h6 class="fw-bold mb-2"><i class="bi bi-lightbulb me-2 text-warning"></i>Consejos para importar</h6>
+      <ul class="small text-muted mb-0">
+        <li>Puede usar su propio archivo Excel, solo asegurese de que los <strong>encabezados (primera fila)</strong> coincidan con los nombres de columna indicados.</li>
+        <li>No importa el orden de las columnas, el sistema las detecta por nombre.</li>
+        <li>Las columnas opcionales se pueden omitir, el sistema usara valores por defecto.</li>
+        <li>Si un producto con el mismo <strong>codigo</strong> ya existe, se <strong>actualiza</strong> en vez de duplicarse.</li>
+        <li>Importe primero los <strong>Acreedores</strong> y luego las <strong>Deudas</strong>, asi las deudas se vinculan automaticamente.</li>
+        <li>Las fechas se aceptan en formatos: <code>2026-01-15</code>, <code>15/01/2026</code>, <code>15-01-2026</code>.</li>
+      </ul>
+    </div>
   </div>
 
   <!-- ── Instrucciones y plantillas ── -->
@@ -92,71 +115,121 @@
         <a href="/importar/plantilla/proveedores" class="btn btn-outline-success btn-sm">
           <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Proveedores
         </a>
+        <a href="/importar/plantilla/acreedores" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Acreedores
+        </a>
+        <a href="/importar/plantilla/deudas" class="btn btn-outline-success btn-sm">
+          <i class="bi bi-file-earmark-excel me-1"></i>Plantilla Deudas
+        </a>
       </div>
     </div>
 
     <div class="form-card mt-3">
-      <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Instrucciones</h5>
+      <h5 class="fw-bold mb-3"><i class="bi bi-info-circle me-2"></i>Columnas requeridas</h5>
 
       <!-- Productos info -->
       <div id="infoProductos">
-        <h6 class="fw-semibold">Columnas para Productos</h6>
+        <h6 class="fw-semibold">Productos</h6>
         <table class="table table-sm small">
           <tbody>
-            <tr><td><code>codigo</code></td><td><span class="badge bg-danger">Requerido</span> Código único</td></tr>
+            <tr><td><code>codigo</code></td><td><span class="badge bg-danger">Requerido</span> Codigo unico (ej: PROD-001)</td></tr>
             <tr><td><code>nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre del producto</td></tr>
-            <tr><td><code>descripcion</code></td><td>Descripción</td></tr>
-            <tr><td><code>categoria</code></td><td>Nombre de la categoría (se crea si no existe)</td></tr>
-            <tr><td><code>proveedor</code></td><td>Nombre del proveedor (debe existir)</td></tr>
+            <tr><td><code>referencia</code></td><td>Referencia del proveedor o fabricante</td></tr>
+            <tr><td><code>descripcion</code></td><td>Descripcion o especificaciones</td></tr>
+            <tr><td><code>categoria</code></td><td>Nombre de la categoria (se crea si no existe)</td></tr>
+            <tr><td><code>proveedor</code></td><td>Nombre del proveedor (debe existir en el sistema)</td></tr>
             <tr><td><code>precio_costo</code></td><td>Precio de costo</td></tr>
-            <tr><td><code>precio_venta</code></td><td>Precio de venta</td></tr>
-            <tr><td><code>stock_actual</code></td><td>Stock inicial</td></tr>
-            <tr><td><code>stock_minimo</code></td><td>Stock mínimo de alerta</td></tr>
-            <tr><td><code>unidad_medida</code></td><td>UND, KG, LT, etc.</td></tr>
+            <tr><td><code>precio_venta</code></td><td>Precio de venta al publico</td></tr>
+            <tr><td><code>precio_venta_minimo</code></td><td>Precio minimo permitido en ventas</td></tr>
+            <tr><td><code>stock_actual</code></td><td>Cantidad en inventario</td></tr>
+            <tr><td><code>stock_minimo</code></td><td>Stock minimo de alerta</td></tr>
+            <tr><td><code>unidad_medida</code></td><td>UND, PAR, KIT, MTS, CJA</td></tr>
           </tbody>
         </table>
         <div class="alert alert-info small py-2">
           <i class="bi bi-lightbulb me-1"></i>
-          Si el código ya existe, el producto se <strong>actualiza</strong>. Si no existe, se <strong>crea</strong>.
+          Si el codigo ya existe, el producto se <strong>actualiza</strong>. Si no existe, se <strong>crea</strong>.
         </div>
       </div>
 
       <!-- Clientes info -->
       <div id="infoClientes" style="display:none;">
-        <h6 class="fw-semibold">Columnas para Clientes</h6>
+        <h6 class="fw-semibold">Clientes</h6>
         <table class="table table-sm small">
           <tbody>
             <tr><td><code>nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre completo</td></tr>
             <tr><td><code>tipo_documento</code></td><td>CC, NIT, CE, PASAPORTE</td></tr>
-            <tr><td><code>documento</code></td><td>Número de documento</td></tr>
-            <tr><td><code>telefono</code></td><td>Teléfono</td></tr>
-            <tr><td><code>email</code></td><td>Correo electrónico</td></tr>
-            <tr><td><code>direccion</code></td><td>Dirección</td></tr>
+            <tr><td><code>documento</code></td><td>Numero de documento</td></tr>
+            <tr><td><code>telefono</code></td><td>Telefono de contacto</td></tr>
+            <tr><td><code>email</code></td><td>Correo electronico</td></tr>
+            <tr><td><code>direccion</code></td><td>Direccion</td></tr>
             <tr><td><code>notas</code></td><td>Notas adicionales</td></tr>
           </tbody>
         </table>
         <div class="alert alert-info small py-2">
           <i class="bi bi-lightbulb me-1"></i>
-          Clientes con el mismo documento serán <strong>omitidos</strong> para evitar duplicados.
+          Clientes con el mismo <strong>documento</strong> se omiten para evitar duplicados.
         </div>
       </div>
 
       <!-- Proveedores info -->
       <div id="infoProveedores" style="display:none;">
-        <h6 class="fw-semibold">Columnas para Proveedores</h6>
+        <h6 class="fw-semibold">Proveedores</h6>
         <table class="table table-sm small">
           <tbody>
             <tr><td><code>nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre de la empresa</td></tr>
             <tr><td><code>contacto</code></td><td>Persona de contacto</td></tr>
-            <tr><td><code>telefono</code></td><td>Teléfono</td></tr>
-            <tr><td><code>email</code></td><td>Correo electrónico</td></tr>
-            <tr><td><code>direccion</code></td><td>Dirección</td></tr>
+            <tr><td><code>telefono</code></td><td>Telefono</td></tr>
+            <tr><td><code>email</code></td><td>Correo electronico</td></tr>
+            <tr><td><code>direccion</code></td><td>Direccion</td></tr>
             <tr><td><code>nit_ruc</code></td><td>NIT / RUC</td></tr>
           </tbody>
         </table>
         <div class="alert alert-info small py-2">
           <i class="bi bi-lightbulb me-1"></i>
-          Proveedores con nombre duplicado serán <strong>omitidos</strong>.
+          Proveedores con <strong>nombre duplicado</strong> se omiten.
+        </div>
+      </div>
+
+      <!-- Acreedores info -->
+      <div id="infoAcreedores" style="display:none;">
+        <h6 class="fw-semibold">Acreedores</h6>
+        <table class="table table-sm small">
+          <tbody>
+            <tr><td><code>nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre del acreedor</td></tr>
+            <tr><td><code>tipo</code></td><td>PROVEEDOR, BANCO, PERSONA u OTRO</td></tr>
+            <tr><td><code>documento</code></td><td>NIT, cedula o documento</td></tr>
+            <tr><td><code>telefono</code></td><td>Telefono de contacto</td></tr>
+            <tr><td><code>email</code></td><td>Correo electronico</td></tr>
+            <tr><td><code>direccion</code></td><td>Direccion</td></tr>
+            <tr><td><code>notas</code></td><td>Notas (condiciones de pago, etc.)</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-warning small py-2">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          Importe los acreedores <strong>antes</strong> que las deudas para que se vinculen automaticamente.
+        </div>
+      </div>
+
+      <!-- Deudas info -->
+      <div id="infoDeudas" style="display:none;">
+        <h6 class="fw-semibold">Deudas / Cuentas por Pagar</h6>
+        <table class="table table-sm small">
+          <tbody>
+            <tr><td><code>concepto</code></td><td><span class="badge bg-danger">Requerido</span> Descripcion de la deuda</td></tr>
+            <tr><td><code>acreedor_nombre</code></td><td><span class="badge bg-danger">Requerido</span> Nombre de a quien se le debe</td></tr>
+            <tr><td><code>acreedor_tipo</code></td><td>PROVEEDOR, BANCO, PERSONA u OTRO</td></tr>
+            <tr><td><code>monto_total</code></td><td><span class="badge bg-danger">Requerido</span> Monto total de la deuda</td></tr>
+            <tr><td><code>monto_pagado</code></td><td>Cuanto se ha pagado (0 si es nueva)</td></tr>
+            <tr><td><code>fecha_deuda</code></td><td>Fecha en que se genero la deuda</td></tr>
+            <tr><td><code>fecha_vencimiento</code></td><td>Fecha limite de pago</td></tr>
+            <tr><td><code>notas</code></td><td>Notas o condiciones de pago</td></tr>
+          </tbody>
+        </table>
+        <div class="alert alert-info small py-2">
+          <i class="bi bi-lightbulb me-1"></i>
+          Si el <strong>acreedor_nombre</strong> coincide con un acreedor registrado, la deuda se vincula automaticamente.
+          El <strong>estado</strong> (PENDIENTE, PARCIAL, PAGADO) se calcula segun monto_pagado.
         </div>
       </div>
     </div>
@@ -168,15 +241,17 @@
 {% block scripts %}
 <script>
 // Toggle info panels based on selected type
+const infoPanels = ['Productos', 'Clientes', 'Proveedores', 'Acreedores', 'Deudas'];
 document.querySelectorAll('input[name="tipo"]').forEach(radio => {
   radio.addEventListener('change', function() {
-    document.getElementById('infoProductos').style.display = this.value === 'productos' ? '' : 'none';
-    document.getElementById('infoClientes').style.display = this.value === 'clientes' ? '' : 'none';
-    document.getElementById('infoProveedores').style.display = this.value === 'proveedores' ? '' : 'none';
+    infoPanels.forEach(p => {
+      const el = document.getElementById('info' + p);
+      if (el) el.style.display = this.value === p.toLowerCase() ? '' : 'none';
+    });
   });
 });
 
-// Client-side Excel preview using basic parsing
+// Client-side Excel preview
 document.getElementById('archivo').addEventListener('change', function(e) {
   const file = e.target.files[0];
   const previewArea = document.getElementById('previewArea');
@@ -186,11 +261,9 @@ document.getElementById('archivo').addEventListener('change', function(e) {
     return;
   }
 
-  // Simple preview: read as array buffer and show first rows
   const reader = new FileReader();
   reader.onload = function(evt) {
     try {
-      // Use a basic approach: show file name and size
       previewArea.style.display = 'block';
       document.getElementById('previewCount').textContent =
         `Archivo: ${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
@@ -206,11 +279,15 @@ document.getElementById('archivo').addEventListener('change', function(e) {
 
 // Confirm before importing
 document.getElementById('importForm').addEventListener('submit', function(e) {
+  const tipoLabels = {
+    productos: 'productos', clientes: 'clientes', proveedores: 'proveedores',
+    acreedores: 'acreedores', deudas: 'deudas'
+  };
   const tipo = document.querySelector('input[name="tipo"]:checked').value;
   const archivo = document.getElementById('archivo').files[0];
   if (!archivo) return;
 
-  if (!confirm(`¿Está seguro de importar ${tipo} desde "${archivo.name}"?`)) {
+  if (!confirm(`¿Esta seguro de importar ${tipoLabels[tipo]} desde "${archivo.name}"?`)) {
     e.preventDefault();
   } else {
     document.getElementById('btnImportar').disabled = true;

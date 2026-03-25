@@ -173,6 +173,7 @@ def procesar_venta(
             producto_codigo=producto.codigo,
             cantidad=item["cantidad"],
             precio_unitario=item["precio_unitario"],
+            precio_costo=producto.precio_costo,
             descuento_item=desc_item,
             subtotal=round(sub, 2),
         )

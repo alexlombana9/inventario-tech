@@ -30,14 +30,28 @@
       <i class="bi bi-person-badge me-1"></i>Información del Acreedor
     </h6>
     <div class="row g-3 mb-4">
-      <div class="col-md-6">
+      <div class="col-md-4">
+        <label class="form-label">Acreedor registrado</label>
+        <select name="acreedor_id" class="form-select" id="acreedorSelect">
+          <option value="">— Escribir manualmente —</option>
+          {% for a in acreedores %}
+          <option value="{{ a.id }}"
+            data-nombre="{{ a.nombre }}" data-tipo="{{ a.tipo }}"
+            {% if deuda and deuda.acreedor_id == a.id %}selected{% endif %}>
+            {{ a.nombre }} ({{ a.tipo | capitalize }})
+          </option>
+          {% endfor %}
+        </select>
+        <div class="form-text">Seleccione un acreedor o escriba el nombre manualmente.</div>
+      </div>
+      <div class="col-md-4">
         <label class="form-label">Nombre del Acreedor <span class="text-danger">*</span></label>
-        <input type="text" name="acreedor_nombre" class="form-control"
+        <input type="text" name="acreedor_nombre" class="form-control" id="acreedorNombre"
                value="{{ deuda.acreedor_nombre if deuda else '' }}"
                placeholder="Ej: Distribuidora XYZ, Almacén El Éxito…" required>
         <div class="form-text">Empresa, local o persona a quien se le debe.</div>
       </div>
-      <div class="col-md-3">
+      <div class="col-md-2">
         <label class="form-label">Tipo de Acreedor <span class="text-danger">*</span></label>
         <select name="acreedor_tipo" class="form-select" id="tipoSelect">
           {% for tipo in tipos_acreedor %}
@@ -49,7 +63,7 @@
           {% endfor %}
         </select>
       </div>
-      <div class="col-md-3" id="proveedorField">
+      <div class="col-md-2" id="proveedorField">
         <label class="form-label">Proveedor vinculado</label>
         <select name="proveedor_id" class="form-select">
           <option value="">— Sin vincular —</option>
@@ -60,7 +74,6 @@
           </option>
           {% endfor %}
         </select>
-        <div class="form-text">Opcional: vincular a un proveedor del sistema.</div>
       </div>
     </div>
 
@@ -118,12 +131,23 @@
 document.addEventListener('DOMContentLoaded', function () {
   const tipoSelect = document.getElementById('tipoSelect');
   const proveedorField = document.getElementById('proveedorField');
+  const acreedorSelect = document.getElementById('acreedorSelect');
+  const acreedorNombre = document.getElementById('acreedorNombre');
 
   function toggleProveedor() {
     proveedorField.style.display = tipoSelect.value === 'PROVEEDOR' ? '' : 'none';
   }
   tipoSelect.addEventListener('change', toggleProveedor);
   toggleProveedor();
+
+  acreedorSelect.addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    if (this.value) {
+      acreedorNombre.value = opt.dataset.nombre || '';
+      tipoSelect.value = opt.dataset.tipo || 'OTRO';
+      toggleProveedor();
+    }
+  });
 });
 </script>
 {% endblock %}

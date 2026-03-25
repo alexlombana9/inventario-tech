@@ -35,11 +35,12 @@ echo.
 echo  %D%Este instalador configurara automaticamente:%N%
 echo    %C%1.%N% Python 3.12      %D%(lenguaje del sistema)%N%
 echo    %C%2.%N% PostgreSQL 16    %D%(base de datos)%N%
-echo    %C%3.%N% Entorno virtual  %D%(dependencias aisladas)%N%
-echo    %C%4.%N% Dependencias     %D%(FastAPI, SQLAlchemy, etc.)%N%
-echo    %C%5.%N% Base de datos    %D%(tablas + usuario admin)%N%
-echo    %C%6.%N% Ejecutable       %D%(TechStock.exe para escritorio)%N%
-echo    %C%7.%N% Acceso directo   %D%(icono en el Escritorio)%N%
+echo    %C%3.%N% Conexion DB      %D%(configuracion PostgreSQL)%N%
+echo    %C%4.%N% Entorno virtual  %D%(dependencias aisladas)%N%
+echo    %C%5.%N% Dependencias     %D%(FastAPI, SQLAlchemy, etc.)%N%
+echo    %C%6.%N% Usuario ROOT     %D%(credenciales del administrador)%N%
+echo    %C%7.%N% Base de datos    %D%(tablas + datos iniciales)%N%
+echo    %C%8.%N% Ejecutable       %D%(TechStock.exe + acceso directo)%N%
 echo.
 
 set "ERRORS=0"
@@ -56,16 +57,20 @@ if %errorlevel% neq 0 (
     echo.
     echo  %D%Clic derecho sobre instalar.bat ^> "Ejecutar como administrador"%N%
     echo.
-    choice /c SC /m "  Continuar de todas formas (S) o Cancelar (C)?"
-    if !errorlevel! equ 2 exit /b 0
+    set "RESP="
+    set /p "RESP=  Continuar de todas formas? (S/N): "
+    if /i "!RESP!"=="N" (
+        pause
+        exit /b 0
+    )
     echo.
 )
 
 REM ══════════════════════════════════════════════════════════
-REM  PASO 1/7: Python
+REM  PASO 1/8: Python
 REM ══════════════════════════════════════════════════════════
 echo  %B%══════════════════════════════════════════════════════════%N%
-echo  %B%%C%[1/7]%N% %B%Verificando Python...%N%
+echo  %B%%C%[1/8]%N% %B%Verificando Python...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 python --version > nul 2>&1
@@ -102,7 +107,7 @@ if %errorlevel% equ 0 (
         set "PY_EXE=%TEMP%\python_installer.exe"
         powershell -Command "Invoke-WebRequest -Uri '!PY_URL!' -OutFile '!PY_EXE!'" 2>nul
         if exist "!PY_EXE!" (
-            echo    %C%⧖%N% Ejecutando instalador de Python (modo silencioso)...
+            echo    %C%⧖%N% Ejecutando instalador de Python ^(modo silencioso^)...
             "!PY_EXE!" /quiet InstallAllUsers=0 PrependPath=1 Include_pip=1 Include_tcltk=1
             if !errorlevel! equ 0 (
                 echo    %G%✓%N% Python instalado. Reinicie esta ventana y ejecute de nuevo.
@@ -130,11 +135,11 @@ REM Refrescar PATH por si se instalo recien
 set "PATH=%LOCALAPPDATA%\Programs\Python\Python312;%LOCALAPPDATA%\Programs\Python\Python312\Scripts;%PATH%"
 
 REM ══════════════════════════════════════════════════════════
-REM  PASO 2/7: PostgreSQL
+REM  PASO 2/8: PostgreSQL
 REM ══════════════════════════════════════════════════════════
 echo.
 echo  %B%══════════════════════════════════════════════════════════%N%
-echo  %B%%C%[2/7]%N% %B%Verificando PostgreSQL...%N%
+echo  %B%%C%[2/8]%N% %B%Verificando PostgreSQL...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 set "PSQL_CMD="
@@ -164,7 +169,7 @@ if %errorlevel% equ 0 (
     echo    %C%↓%N% Instalando PostgreSQL 16 via winget...
     echo    %D%  El instalador interactivo se abrira para que configure la contrasena.%N%
     echo    %Y%  IMPORTANTE: Use la contrasena "postgres" para simplificar la configuracion.%N%
-    echo    %Y%  Deje el puerto por defecto (5432).%N%
+    echo    %Y%  Deje el puerto por defecto ^(5432^).%N%
     echo.
     winget install -e --id PostgreSQL.PostgreSQL.16 --accept-package-agreements --accept-source-agreements 2>nul
     if !errorlevel! equ 0 (
@@ -188,8 +193,9 @@ echo      3. Use contrasena: %Y%postgres%N%
 echo      4. Deje el puerto: %Y%5432%N%
 echo      5. Vuelva a ejecutar este instalador.
 echo.
-choice /c SN /m "  Abrir pagina de descarga? (S/N)"
-if !errorlevel! equ 1 start https://www.postgresql.org/download/windows/
+set "RESP="
+set /p "RESP=  Abrir pagina de descarga? (S/N): "
+if /i "!RESP!"=="S" start https://www.postgresql.org/download/windows/
 set /a ERRORS+=1
 pause
 exit /b 1
@@ -199,11 +205,11 @@ for /f "tokens=3" %%v in ('"!PSQL_CMD!" --version 2^>^&1') do set "PGVER=%%v"
 echo    %G%✓%N% PostgreSQL !PGVER! encontrado.
 
 REM ══════════════════════════════════════════════════════════
-REM  PASO 3/7: Configurar conexion PostgreSQL
+REM  PASO 3/8: Configurar conexion PostgreSQL
 REM ══════════════════════════════════════════════════════════
 echo.
 echo  %B%══════════════════════════════════════════════════════════%N%
-echo  %B%%C%[3/7]%N% %B%Configurando conexion a PostgreSQL...%N%
+echo  %B%%C%[3/8]%N% %B%Configurando conexion a PostgreSQL...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 set "PG_HOST=localhost"
@@ -218,8 +224,9 @@ if exist ".env" (
         if "%%a"=="DATABASE_URL" echo    %D%  %%b%N%
     )
     echo.
-    choice /c SN /m "  Mantener configuracion existente? (S/N)"
-    if !errorlevel! equ 1 goto :skip_config
+    set "RESP="
+    set /p "RESP=  Mantener configuracion existente? (S/N): "
+    if /i "!RESP!"=="S" goto :skip_config
     echo.
 )
 
@@ -241,13 +248,34 @@ for /f "usebackq tokens=1,* delims==" %%a in (".env") do (
     if "%%a"=="DATABASE_URL" set "DATABASE_URL=%%b"
 )
 
+REM Parsear credenciales de DATABASE_URL
+if defined DATABASE_URL (
+    set "TMPURL=!DATABASE_URL:postgresql://=!"
+    for /f "tokens=1,2 delims=@" %%a in ("!TMPURL!") do (
+        set "USERPASS=%%a"
+        set "HOSTREST=%%b"
+    )
+    for /f "tokens=1,* delims=:" %%a in ("!USERPASS!") do (
+        set "PG_USER=%%a"
+        set "PG_PASS=%%b"
+    )
+    for /f "tokens=1,2 delims=/" %%a in ("!HOSTREST!") do (
+        set "HOSTPORT=%%a"
+        set "PG_DBNAME=%%b"
+    )
+    for /f "tokens=1,2 delims=:" %%a in ("!HOSTPORT!") do (
+        set "PG_HOST=%%a"
+        if not "%%b"=="" set "PG_PORT=%%b"
+    )
+)
+
 REM Verificar conexion al servidor PostgreSQL
 set "PGPASSWORD=!PG_PASS!"
 "!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -c "SELECT 1" > nul 2>&1
 if %errorlevel% neq 0 (
     echo    %Y%⚠%N% No se pudo conectar a PostgreSQL.
     echo    %D%  Intentando iniciar el servicio...%N%
-    net start postgresql-x64-16 2>nul || net start postgresql-x64-15 2>nul || net start postgresql-x64-17 2>nul
+    net start postgresql-x64-16 > nul 2>&1 || net start postgresql-x64-15 > nul 2>&1 || net start postgresql-x64-17 > nul 2>&1
     timeout /t 3 /nobreak > nul
     "!PSQL_CMD!" -h !PG_HOST! -p !PG_PORT! -U !PG_USER! -c "SELECT 1" > nul 2>&1
     if !errorlevel! neq 0 (
@@ -278,11 +306,11 @@ if %errorlevel% equ 0 (
 )
 
 REM ══════════════════════════════════════════════════════════
-REM  PASO 4/7: Entorno virtual Python
+REM  PASO 4/8: Entorno virtual Python
 REM ══════════════════════════════════════════════════════════
 echo.
 echo  %B%══════════════════════════════════════════════════════════%N%
-echo  %B%%C%[4/7]%N% %B%Creando entorno virtual Python...%N%
+echo  %B%%C%[4/8]%N% %B%Creando entorno virtual Python...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 if exist "venv\Scripts\activate.bat" (
@@ -302,11 +330,11 @@ if exist "venv\Scripts\activate.bat" (
 call venv\Scripts\activate.bat
 
 REM ══════════════════════════════════════════════════════════
-REM  PASO 5/7: Dependencias
+REM  PASO 5/8: Dependencias
 REM ══════════════════════════════════════════════════════════
 echo.
 echo  %B%══════════════════════════════════════════════════════════%N%
-echo  %B%%C%[5/7]%N% %B%Instalando dependencias Python...%N%
+echo  %B%%C%[5/8]%N% %B%Instalando dependencias Python...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 echo    %C%⧖%N% Actualizando pip...
@@ -328,11 +356,37 @@ pip install pyinstaller -q 2>nul
 echo    %G%✓%N% PyInstaller listo.
 
 REM ══════════════════════════════════════════════════════════
-REM  PASO 6/7: Inicializar base de datos
+REM  PASO 6/8: Credenciales del usuario administrador
 REM ══════════════════════════════════════════════════════════
 echo.
 echo  %B%══════════════════════════════════════════════════════════%N%
-echo  %B%%C%[6/7]%N% %B%Inicializando base de datos...%N%
+echo  %B%%C%[6/8]%N% %B%Configurando usuario administrador (ROOT)...%N%
+echo  %B%══════════════════════════════════════════════════════════%N%
+echo.
+echo    %D%Configure las credenciales del usuario principal.%N%
+echo    %D%Presione ENTER para usar el valor por defecto [entre corchetes].%N%
+echo.
+set "ADMIN_USERNAME=admin"
+set "ADMIN_PASSWORD="
+set "ADMIN_NAME=Administrador"
+set /p "ADMIN_USERNAME=    Usuario administrador [admin]: " || set "ADMIN_USERNAME=admin"
+set /p "ADMIN_PASSWORD=    Contrasena del administrador: "
+if "!ADMIN_PASSWORD!"=="" (
+    set "ADMIN_PASSWORD=admin123"
+    echo    %Y%⚠%N% Se usara la contrasena por defecto: admin123
+    echo    %Y%  Cambiela despues del primer inicio de sesion.%N%
+)
+set /p "ADMIN_NAME=    Nombre completo [Administrador]: " || set "ADMIN_NAME=Administrador"
+echo.
+echo    %G%✓%N% Usuario: !ADMIN_USERNAME!
+echo    %G%✓%N% Nombre:  !ADMIN_NAME!
+
+REM ══════════════════════════════════════════════════════════
+REM  PASO 7/8: Inicializar base de datos
+REM ══════════════════════════════════════════════════════════
+echo.
+echo  %B%══════════════════════════════════════════════════════════%N%
+echo  %B%%C%[7/8]%N% %B%Inicializando base de datos...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 echo    %C%⧖%N% Creando tablas...
@@ -346,18 +400,18 @@ if %errorlevel% neq 0 (
 )
 echo    %G%✓%N% Tablas creadas.
 echo    %G%✓%N% Migraciones aplicadas.
-echo    %G%✓%N% Usuario admin creado %D%(admin / admin123)%N%.
+echo    %G%✓%N% Usuario '!ADMIN_USERNAME!' creado.
 
 REM Crear directorios
 if not exist "backups" mkdir backups
 if not exist "static\uploads" mkdir static\uploads
 
 REM ══════════════════════════════════════════════════════════
-REM  PASO 7/7: Generar ejecutable y acceso directo
+REM  PASO 8/8: Generar ejecutable y acceso directo
 REM ══════════════════════════════════════════════════════════
 echo.
 echo  %B%══════════════════════════════════════════════════════════%N%
-echo  %B%%C%[7/7]%N% %B%Generando ejecutable TechStock.exe...%N%
+echo  %B%%C%[8/8]%N% %B%Generando ejecutable TechStock.exe...%N%
 echo  %B%══════════════════════════════════════════════════════════%N%
 
 echo    %C%⧖%N% Compilando launcher con PyInstaller...
@@ -422,16 +476,15 @@ echo.
 echo  %B%Datos de acceso:%N%
 echo.
 echo    %C%URL:%N%       http://localhost:8000
-echo    %C%Usuario:%N%   admin
-echo    %C%Clave:%N%     admin123
-echo.
-echo  %Y%  ⚠ Cambie la contrasena del admin despues del primer inicio de sesion.%N%
+echo    %C%Usuario:%N%   !ADMIN_USERNAME!
+echo    %C%Nombre:%N%    !ADMIN_NAME!
 echo.
 echo  %D%──────────────────────────────────────────────────────────%N%
 echo.
 
-choice /c SN /m "  Desea iniciar TechStock ahora? (S/N)"
-if !errorlevel! equ 1 (
+set "RESP="
+set /p "RESP=  Desea iniciar TechStock ahora? (S/N): "
+if /i "!RESP!"=="S" (
     if exist "TechStock.exe" (
         start "" "TechStock.exe"
     ) else (

@@ -10,7 +10,7 @@ fi
 if [ -f "venv/bin/activate" ]; then
     source venv/bin/activate
 else
-    echo "[AVISO] Entorno virtual no encontrado. Ejecute ./setup.sh primero."
+    echo "[AVISO] Entorno virtual no encontrado. Ejecute ./instalar.sh primero."
     exit 1
 fi
 
