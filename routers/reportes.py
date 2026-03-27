@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, date, timedelta
 from database import get_db
+from auth import get_local_id
 import models
 import io
 
@@ -23,10 +24,13 @@ def reporte_stock(
     categoria_id: str = None,
     solo_bajo: str = None
 ):
+    local_id = get_local_id(request)
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
 
     query = db.query(models.Producto).filter(models.Producto.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
 
     if cat_id:
         query = query.filter(models.Producto.categoria_id == cat_id)
@@ -62,6 +66,7 @@ def reporte_movimientos(
     tipo: str = None,
     categoria_id: str = None
 ):
+    local_id = get_local_id(request)
     # Defaults: último mes
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
@@ -69,6 +74,8 @@ def reporte_movimientos(
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.MovimientoInventario)
+    if local_id is not None:
+        query = query.filter(models.MovimientoInventario.local_id == local_id)
 
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
@@ -114,16 +121,20 @@ def reporte_movimientos(
 
 @router.get("/stock/excel")
 def reporte_stock_excel(
+    request: Request,
     db: Session = Depends(get_db),
     categoria_id: str = None,
     solo_bajo: str = None
 ):
     from utils.excel import generate_excel
 
+    local_id = get_local_id(request)
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
 
     query = db.query(models.Producto).filter(models.Producto.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
     if cat_id:
         query = query.filter(models.Producto.categoria_id == cat_id)
     if es_solo_bajo:
@@ -157,6 +168,7 @@ def reporte_stock_excel(
 
 @router.get("/movimientos/excel")
 def reporte_movimientos_excel(
+    request: Request,
     fecha_desde: str = None,
     fecha_hasta: str = None,
     tipo: str = None,
@@ -164,12 +176,16 @@ def reporte_movimientos_excel(
 ):
     from utils.excel import generate_excel
 
+    local_id = get_local_id(request)
+
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.MovimientoInventario)
+    if local_id is not None:
+        query = query.filter(models.MovimientoInventario.local_id == local_id)
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -208,6 +224,7 @@ def reporte_movimientos_excel(
 
 @router.get("/stock/pdf")
 def reporte_stock_pdf(
+    request: Request,
     db: Session = Depends(get_db),
     categoria_id: str = None,
     solo_bajo: str = None
@@ -219,10 +236,13 @@ def reporte_stock_pdf(
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER, TA_RIGHT
 
+    local_id = get_local_id(request)
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
 
     query = db.query(models.Producto).filter(models.Producto.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
     if cat_id:
         query = query.filter(models.Producto.categoria_id == cat_id)
     if es_solo_bajo:
@@ -306,6 +326,7 @@ def reporte_stock_pdf(
 
 @router.get("/movimientos/pdf")
 def reporte_movimientos_pdf(
+    request: Request,
     fecha_desde: str = None,
     fecha_hasta: str = None,
     tipo: str = None,
@@ -318,12 +339,16 @@ def reporte_movimientos_pdf(
     from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
     from reportlab.lib.enums import TA_CENTER
 
+    local_id = get_local_id(request)
+
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.MovimientoInventario)
+    if local_id is not None:
+        query = query.filter(models.MovimientoInventario.local_id == local_id)
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)

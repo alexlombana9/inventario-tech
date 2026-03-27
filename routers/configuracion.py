@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from templates_config import templates
-from auth import require_role, log_audit
+from auth import require_role, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/configuracion", tags=["configuracion"])
@@ -14,10 +14,13 @@ router = APIRouter(prefix="/configuracion", tags=["configuracion"])
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "static", "uploads")
 
 
-def _get_config(db: Session) -> models.Configuracion:
-    config = db.query(models.Configuracion).first()
+def _get_config(db: Session, local_id: int = None) -> models.Configuracion:
+    query = db.query(models.Configuracion)
+    if local_id is not None:
+        query = query.filter(models.Configuracion.local_id == local_id)
+    config = query.first()
     if not config:
-        config = models.Configuracion()
+        config = models.Configuracion(local_id=local_id)
         db.add(config)
         db.commit()
     return config
@@ -31,7 +34,8 @@ def configuracion_form(
     msg: str = None,
     error: str = None,
 ):
-    config = _get_config(db)
+    local_id = get_local_id(request)
+    config = _get_config(db, local_id=local_id)
     return templates.TemplateResponse("configuracion/form.html", {
         "request": request,
         "config": config,
@@ -55,7 +59,8 @@ def guardar_configuracion(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_role("ADMIN")),
 ):
-    config = _get_config(db)
+    local_id = get_local_id(request)
+    config = _get_config(db, local_id=local_id)
     config.nombre_negocio = nombre_negocio.strip() or "TechStock"
     config.nit = nit.strip()
     config.direccion = direccion.strip()
@@ -98,7 +103,8 @@ async def subir_logo(
     with open(filepath, "wb") as f:
         f.write(content)
 
-    config = _get_config(db)
+    local_id = get_local_id(request)
+    config = _get_config(db, local_id=local_id)
     config.logo_path = f"/static/uploads/{filename}"
     db.commit()
 

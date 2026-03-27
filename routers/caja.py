@@ -5,17 +5,20 @@ from datetime import datetime, date
 
 from database import get_db
 from templates_config import templates
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/caja", tags=["caja"])
 
 
-def _caja_abierta(db: Session, user_id: int) -> models.Caja | None:
-    return db.query(models.Caja).filter(
+def _caja_abierta(db: Session, user_id: int, local_id: int | None = None) -> models.Caja | None:
+    query = db.query(models.Caja).filter(
         models.Caja.usuario_id == user_id,
         models.Caja.estado == "ABIERTA"
-    ).first()
+    )
+    if local_id is not None:
+        query = query.filter(models.Caja.local_id == local_id)
+    return query.first()
 
 
 # ── Estado actual ────────────────────────────────────────────
@@ -28,7 +31,8 @@ def estado_caja(
     msg: str = None,
     error: str = None,
 ):
-    caja = _caja_abierta(db, current_user.id)
+    local_id = get_local_id(request)
+    caja = _caja_abierta(db, current_user.id, local_id)
 
     return templates.TemplateResponse("caja/estado.html", {
         "request": request,
@@ -46,7 +50,8 @@ def abrir_caja_form(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    caja = _caja_abierta(db, current_user.id)
+    local_id = get_local_id(request)
+    caja = _caja_abierta(db, current_user.id, local_id)
     if caja:
         return RedirectResponse("/caja?error=Ya+tienes+una+caja+abierta", status_code=303)
 
@@ -62,7 +67,8 @@ def abrir_caja(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    existente = _caja_abierta(db, current_user.id)
+    local_id = get_local_id(request)
+    existente = _caja_abierta(db, current_user.id, local_id)
     if existente:
         return RedirectResponse("/caja?error=Ya+tienes+una+caja+abierta", status_code=303)
 
@@ -71,6 +77,7 @@ def abrir_caja(
         monto_apertura=monto_apertura,
         fecha_apertura=datetime.now(),
     )
+    caja.local_id = local_id
     db.add(caja)
     db.commit()
 
@@ -89,7 +96,8 @@ def cerrar_caja_form(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    caja = _caja_abierta(db, current_user.id)
+    local_id = get_local_id(request)
+    caja = _caja_abierta(db, current_user.id, local_id)
     if not caja:
         return RedirectResponse("/caja?error=No+tienes+caja+abierta", status_code=303)
 
@@ -107,7 +115,8 @@ def cerrar_caja(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    caja = _caja_abierta(db, current_user.id)
+    local_id = get_local_id(request)
+    caja = _caja_abierta(db, current_user.id, local_id)
     if not caja:
         return RedirectResponse("/caja?error=No+tienes+caja+abierta", status_code=303)
 
@@ -138,7 +147,8 @@ def registrar_movimiento_caja(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    caja = _caja_abierta(db, current_user.id)
+    local_id = get_local_id(request)
+    caja = _caja_abierta(db, current_user.id, local_id)
     if not caja:
         return RedirectResponse("/caja?error=No+tienes+caja+abierta", status_code=303)
 
@@ -152,6 +162,7 @@ def registrar_movimiento_caja(
         monto=round(monto, 2),
         referencia_tipo="OTRO",
     )
+    mov.local_id = local_id
     db.add(mov)
     db.commit()
 
@@ -170,8 +181,11 @@ def historial_cajas(
     pagina: str = None,
 ):
     pag = int(pagina) if pagina and pagina.strip() else 1
+    local_id = get_local_id(request)
 
     query = db.query(models.Caja).options(joinedload(models.Caja.usuario))
+    if local_id is not None:
+        query = query.filter(models.Caja.local_id == local_id)
 
     if current_user.rol != "ADMIN":
         query = query.filter(models.Caja.usuario_id == current_user.id)
@@ -210,10 +224,14 @@ def detalle_caja(
     current_user: models.Usuario = Depends(require_auth),
     msg: str = None,
 ):
-    caja = db.query(models.Caja).options(
+    local_id = get_local_id(request)
+    query = db.query(models.Caja).options(
         joinedload(models.Caja.movimientos),
         joinedload(models.Caja.usuario),
-    ).filter(models.Caja.id == caja_id).first()
+    ).filter(models.Caja.id == caja_id)
+    if local_id is not None:
+        query = query.filter(models.Caja.local_id == local_id)
+    caja = query.first()
     if not caja:
         return RedirectResponse("/caja/historial?error=Caja+no+encontrada", status_code=303)
 

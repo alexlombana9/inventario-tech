@@ -1,7 +1,33 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Index
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Index, UniqueConstraint
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
+
+
+# ─────────────────────────────────────────────
+#  LOCALES (MULTI-TENANT)
+# ─────────────────────────────────────────────
+
+class Local(Base):
+    __tablename__ = "locales"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(200), nullable=False)
+    codigo = Column(String(50), unique=True, nullable=False, index=True)
+    direccion = Column(Text, default="")
+    telefono = Column(String(50), default="")
+    email = Column(String(100), default="")
+    ciudad = Column(String(100), default="")
+    responsable = Column(String(200), default="")
+    activo = Column(Boolean, default=True, index=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    usuarios = relationship("Usuario", back_populates="local")
+    configuracion = relationship("Configuracion", back_populates="local", uselist=False)
+
+    def __repr__(self):
+        return f"<Local(id={self.id}, codigo='{self.codigo}', nombre='{self.nombre}')>"
 
 
 # ─────────────────────────────────────────────
@@ -18,12 +44,15 @@ class Usuario(Base):
     email = Column(String(100), default="")
     telefono = Column(String(50), default="")
     foto = Column(String(255), default="")
-    rol = Column(String(20), nullable=False, default="VENDEDOR")  # ADMIN, VENDEDOR, BODEGUERO
-    permisos = Column(Text, default="")  # comma-separated module keys (empty = default by role)
+    rol = Column(String(20), nullable=False, default="VENDEDOR")  # SUPERADMIN, ADMIN, VENDEDOR, BODEGUERO
+    permisos = Column(Text, default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     activo = Column(Boolean, default=True, index=True)
     ultimo_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    local = relationship("Local", back_populates="usuarios")
 
     def __repr__(self):
         return f"<Usuario(id={self.id}, username='{self.username}', rol='{self.rol}')>"
@@ -39,10 +68,11 @@ class AuditLog(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True, index=True)
     usuario_nombre = Column(String(200), default="")
     accion = Column(String(50), nullable=False, index=True)
-    entidad = Column(String(50), default="")      # producto, movimiento, venta, etc.
+    entidad = Column(String(50), default="")
     entidad_id = Column(Integer, nullable=True)
     detalle = Column(Text, default="")
     ip_address = Column(String(45), default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now, index=True)
 
     def __repr__(self):
@@ -51,11 +81,15 @@ class AuditLog(Base):
 
 class Categoria(Base):
     __tablename__ = "categorias"
+    __table_args__ = (
+        UniqueConstraint("nombre", "local_id", name="uq_categorias_nombre_local"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    nombre = Column(String(100), nullable=False, unique=True)
+    nombre = Column(String(100), nullable=False)
     descripcion = Column(Text, default="")
     activo = Column(Boolean, default=True, index=True)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     productos = relationship("Producto", back_populates="categoria")
@@ -75,6 +109,7 @@ class Proveedor(Base):
     direccion = Column(Text, default="")
     nit_ruc = Column(String(50), default="")
     activo = Column(Boolean, default=True, index=True)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     productos = relationship("Producto", back_populates="proveedor_principal")
@@ -89,10 +124,11 @@ class Producto(Base):
     __tablename__ = "productos"
     __table_args__ = (
         Index("ix_productos_activo_stock", "activo", "stock_actual"),
+        UniqueConstraint("codigo", "local_id", name="uq_productos_codigo_local"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    codigo = Column(String(50), unique=True, nullable=False, index=True)
+    codigo = Column(String(50), nullable=False, index=True)
     referencia = Column(String(100), default="")
     nombre = Column(String(200), nullable=False)
     descripcion = Column(Text, default="")
@@ -105,6 +141,7 @@ class Producto(Base):
     stock_minimo = Column(Float, default=0.0)
     unidad_medida = Column(String(20), default="UND")
     activo = Column(Boolean, default=True, index=True)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -134,7 +171,7 @@ class MovimientoInventario(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
-    tipo = Column(String(20), nullable=False)  # ENTRADA, SALIDA, AJUSTE
+    tipo = Column(String(20), nullable=False)
     cantidad = Column(Float, nullable=False)
     stock_anterior = Column(Float, nullable=False)
     stock_resultante = Column(Float, nullable=False)
@@ -142,6 +179,7 @@ class MovimientoInventario(Base):
     proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True, index=True)
     numero_referencia = Column(String(100), default="")
     observaciones = Column(Text, default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     fecha = Column(DateTime, default=datetime.now, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
@@ -161,13 +199,14 @@ class Acreedor(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(200), nullable=False)
-    tipo = Column(String(20), default="OTRO")       # PROVEEDOR | BANCO | PERSONA | OTRO
+    tipo = Column(String(20), default="OTRO")
     documento = Column(String(50), default="")
     telefono = Column(String(50), default="")
     email = Column(String(100), default="")
     direccion = Column(Text, default="")
     notas = Column(Text, default="")
     activo = Column(Boolean, default=True, index=True)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -189,16 +228,17 @@ class Deuda(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     concepto = Column(String(300), nullable=False)
-    acreedor_nombre = Column(String(200), nullable=False)   # a quién se le debe
-    acreedor_tipo = Column(String(20), default="OTRO")      # PROVEEDOR | LOCAL | OTRO
+    acreedor_nombre = Column(String(200), nullable=False)
+    acreedor_tipo = Column(String(20), default="OTRO")
     acreedor_id = Column(Integer, ForeignKey("acreedores.id"), nullable=True, index=True)
     proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True, index=True)
     monto_total = Column(Float, nullable=False)
     monto_pagado = Column(Float, default=0.0)
     fecha_deuda = Column(DateTime, default=datetime.now)
     fecha_vencimiento = Column(DateTime, nullable=True)
-    estado = Column(String(20), default="PENDIENTE", index=True)  # PENDIENTE | PARCIAL | PAGADO
+    estado = Column(String(20), default="PENDIENTE", index=True)
     notas = Column(Text, default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     proveedor = relationship("Proveedor", back_populates="deudas")
@@ -234,9 +274,10 @@ class PagoDeuda(Base):
     deuda_id = Column(Integer, ForeignKey("deudas.id"), nullable=False, index=True)
     monto = Column(Float, nullable=False)
     fecha_pago = Column(DateTime, default=datetime.now)
-    metodo_pago = Column(String(50), default="EFECTIVO")    # EFECTIVO | TRANSFERENCIA | TARJETA | CHEQUE
+    metodo_pago = Column(String(50), default="EFECTIVO")
     comprobante = Column(String(100), default="")
     notas = Column(Text, default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     deuda = relationship("Deuda", back_populates="pagos")
@@ -253,10 +294,11 @@ class Factura(Base):
     __tablename__ = "facturas"
     __table_args__ = (
         Index("ix_facturas_estado_vencimiento", "estado", "fecha_vencimiento"),
+        UniqueConstraint("numero_factura", "local_id", name="uq_facturas_numero_local"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    numero_factura = Column(String(100), nullable=False, unique=True)
+    numero_factura = Column(String(100), nullable=False)
     cliente_nombre = Column(String(200), nullable=False)
     cliente_documento = Column(String(50), default="")
     cliente_telefono = Column(String(50), default="")
@@ -266,8 +308,9 @@ class Factura(Base):
     monto_cobrado = Column(Float, default=0.0)
     fecha_emision = Column(DateTime, default=datetime.now, index=True)
     fecha_vencimiento = Column(DateTime, nullable=True)
-    estado = Column(String(20), default="PENDIENTE", index=True)  # PENDIENTE | PARCIAL | PAGADO
+    estado = Column(String(20), default="PENDIENTE", index=True)
     notas = Column(Text, default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     cobros = relationship("PagoFactura", back_populates="factura", cascade="all, delete-orphan")
@@ -304,6 +347,7 @@ class PagoFactura(Base):
     metodo_pago = Column(String(50), default="EFECTIVO")
     comprobante = Column(String(100), default="")
     notas = Column(Text, default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     factura = relationship("Factura", back_populates="cobros")
@@ -324,14 +368,15 @@ class Gasto(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     concepto = Column(String(300), nullable=False)
-    tipo = Column(String(20), default="DIRECTO")        # DIRECTO | INDIRECTO
-    categoria_gasto = Column(String(100), default="")   # Arriendo, Servicios, Nomina, etc.
+    tipo = Column(String(20), default="DIRECTO")
+    categoria_gasto = Column(String(100), default="")
     monto = Column(Float, nullable=False)
     fecha = Column(DateTime, default=datetime.now, index=True)
     metodo_pago = Column(String(50), default="EFECTIVO")
     comprobante = Column(String(100), default="")
     notas = Column(Text, default="")
     activo = Column(Boolean, default=True, index=True)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -340,7 +385,7 @@ class Gasto(Base):
 
 
 # ─────────────────────────────────────────────
-#  CONFIGURACIÓN DEL NEGOCIO (Singleton)
+#  CONFIGURACIÓN DEL NEGOCIO (una por local)
 # ─────────────────────────────────────────────
 
 class Configuracion(Base):
@@ -357,8 +402,11 @@ class Configuracion(Base):
     moneda_codigo = Column(String(10), default="COP")
     mensaje_recibo = Column(Text, default="Gracias por su compra")
     pie_factura = Column(Text, default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, unique=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    local = relationship("Local", back_populates="configuracion")
 
     def __repr__(self):
         return f"<Configuracion(id={self.id}, negocio='{self.nombre_negocio}')>"
@@ -373,7 +421,7 @@ class Cliente(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(200), nullable=False)
-    tipo_documento = Column(String(20), default="CC")  # CC, NIT, CE, PASAPORTE
+    tipo_documento = Column(String(20), default="CC")
     documento = Column(String(50), default="", index=True)
     telefono = Column(String(50), default="")
     email = Column(String(100), default="")
@@ -381,6 +429,7 @@ class Cliente(Base):
     notas = Column(Text, default="")
     saldo_credito = Column(Float, default=0.0)
     activo = Column(Boolean, default=True, index=True)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -398,10 +447,11 @@ class Venta(Base):
     __tablename__ = "ventas"
     __table_args__ = (
         Index("ix_ventas_fecha_estado", "fecha", "estado"),
+        UniqueConstraint("numero_venta", "local_id", name="uq_ventas_numero_local"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    numero_venta = Column(String(50), unique=True, nullable=False, index=True)
+    numero_venta = Column(String(50), nullable=False, index=True)
     cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True, index=True)
     cliente_nombre = Column(String(200), default="Consumidor Final")
     vendedor_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
@@ -409,12 +459,13 @@ class Venta(Base):
     descuento_total = Column(Float, default=0.0)
     impuesto_total = Column(Float, default=0.0)
     total = Column(Float, nullable=False)
-    metodo_pago = Column(String(50), nullable=False)  # EFECTIVO, TARJETA, TRANSFERENCIA, CREDITO, MIXTO
+    metodo_pago = Column(String(50), nullable=False)
     monto_recibido = Column(Float, default=0.0)
     cambio = Column(Float, default=0.0)
-    estado = Column(String(20), default="COMPLETADA", index=True)  # COMPLETADA, ANULADA
+    estado = Column(String(20), default="COMPLETADA", index=True)
     notas = Column(Text, default="")
     caja_id = Column(Integer, ForeignKey("cajas.id"), nullable=True, index=True)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     fecha = Column(DateTime, default=datetime.now, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
@@ -444,6 +495,7 @@ class DetalleVenta(Base):
     precio_costo = Column(Float, default=0.0)
     descuento_item = Column(Float, default=0.0)
     subtotal = Column(Float, nullable=False)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     venta = relationship("Venta", back_populates="detalles")
@@ -474,10 +526,11 @@ class Caja(Base):
     monto_cierre_esperado = Column(Float, nullable=True)
     monto_cierre_real = Column(Float, nullable=True)
     diferencia = Column(Float, nullable=True)
-    estado = Column(String(20), default="ABIERTA", index=True)  # ABIERTA, CERRADA
+    estado = Column(String(20), default="ABIERTA", index=True)
     fecha_apertura = Column(DateTime, nullable=False, default=datetime.now)
     fecha_cierre = Column(DateTime, nullable=True)
     notas_cierre = Column(Text, default="")
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     usuario = relationship("Usuario", foreign_keys=[usuario_id])
@@ -505,11 +558,12 @@ class MovimientoCaja(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     caja_id = Column(Integer, ForeignKey("cajas.id"), nullable=False, index=True)
-    tipo = Column(String(20), nullable=False)  # INGRESO, EGRESO
+    tipo = Column(String(20), nullable=False)
     concepto = Column(String(200), nullable=False)
     monto = Column(Float, nullable=False)
-    referencia_tipo = Column(String(50), nullable=True)  # VENTA, PAGO_DEUDA, OTRO
+    referencia_tipo = Column(String(50), nullable=True)
     referencia_id = Column(Integer, nullable=True)
+    local_id = Column(Integer, ForeignKey("locales.id"), nullable=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     caja = relationship("Caja", back_populates="movimientos")

@@ -181,15 +181,27 @@ def require_auth(request: Request) -> models.Usuario:
 
 
 def require_role(*roles):
-    """Factory de dependencia que exige un rol específico."""
+    """Factory de dependencia que exige un rol específico. SUPERADMIN pasa siempre."""
     def dependency(request: Request) -> models.Usuario:
         user = getattr(request.state, "user", None)
         if not user:
             raise HTTPException(status_code=303, headers={"Location": "/login"})
+        if user.rol == "SUPERADMIN":
+            return user
         if user.rol not in roles:
             raise HTTPException(status_code=403, detail="No tienes permisos para acceder a esta sección")
         return user
     return dependency
+
+
+def require_superadmin(request: Request) -> models.Usuario:
+    """Dependencia que exige rol SUPERADMIN."""
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise HTTPException(status_code=303, headers={"Location": "/login"})
+    if user.rol != "SUPERADMIN":
+        raise HTTPException(status_code=403, detail="Acceso restringido a Super Administrador")
+    return user
 
 
 # ── Permission management ────────────────────────────────
@@ -210,7 +222,15 @@ MODULOS_DISPONIBLES = [
     ("reportes", "Reportes"),
 ]
 
+# Módulos exclusivos del SUPERADMIN (no aparecen en permisos de local)
+MODULOS_SUPER = [
+    ("locales", "Gestión de Locales"),
+    ("super_dashboard", "Dashboard General"),
+    ("super_usuarios", "Usuarios Globales"),
+]
+
 PERMISOS_POR_ROL = {
+    "SUPERADMIN": [m[0] for m in MODULOS_DISPONIBLES] + [m[0] for m in MODULOS_SUPER],
     "ADMIN": [m[0] for m in MODULOS_DISPONIBLES],
     "VENDEDOR": [
         "dashboard", "productos", "ventas_pos", "ventas_historial",
@@ -232,7 +252,7 @@ def get_user_permisos(user) -> list:
 
 def user_has_permiso(user, modulo: str) -> bool:
     """Verifica si el usuario tiene acceso a un modulo."""
-    if user.rol == "ADMIN":
+    if user.rol in ("SUPERADMIN", "ADMIN"):
         return True
     return modulo in get_user_permisos(user)
 
@@ -284,10 +304,33 @@ def remove_accounts_cookie(response):
 
 # ── Audit trail ───────────────────────────────────────────
 
+def get_local_id(request_or_user) -> int | None:
+    """Obtiene el local_id efectivo del usuario o request.
+
+    Para SUPERADMIN: usa selected_local_id de request.state (cookie) si disponible.
+    Para otros roles: usa user.local_id.
+    """
+    if isinstance(request_or_user, models.Usuario):
+        user = request_or_user
+        if user.rol == "SUPERADMIN":
+            return None
+        return user.local_id
+
+    # Es un Request
+    user = getattr(request_or_user.state, "user", None)
+    if not user:
+        return None
+    if user.rol == "SUPERADMIN":
+        return getattr(request_or_user.state, "selected_local_id", None)
+    return user.local_id
+
+
 def log_audit(db: Session, user: models.Usuario | None, accion: str,
               entidad: str = "", entidad_id: int = None,
-              detalle: str = "", ip: str = ""):
+              detalle: str = "", ip: str = "", local_id: int = None):
     """Registra una entrada en el log de auditoría."""
+    if local_id is None and user:
+        local_id = user.local_id
     entry = models.AuditLog(
         usuario_id=user.id if user else None,
         usuario_nombre=user.nombre_completo if user else "Sistema",
@@ -296,6 +339,7 @@ def log_audit(db: Session, user: models.Usuario | None, accion: str,
         entidad_id=entidad_id,
         detalle=detalle,
         ip_address=ip,
+        local_id=local_id,
     )
     db.add(entry)
     db.commit()

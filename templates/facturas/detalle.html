@@ -241,6 +241,11 @@
 </div>
 {% endif %}
 
+<div class="text-center mt-4" style="font-size:0.75rem; color:#999; line-height:1.4">
+  Documento generado el {{ factura.created_at.strftime('%d/%m/%Y a las %H:%M') }}<br>
+  por <strong>TechStock</strong> &mdash; Software de <strong>Orionics</strong>, Barrancabermeja
+</div>
+
 <script>
 document.getElementById('fechaHoy').valueAsDate = new Date();
 </script>

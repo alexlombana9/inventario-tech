@@ -82,5 +82,12 @@
     <small>{{ config.mensaje_recibo if config else 'Gracias por su compra' }}</small>
     {% if config and config.pie_factura %}<br><small class="text-muted">{{ config.pie_factura }}</small>{% endif %}
   </div>
+
+  <div class="recibo-divider"></div>
+
+  <div class="text-center" style="font-size:0.68rem; color:#999; line-height:1.4">
+    Documento generado el {{ venta.fecha.strftime('%d/%m/%Y a las %H:%M') }}<br>
+    por <strong>TechStock</strong> &mdash; Software de <strong>Orionics</strong>, Barrancabermeja
+  </div>
 </div>
 {% endblock %}

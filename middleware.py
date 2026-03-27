@@ -4,6 +4,9 @@ Valida la cookie de sesión en cada request y redirige a /login si no es válida
 Valida tokens CSRF en todas las peticiones POST.
 """
 import os
+import re
+from urllib.parse import parse_qs
+
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
@@ -22,6 +25,28 @@ CSRF_EXEMPT_PREFIXES = ("/ventas/api/",)
 
 # Deshabilitar CSRF en tests
 _TESTING = os.environ.get("TESTING") == "1"
+
+# Regex para extraer csrf_token de multipart body
+_MULTIPART_CSRF_RE = re.compile(rb'name="csrf_token"\r?\n\r?\n([^\r\n-]+)')
+
+
+def _extract_csrf_token(body: bytes, content_type: str) -> str:
+    """Extrae el csrf_token del body sin consumir request.form().
+
+    Usa parse_qs para URL-encoded y regex para multipart.
+    Esto evita que BaseHTTPMiddleware consuma el body stream,
+    permitiendo que FastAPI lo lea despues en el router.
+    """
+    try:
+        if "multipart/form-data" in content_type:
+            m = _MULTIPART_CSRF_RE.search(body)
+            return m.group(1).decode("utf-8", errors="replace") if m else ""
+        else:
+            params = parse_qs(body.decode("utf-8", errors="replace"))
+            values = params.get("csrf_token", [""])
+            return values[0] if values else ""
+    except Exception:
+        return ""
 
 
 class AuthMiddleware(BaseHTTPMiddleware):
@@ -62,11 +87,29 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Inyectar usuario en request
         request.state.user = user
 
+        # Inyectar local_id en request.state
+        if user.rol == "SUPERADMIN":
+            # SUPERADMIN puede seleccionar un local vía cookie
+            selected = request.cookies.get("techstock_selected_local")
+            if selected:
+                try:
+                    request.state.selected_local_id = int(selected)
+                except (ValueError, TypeError):
+                    request.state.selected_local_id = None
+            else:
+                request.state.selected_local_id = None
+            request.state.local_id = request.state.selected_local_id
+        else:
+            request.state.local_id = user.local_id
+            request.state.selected_local_id = None
+
         # Validar CSRF en peticiones POST (excepto en tests y rutas exentas)
         if request.method == "POST" and not _TESTING:
             if not any(path.startswith(p) for p in CSRF_EXEMPT_PREFIXES):
-                form = await request.form()
-                csrf_token = form.get("csrf_token", "")
+                # Leer body bytes (se cachean en request._body, disponible para el router)
+                body = await request.body()
+                content_type = request.headers.get("content-type", "")
+                csrf_token = _extract_csrf_token(body, content_type)
                 if not validate_csrf_token(csrf_token, cookie):
                     return Response("CSRF token inválido", status_code=403)
 

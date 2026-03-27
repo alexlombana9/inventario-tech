@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Dashboard General{% endblock %}
+{% block page_title %}Dashboard General — Super Administrador{% endblock %}
+
+{% block content %}
+
+<!-- Métricas globales -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body py-3">
+        <i class="bi bi-building text-primary" style="font-size:1.5rem"></i>
+        <h4 class="mb-0 mt-1">{{ locales_activos }}<small class="text-muted">/{{ total_locales }}</small></h4>
+        <small class="text-muted">Locales Activos</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body py-3">
+        <i class="bi bi-people text-info" style="font-size:1.5rem"></i>
+        <h4 class="mb-0 mt-1">{{ total_usuarios }}</h4>
+        <small class="text-muted">Usuarios Activos</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body py-3">
+        <i class="bi bi-box-seam text-success" style="font-size:1.5rem"></i>
+        <h4 class="mb-0 mt-1">{{ total_productos }}</h4>
+        <small class="text-muted">Productos Totales</small>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center">
+      <div class="card-body py-3">
+        <i class="bi bi-cash-coin text-warning" style="font-size:1.5rem"></i>
+        <h4 class="mb-0 mt-1">{{ ventas_hoy_total | moneda }}</h4>
+        <small class="text-muted">Ventas Hoy</small>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body text-center py-3">
+        <small class="text-muted d-block">Ventas del Mes</small>
+        <h3 class="text-success mb-0">{{ ventas_mes_total | moneda }}</h3>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-body text-center py-3">
+        <small class="text-muted d-block">{{ fecha_hoy }}</small>
+        <h5 class="mb-0 mt-1">Resumen de Operaciones</h5>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Tabla de locales con métricas -->
+<div class="card">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <h6 class="mb-0"><i class="bi bi-building me-1"></i>Rendimiento por Local</h6>
+    <a href="/locales/nuevo" class="btn btn-sm btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo Local
+    </a>
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Local</th>
+            <th class="text-center">Estado</th>
+            <th class="text-center">Usuarios</th>
+            <th class="text-center">Productos</th>
+            <th class="text-end">Ventas Hoy</th>
+            <th class="text-end">Ventas Mes</th>
+            <th class="text-center">Stock Bajo</th>
+            <th class="text-end">Deudas Pend.</th>
+            <th class="text-center">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for s in local_stats %}
+          <tr class="{{ 'text-muted' if not s.local.activo }}">
+            <td>
+              <strong>{{ s.local.nombre }}</strong>
+              <br><small class="text-muted">{{ s.local.codigo }}{% if s.local.ciudad %} — {{ s.local.ciudad }}{% endif %}</small>
+            </td>
+            <td class="text-center">
+              <span class="badge {{ 'bg-success' if s.local.activo else 'bg-secondary' }}">
+                {{ 'Activo' if s.local.activo else 'Inactivo' }}
+              </span>
+            </td>
+            <td class="text-center">{{ s.usuarios }}</td>
+            <td class="text-center">{{ s.productos }}</td>
+            <td class="text-end">{{ s.ventas_hoy | moneda }}</td>
+            <td class="text-end">{{ s.ventas_mes | moneda }}</td>
+            <td class="text-center">
+              {% if s.stock_bajo > 0 %}
+              <span class="badge bg-warning text-dark">{{ s.stock_bajo }}</span>
+              {% else %}
+              <span class="text-muted">0</span>
+              {% endif %}
+            </td>
+            <td class="text-end">
+              {% if s.deudas_pendientes > 0 %}
+              <span class="text-danger">{{ s.deudas_pendientes | moneda }}</span>
+              {% else %}
+              <span class="text-muted">$0</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <a href="/locales/seleccionar/{{ s.local.id }}" class="btn btn-sm btn-outline-primary" title="Entrar al local">
+                <i class="bi bi-box-arrow-in-right"></i>
+              </a>
+              <a href="/locales/{{ s.local.id }}/editar" class="btn btn-sm btn-outline-secondary" title="Editar">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </td>
+          </tr>
+          {% else %}
+          <tr>
+            <td colspan="9" class="text-center py-4 text-muted">
+              No hay locales registrados. <a href="/locales/nuevo">Crear uno</a>.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

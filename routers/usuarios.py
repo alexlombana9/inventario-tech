@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from urllib.parse import quote_plus
 from database import get_db
 from templates_config import templates
-from auth import require_role, hash_password, validate_password, set_flash, log_audit, MODULOS_DISPONIBLES, PERMISOS_POR_ROL, get_user_permisos
+from auth import require_role, hash_password, validate_password, set_flash, log_audit, MODULOS_DISPONIBLES, PERMISOS_POR_ROL, get_user_permisos, get_local_id
 import models
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
@@ -30,6 +30,9 @@ def lista_usuarios(
     error: str = None,
 ):
     query = db.query(models.Usuario)
+    local_id = get_local_id(request)
+    if local_id is not None:
+        query = query.filter(models.Usuario.local_id == local_id)
     if buscar:
         query = query.filter(
             models.Usuario.nombre_completo.ilike(f"%{buscar}%") |
@@ -44,6 +47,11 @@ def lista_usuarios(
         elif estado == "inactivo":
             query = query.filter(models.Usuario.activo == False)
     usuarios = query.order_by(models.Usuario.nombre_completo).all()
+
+    # Cargar locales para el formulario (solo SUPERADMIN)
+    all_locales = []
+    if current_user.rol == "SUPERADMIN":
+        all_locales = db.query(models.Local).filter(models.Local.activo == True).all()
 
     return templates.TemplateResponse("usuarios/lista.html", {
         "request": request,
@@ -60,9 +68,13 @@ def lista_usuarios(
 @router.get("/nuevo")
 def nuevo_usuario_form(
     request: Request,
+    db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_role("ADMIN")),
     error: str = None,
 ):
+    all_locales = []
+    if current_user.rol == "SUPERADMIN":
+        all_locales = db.query(models.Local).filter(models.Local.activo == True).all()
     return templates.TemplateResponse("usuarios/form.html", {
         "request": request,
         "usuario": None,
@@ -72,6 +84,8 @@ def nuevo_usuario_form(
         "modulos_disponibles": MODULOS_DISPONIBLES,
         "permisos_por_rol": PERMISOS_POR_ROL,
         "permisos_usuario": [],
+        "all_locales": all_locales,
+        "current_user": current_user,
     })
 
 
@@ -83,6 +97,7 @@ def crear_usuario(
     nombre_completo: str = Form(...),
     rol: str = Form("VENDEDOR"),
     permisos: List[str] = Form([]),
+    local_id_form: str = Form(""),
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_role("ADMIN")),
 ):
@@ -110,12 +125,19 @@ def crear_usuario(
     permisos_set = set(permisos)
     permisos_str = ",".join(sorted(permisos)) if permisos_set != permisos_default else ""
 
+    # Determinar local_id del nuevo usuario
+    if current_user.rol == "SUPERADMIN" and local_id_form and local_id_form.strip():
+        user_local_id = int(local_id_form) if local_id_form.strip() else None
+    else:
+        user_local_id = get_local_id(request)
+
     usuario = models.Usuario(
         username=username_clean,
         password_hash=hash_password(password),
         nombre_completo=nombre_completo.strip(),
         rol=rol,
         permisos=permisos_str,
+        local_id=user_local_id,
         activo=True,
     )
     db.add(usuario)
@@ -140,6 +162,9 @@ def editar_usuario_form(
     if not usuario:
         return RedirectResponse("/usuarios?error=Usuario+no+encontrado", status_code=303)
 
+    all_locales = []
+    if current_user.rol == "SUPERADMIN":
+        all_locales = db.query(models.Local).filter(models.Local.activo == True).all()
     return templates.TemplateResponse("usuarios/form.html", {
         "request": request,
         "usuario": usuario,
@@ -149,6 +174,8 @@ def editar_usuario_form(
         "modulos_disponibles": MODULOS_DISPONIBLES,
         "permisos_por_rol": PERMISOS_POR_ROL,
         "permisos_usuario": get_user_permisos(usuario),
+        "all_locales": all_locales,
+        "current_user": current_user,
     })
 
 

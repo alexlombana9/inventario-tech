@@ -6,7 +6,7 @@ from datetime import datetime, date, timedelta
 
 from database import get_db
 from templates_config import templates
-from auth import require_role
+from auth import require_role, get_local_id
 import models
 
 router = APIRouter(prefix="/auditoria", tags=["auditoria"])
@@ -34,6 +34,9 @@ def lista_auditoria(
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.AuditLog)
+    local_id = get_local_id(request)
+    if local_id is not None:
+        query = query.filter(models.AuditLog.local_id == local_id)
 
     # Filtro por fechas
     try:

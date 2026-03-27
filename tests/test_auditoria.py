@@ -1,6 +1,7 @@
 """Tests para el modulo de auditoria (log de acciones, solo ADMIN)."""
 from datetime import datetime
 import models
+import pytest
 
 
 class TestAccesoAuditoria:
@@ -22,7 +23,7 @@ class TestListaAuditoria:
         resp = admin_client.get("/auditoria")
         assert resp.status_code == 200
 
-    def test_lista_con_registros(self, admin_client, db, admin_user):
+    def test_lista_con_registros(self, admin_client, db, admin_user, sample_local):
         """Crear un registro de auditoria y verificar que aparece."""
         log = models.AuditLog(
             usuario_id=admin_user.id,
@@ -33,6 +34,7 @@ class TestListaAuditoria:
             detalle="Producto creado: Test Product",
             ip_address="127.0.0.1",
             created_at=datetime.now(),
+            local_id=sample_local.id,
         )
         db.add(log)
         db.commit()
@@ -41,7 +43,7 @@ class TestListaAuditoria:
         assert resp.status_code == 200
         assert "Test Product" in resp.text
 
-    def test_filtro_accion(self, admin_client, db, admin_user):
+    def test_filtro_accion(self, admin_client, db, admin_user, sample_local):
         log = models.AuditLog(
             usuario_id=admin_user.id,
             usuario_nombre="Admin Test",
@@ -51,6 +53,7 @@ class TestListaAuditoria:
             detalle="Categoria eliminada",
             ip_address="127.0.0.1",
             created_at=datetime.now(),
+            local_id=sample_local.id,
         )
         db.add(log)
         db.commit()
@@ -59,7 +62,7 @@ class TestListaAuditoria:
         assert resp.status_code == 200
         assert "Categoria eliminada" in resp.text
 
-    def test_filtro_entidad(self, admin_client, db, admin_user):
+    def test_filtro_entidad(self, admin_client, db, admin_user, sample_local):
         log = models.AuditLog(
             usuario_id=admin_user.id,
             usuario_nombre="Admin Test",
@@ -69,6 +72,7 @@ class TestListaAuditoria:
             detalle="Proveedor actualizado",
             ip_address="127.0.0.1",
             created_at=datetime.now(),
+            local_id=sample_local.id,
         )
         db.add(log)
         db.commit()
@@ -77,7 +81,7 @@ class TestListaAuditoria:
         assert resp.status_code == 200
         assert "Proveedor actualizado" in resp.text
 
-    def test_filtro_busqueda(self, admin_client, db, admin_user):
+    def test_filtro_busqueda(self, admin_client, db, admin_user, sample_local):
         log = models.AuditLog(
             usuario_id=admin_user.id,
             usuario_nombre="Admin Test",
@@ -87,6 +91,7 @@ class TestListaAuditoria:
             detalle="Gasto especial registrado",
             ip_address="192.168.1.100",
             created_at=datetime.now(),
+            local_id=sample_local.id,
         )
         db.add(log)
         db.commit()
@@ -95,7 +100,7 @@ class TestListaAuditoria:
         assert resp.status_code == 200
         assert "Gasto especial" in resp.text
 
-    def test_filtro_fechas(self, admin_client, db, admin_user):
+    def test_filtro_fechas(self, admin_client, db, admin_user, sample_local):
         today = datetime.now().strftime("%Y-%m-%d")
         log = models.AuditLog(
             usuario_id=admin_user.id,
@@ -106,6 +111,7 @@ class TestListaAuditoria:
             detalle="Venta de hoy",
             ip_address="127.0.0.1",
             created_at=datetime.now(),
+            local_id=sample_local.id,
         )
         db.add(log)
         db.commit()
@@ -114,7 +120,7 @@ class TestListaAuditoria:
         assert resp.status_code == 200
         assert "Venta de hoy" in resp.text
 
-    def test_filtro_usuario_id(self, admin_client, db, admin_user):
+    def test_filtro_usuario_id(self, admin_client, db, admin_user, sample_local):
         log = models.AuditLog(
             usuario_id=admin_user.id,
             usuario_nombre="Admin Test",
@@ -123,6 +129,7 @@ class TestListaAuditoria:
             detalle="Inicio de sesion",
             ip_address="127.0.0.1",
             created_at=datetime.now(),
+            local_id=sample_local.id,
         )
         db.add(log)
         db.commit()

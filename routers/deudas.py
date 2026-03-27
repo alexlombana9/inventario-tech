@@ -5,7 +5,7 @@ from sqlalchemy import func
 from datetime import datetime, date, timedelta
 from database import get_db
 from templates_config import templates
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 from utils.queries import proveedores_activos, acreedores_activos
 import models
 
@@ -34,7 +34,10 @@ def lista_deudas(
     msg: str = None,
     error: str = None,
 ):
+    local_id = get_local_id(request)
     query = db.query(models.Deuda)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
     if estado:
         query = query.filter(models.Deuda.estado == estado)
     if acreedor_tipo:
@@ -69,8 +72,9 @@ def lista_deudas(
 
 @router.get("/nueva")
 def nueva_deuda_form(request: Request, db: Session = Depends(get_db)):
-    proveedores = proveedores_activos(db)
-    acreedores = acreedores_activos(db)
+    local_id = get_local_id(request)
+    proveedores = proveedores_activos(db, local_id=local_id)
+    acreedores = acreedores_activos(db, local_id=local_id)
     return templates.TemplateResponse("deudas/form.html", {
         "request": request,
         "deuda": None,
@@ -113,6 +117,7 @@ def crear_deuda(
         fecha_vencimiento=fec_venc,
         notas=notas.strip(),
     )
+    deuda.local_id = get_local_id(request)
     db.add(deuda)
     db.commit()
 
@@ -127,11 +132,15 @@ def crear_deuda(
 
 @router.get("/{deuda_id}/editar")
 def editar_deuda_form(deuda_id: int, request: Request, db: Session = Depends(get_db)):
-    deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Deuda).filter(models.Deuda.id == deuda_id)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
+    deuda = query.first()
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
-    proveedores = proveedores_activos(db)
-    acreedores = acreedores_activos(db)
+    proveedores = proveedores_activos(db, local_id=local_id)
+    acreedores = acreedores_activos(db, local_id=local_id)
     return templates.TemplateResponse("deudas/form.html", {
         "request": request,
         "deuda": deuda,
@@ -159,7 +168,11 @@ def actualizar_deuda(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Deuda).filter(models.Deuda.id == deuda_id)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
+    deuda = query.first()
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
 
@@ -187,9 +200,13 @@ def actualizar_deuda(
 @router.get("/{deuda_id}/detalle")
 def detalle_deuda(deuda_id: int, request: Request, db: Session = Depends(get_db),
                   msg: str = None, error: str = None):
-    deuda = db.query(models.Deuda).options(
+    local_id = get_local_id(request)
+    query = db.query(models.Deuda).options(
         joinedload(models.Deuda.pagos)
-    ).filter(models.Deuda.id == deuda_id).first()
+    ).filter(models.Deuda.id == deuda_id)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
+    deuda = query.first()
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
     return templates.TemplateResponse("deudas/detalle.html", {
@@ -215,7 +232,11 @@ def registrar_pago(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Deuda).filter(models.Deuda.id == deuda_id)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
+    deuda = query.first()
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
     if deuda.estado == "PAGADO":
@@ -232,6 +253,7 @@ def registrar_pago(
         comprobante=comprobante.strip(),
         notas=notas.strip(),
     )
+    pago.local_id = local_id
     db.add(pago)
     deuda.monto_pagado = round(deuda.monto_pagado + monto_aplicar, 2)
     _actualizar_estado(deuda)
@@ -250,10 +272,14 @@ def registrar_pago(
 def eliminar_pago(deuda_id: int, pago_id: int, request: Request,
                   db: Session = Depends(get_db),
                   current_user: models.Usuario = Depends(require_auth)):
-    pago = db.query(models.PagoDeuda).filter(
+    local_id = get_local_id(request)
+    pago_query = db.query(models.PagoDeuda).filter(
         models.PagoDeuda.id == pago_id,
         models.PagoDeuda.deuda_id == deuda_id,
-    ).first()
+    )
+    if local_id is not None:
+        pago_query = pago_query.filter(models.PagoDeuda.local_id == local_id)
+    pago = pago_query.first()
     if not pago:
         return RedirectResponse(f"/deudas/{deuda_id}/detalle?error=Pago+no+encontrado", status_code=303)
     deuda = pago.deuda
@@ -281,12 +307,16 @@ def reporte_deudas(
     fecha_desde: str = None,
     fecha_hasta: str = None,
 ):
+    local_id = get_local_id(request)
+
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=90)).strftime("%Y-%m-%d")
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.Deuda)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -327,6 +357,7 @@ def reporte_deudas(
 
 @router.get("/reporte/pdf")
 def reporte_deudas_pdf(
+    request: Request,
     db: Session = Depends(get_db),
     estado: str = None,
     acreedor_tipo: str = None,
@@ -341,6 +372,9 @@ def reporte_deudas_pdf(
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.Deuda)
+    local_id = get_local_id(request)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -397,7 +431,11 @@ def reporte_deudas_pdf(
 def eliminar_deuda(deuda_id: int, request: Request,
                    db: Session = Depends(get_db),
                    current_user: models.Usuario = Depends(require_auth)):
-    deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Deuda).filter(models.Deuda.id == deuda_id)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
+    deuda = query.first()
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
 

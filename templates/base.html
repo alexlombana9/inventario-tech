@@ -206,8 +206,28 @@
     <li class="nav-divider"></li>
     {% endif %}
 
+    <!-- ── SUPER ADMINISTRACIÓN (solo SUPERADMIN) ── -->
+    {% if u and is_superadmin(u) %}
+    <li class="nav-section">Super Admin</li>
+
+    <li class="nav-item">
+      <a href="/super" class="nav-link {% if request.url.path == '/super' %}active{% endif %}">
+        <i class="bi bi-globe"></i>
+        <span>Dashboard General</span>
+      </a>
+    </li>
+    <li class="nav-item">
+      <a href="/locales" class="nav-link {% if '/locales' in request.url.path %}active{% endif %}">
+        <i class="bi bi-building"></i>
+        <span>Locales</span>
+      </a>
+    </li>
+
+    <li class="nav-divider"></li>
+    {% endif %}
+
     <!-- ── ADMINISTRACIÓN ── -->
-    {% if request.state.user and request.state.user.rol == 'ADMIN' %}
+    {% if u and (u.rol == 'ADMIN' or is_superadmin(u)) %}
     <li class="nav-section">Administración</li>
 
     <li class="nav-item">
@@ -306,13 +326,26 @@
           <li>
             <span class="dropdown-item-text">
               <small class="text-muted">{{ request.state.user.username }} &mdash;
-                {% if request.state.user.rol == 'ADMIN' %}Administrador
+                {% if request.state.user.rol == 'SUPERADMIN' %}Super Admin
+                {% elif request.state.user.rol == 'ADMIN' %}Administrador
                 {% elif request.state.user.rol == 'VENDEDOR' %}Vendedor
                 {% elif request.state.user.rol == 'BODEGUERO' %}Bodeguero
                 {% endif %}
               </small>
             </span>
           </li>
+          {% if is_superadmin(request.state.user) and current_local_name is defined and current_local_name %}
+          <li>
+            <span class="dropdown-item-text">
+              <small class="text-primary"><i class="bi bi-building me-1"></i>{{ current_local_name }}</small>
+            </span>
+          </li>
+          <li>
+            <a class="dropdown-item" href="/locales/deseleccionar">
+              <i class="bi bi-arrow-return-left me-1"></i>Volver a Super Dashboard
+            </a>
+          </li>
+          {% endif %}
           <li><hr class="dropdown-divider"></li>
           <li>
             <a class="dropdown-item" href="/perfil">

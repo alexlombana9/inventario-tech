@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import datetime, date
 from database import get_db
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 from utils.queries import productos_activos, proveedores_activos
 import models
 
@@ -30,9 +30,12 @@ def lista_movimientos(
 
     from utils.pagination import paginate
 
+    local_id = get_local_id(request)
     query = db.query(models.MovimientoInventario).options(
         joinedload(models.MovimientoInventario.producto)
     )
+    if local_id is not None:
+        query = query.filter(models.MovimientoInventario.local_id == local_id)
 
     if buscar:
         term = f"%{buscar}%"
@@ -61,7 +64,7 @@ def lista_movimientos(
     query = query.order_by(models.MovimientoInventario.fecha.desc())
     movimientos, total, total_paginas = paginate(query, pag)
 
-    productos = productos_activos(db)
+    productos = productos_activos(db, local_id=local_id)
 
     return templates.TemplateResponse("inventario/movimientos.html", {
         "request": request,
@@ -82,8 +85,9 @@ def lista_movimientos(
 
 @router.get("/entrada")
 def entrada_form(request: Request, db: Session = Depends(get_db), error: str = None):
-    productos = productos_activos(db)
-    proveedores = proveedores_activos(db)
+    local_id = get_local_id(request)
+    productos = productos_activos(db, local_id=local_id)
+    proveedores = proveedores_activos(db, local_id=local_id)
     return templates.TemplateResponse("inventario/entrada.html", {
         "request": request,
         "productos": productos,
@@ -96,8 +100,9 @@ def entrada_form(request: Request, db: Session = Depends(get_db), error: str = N
 
 @router.get("/salida")
 def salida_form(request: Request, db: Session = Depends(get_db), error: str = None):
-    productos = productos_activos(db)
-    proveedores = proveedores_activos(db)
+    local_id = get_local_id(request)
+    productos = productos_activos(db, local_id=local_id)
+    proveedores = proveedores_activos(db, local_id=local_id)
     return templates.TemplateResponse("inventario/entrada.html", {
         "request": request,
         "productos": productos,
@@ -110,7 +115,8 @@ def salida_form(request: Request, db: Session = Depends(get_db), error: str = No
 
 @router.get("/ajuste")
 def ajuste_form(request: Request, db: Session = Depends(get_db), error: str = None):
-    productos = productos_activos(db)
+    local_id = get_local_id(request)
+    productos = productos_activos(db, local_id=local_id)
     return templates.TemplateResponse("inventario/ajuste.html", {
         "request": request,
         "productos": productos,
@@ -132,7 +138,11 @@ def registrar_movimiento(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    producto = db.query(models.Producto).filter(models.Producto.id == producto_id).first()
+    local_id = get_local_id(request)
+    prod_query = db.query(models.Producto).filter(models.Producto.id == producto_id)
+    if local_id is not None:
+        prod_query = prod_query.filter(models.Producto.local_id == local_id)
+    producto = prod_query.first()
     if not producto:
         return RedirectResponse(f"/inventario/{tipo.lower()}?error=Producto+no+encontrado", status_code=303)
 
@@ -173,6 +183,7 @@ def registrar_movimiento(
         observaciones=observaciones.strip(),
         fecha=fecha_mov,
     )
+    mov.local_id = local_id
     db.add(mov)
 
     producto.stock_actual = nuevo_stock
@@ -194,7 +205,11 @@ def registrar_ajuste(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    producto = db.query(models.Producto).filter(models.Producto.id == producto_id).first()
+    local_id = get_local_id(request)
+    prod_query = db.query(models.Producto).filter(models.Producto.id == producto_id)
+    if local_id is not None:
+        prod_query = prod_query.filter(models.Producto.local_id == local_id)
+    producto = prod_query.first()
     if not producto:
         return RedirectResponse("/inventario/ajuste?error=Producto+no+encontrado", status_code=303)
 
@@ -210,6 +225,7 @@ def registrar_ajuste(
         precio_unitario=0,
         observaciones=observaciones.strip() or f"Ajuste manual de {stock_anterior} a {nuevo_stock}",
     )
+    mov.local_id = local_id
     db.add(mov)
     producto.stock_actual = nuevo_stock
     db.commit()

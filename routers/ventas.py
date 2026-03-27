@@ -8,7 +8,7 @@ from datetime import datetime, date, timedelta
 
 from database import get_db
 from templates_config import templates
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 from utils.queries import productos_con_stock, clientes_activos, vendedores_activos
 import models
 
@@ -20,8 +20,8 @@ from utils.constants import METODOS_PAGO_VENTAS as METODOS_PAGO
 from utils.financial import siguiente_numero as _sig_num
 
 
-def _siguiente_numero(db: Session) -> str:
-    return _sig_num(db, models.Venta, "numero_venta", "VTA")
+def _siguiente_numero(db: Session, local_id: int = None) -> str:
+    return _sig_num(db, models.Venta, "numero_venta", "VTA", local_id=local_id)
 
 
 # ── POS Interface ────────────────────────────────────────────
@@ -32,21 +32,25 @@ def pos_interface(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    productos = productos_con_stock(db)
-    clientes = clientes_activos(db)
+    local_id = get_local_id(request)
+    productos = productos_con_stock(db, local_id=local_id)
+    clientes = clientes_activos(db, local_id=local_id)
 
     # Verificar si hay caja abierta
-    caja_abierta = db.query(models.Caja).filter(
+    caja_query = db.query(models.Caja).filter(
         models.Caja.usuario_id == current_user.id,
         models.Caja.estado == "ABIERTA"
-    ).first()
+    )
+    if local_id is not None:
+        caja_query = caja_query.filter(models.Caja.local_id == local_id)
+    caja_abierta = caja_query.first()
 
     return templates.TemplateResponse("ventas/pos.html", {
         "request": request,
         "productos": productos,
         "clientes": clientes,
         "caja_abierta": caja_abierta,
-        "numero_venta": _siguiente_numero(db),
+        "numero_venta": _siguiente_numero(db, local_id=local_id),
         "metodos_pago": METODOS_PAGO,
     })
 
@@ -55,6 +59,7 @@ def pos_interface(
 
 @router.get("/api/productos")
 def api_buscar_productos(
+    request: Request,
     q: str = "",
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
@@ -63,6 +68,9 @@ def api_buscar_productos(
         models.Producto.activo == True,
         models.Producto.stock_actual > 0
     )
+    local_id = get_local_id(request)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
     if q:
         query = query.filter(
             models.Producto.nombre.ilike(f"%{q}%") |
@@ -125,14 +133,18 @@ def procesar_venta(
     cambio = max(0, monto_recibido - total) if metodo_pago == "EFECTIVO" else 0
 
     # Check for open cash register
-    caja_abierta = db.query(models.Caja).filter(
+    local_id = get_local_id(request)
+    caja_query = db.query(models.Caja).filter(
         models.Caja.usuario_id == current_user.id,
         models.Caja.estado == "ABIERTA"
-    ).first()
+    )
+    if local_id is not None:
+        caja_query = caja_query.filter(models.Caja.local_id == local_id)
+    caja_abierta = caja_query.first()
 
     # Create sale with atomic transaction and pessimistic locking
     try:
-        numero = _siguiente_numero(db)
+        numero = _siguiente_numero(db, local_id=local_id)
         client_id = int(cliente_id) if cliente_id.strip() else None
 
         venta = models.Venta(
@@ -150,6 +162,7 @@ def procesar_venta(
             caja_id=caja_abierta.id if caja_abierta else None,
             fecha=datetime.now(),
         )
+        venta.local_id = local_id
         db.add(venta)
         db.flush()
 
@@ -180,6 +193,7 @@ def procesar_venta(
                 descuento_item=desc_item,
                 subtotal=round(sub, 2),
             )
+            detalle.local_id = local_id
             db.add(detalle)
 
             # Stock movement
@@ -208,6 +222,7 @@ def procesar_venta(
                 referencia_tipo="VENTA",
                 referencia_id=venta.id,
             )
+            mov_caja.local_id = local_id
             db.add(mov_caja)
 
         db.commit()
@@ -240,6 +255,7 @@ def historial_ventas(
     pagina: str = None,
 ):
     pag = int(pagina) if pagina and pagina.strip() else 1
+    local_id = get_local_id(request)
 
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
@@ -249,6 +265,8 @@ def historial_ventas(
     query = db.query(models.Venta).options(
         joinedload(models.Venta.vendedor)
     )
+    if local_id is not None:
+        query = query.filter(models.Venta.local_id == local_id)
 
     fd = None
     fh = None
@@ -278,22 +296,28 @@ def historial_ventas(
     query = query.order_by(models.Venta.fecha.desc())
     ventas, total, total_paginas = paginate(query, pag)
 
-    total_ventas = db.query(func.sum(models.Venta.total)).filter(
+    total_ventas_q = db.query(func.sum(models.Venta.total)).filter(
         models.Venta.fecha >= fd if fd else True,
         models.Venta.fecha <= fh if fh else True,
         models.Venta.estado == "COMPLETADA"
-    ).scalar() or 0
+    )
+    if local_id is not None:
+        total_ventas_q = total_ventas_q.filter(models.Venta.local_id == local_id)
+    total_ventas = total_ventas_q.scalar() or 0
 
     # Ganancia del período: sum(subtotal - costo) de detalles de ventas completadas
-    ganancia_periodo = db.query(
+    ganancia_q = db.query(
         func.sum(models.DetalleVenta.subtotal - models.DetalleVenta.precio_costo * models.DetalleVenta.cantidad)
     ).join(models.Venta).filter(
         models.Venta.fecha >= fd if fd else True,
         models.Venta.fecha <= fh if fh else True,
         models.Venta.estado == "COMPLETADA"
-    ).scalar() or 0
+    )
+    if local_id is not None:
+        ganancia_q = ganancia_q.filter(models.Venta.local_id == local_id)
+    ganancia_periodo = ganancia_q.scalar() or 0
 
-    vendedores = vendedores_activos(db)
+    vendedores = vendedores_activos(db, local_id=local_id)
 
     return templates.TemplateResponse("ventas/historial.html", {
         "request": request,
@@ -320,6 +344,7 @@ def historial_ventas(
 
 @router.get("/excel")
 def ventas_excel(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
     fecha_desde: str = None,
@@ -334,6 +359,9 @@ def ventas_excel(
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.Venta)
+    local_id = get_local_id(request)
+    if local_id is not None:
+        query = query.filter(models.Venta.local_id == local_id)
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -380,10 +408,14 @@ def detalle_venta(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    venta = db.query(models.Venta).options(
+    local_id = get_local_id(request)
+    query = db.query(models.Venta).options(
         joinedload(models.Venta.detalles),
         joinedload(models.Venta.vendedor),
-    ).filter(models.Venta.id == venta_id).first()
+    ).filter(models.Venta.id == venta_id)
+    if local_id is not None:
+        query = query.filter(models.Venta.local_id == local_id)
+    venta = query.first()
     if not venta:
         return RedirectResponse("/ventas?error=Venta+no+encontrada", status_code=303)
 
@@ -403,10 +435,14 @@ def recibo_venta(
     current_user: models.Usuario = Depends(require_auth),
     msg: str = None,
 ):
-    venta = db.query(models.Venta).options(
+    local_id = get_local_id(request)
+    query = db.query(models.Venta).options(
         joinedload(models.Venta.detalles),
         joinedload(models.Venta.vendedor),
-    ).filter(models.Venta.id == venta_id).first()
+    ).filter(models.Venta.id == venta_id)
+    if local_id is not None:
+        query = query.filter(models.Venta.local_id == local_id)
+    venta = query.first()
     if not venta:
         return RedirectResponse("/ventas?error=Venta+no+encontrada", status_code=303)
 
@@ -432,7 +468,11 @@ def anular_venta(
     if current_user.rol != "ADMIN":
         return RedirectResponse("/ventas?error=Solo+el+administrador+puede+anular+ventas", status_code=303)
 
-    venta = db.query(models.Venta).filter(models.Venta.id == venta_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Venta).filter(models.Venta.id == venta_id)
+    if local_id is not None:
+        query = query.filter(models.Venta.local_id == local_id)
+    venta = query.first()
     if not venta:
         return RedirectResponse("/ventas?error=Venta+no+encontrada", status_code=303)
     if venta.estado == "ANULADA":

@@ -37,7 +37,7 @@ class TestReporteStock:
         # sample_producto tiene stock_actual=50, stock_minimo=5, no es bajo
         assert "Laptop Test" not in resp.text
 
-    def test_stock_producto_bajo_aparece(self, admin_client, db, sample_categoria, sample_proveedor):
+    def test_stock_producto_bajo_aparece(self, admin_client, db, sample_categoria, sample_proveedor, sample_local):
         """Producto con stock bajo aparece con filtro solo_bajo."""
         prod_bajo = models.Producto(
             codigo="BAJO-001",
@@ -50,6 +50,7 @@ class TestReporteStock:
             stock_minimo=10.0,
             unidad_medida="UND",
             activo=True,
+            local_id=sample_local.id,
         )
         db.add(prod_bajo)
         db.commit()

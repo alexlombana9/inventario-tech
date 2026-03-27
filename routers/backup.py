@@ -68,7 +68,7 @@ def _fallback_dump(db: Session) -> bytes:
     ]
 
     tables = [
-        "usuarios", "categorias", "proveedores", "productos",
+        "locales", "usuarios", "categorias", "proveedores", "productos",
         "movimientos_inventario", "clientes", "ventas", "detalle_venta",
         "cajas", "movimientos_caja", "acreedores", "deudas", "pagos_deuda",
         "facturas", "cobros_factura", "gastos", "configuracion", "audit_log",

@@ -60,13 +60,14 @@ def client(db):
 
 # ── Helpers ───────────────────────────────────────────────────
 
-def _make_user(db, username, password, nombre, rol):
+def _make_user(db, username, password, nombre, rol, local_id=None):
     """Crea un usuario en la BD de test."""
     user = models.Usuario(
         username=username,
         password_hash=hash_password(password),
         nombre_completo=nombre,
         rol=rol,
+        local_id=local_id,
         activo=True,
     )
     db.add(user)
@@ -85,21 +86,33 @@ def _auth_client(client, user):
 # ── Fixtures de Usuarios ──────────────────────────────────────
 
 @pytest.fixture
-def admin_user(db):
-    """Usuario con rol ADMIN."""
-    return _make_user(db, "admin", "admin12345", "Admin Test", "ADMIN")
+def admin_user(db, sample_local):
+    """Usuario con rol ADMIN asignado al local de prueba."""
+    return _make_user(db, "admin", "admin12345", "Admin Test", "ADMIN", local_id=sample_local.id)
 
 
 @pytest.fixture
-def vendedor_user(db):
-    """Usuario con rol VENDEDOR."""
-    return _make_user(db, "vendedor", "vendedor123", "Vendedor Test", "VENDEDOR")
+def vendedor_user(db, sample_local):
+    """Usuario con rol VENDEDOR asignado al local de prueba."""
+    return _make_user(db, "vendedor", "vendedor123", "Vendedor Test", "VENDEDOR", local_id=sample_local.id)
 
 
 @pytest.fixture
-def bodeguero_user(db):
-    """Usuario con rol BODEGUERO."""
-    return _make_user(db, "bodeguero", "bodeguero123", "Bodeguero Test", "BODEGUERO")
+def bodeguero_user(db, sample_local):
+    """Usuario con rol BODEGUERO asignado al local de prueba."""
+    return _make_user(db, "bodeguero", "bodeguero123", "Bodeguero Test", "BODEGUERO", local_id=sample_local.id)
+
+
+@pytest.fixture
+def superadmin_user(db):
+    """Usuario con rol SUPERADMIN (sin local)."""
+    return _make_user(db, "superadmin", "Super12345", "Super Admin", "SUPERADMIN")
+
+
+@pytest.fixture
+def superadmin_client(client, superadmin_user):
+    """TestClient autenticado como SUPERADMIN."""
+    return _auth_client(client, superadmin_user)
 
 
 # ── Clients Autenticados ──────────────────────────────────────
@@ -122,16 +135,33 @@ def bodeguero_client(client, bodeguero_user):
     return _auth_client(client, bodeguero_user)
 
 
+# ── Fixture de Local (multi-tenant) ──────────────────────────
+
+@pytest.fixture
+def sample_local(db):
+    """Local de prueba para multi-tenant."""
+    local = models.Local(
+        nombre="Local Test",
+        codigo="TEST-001",
+        activo=True,
+    )
+    db.add(local)
+    db.commit()
+    db.refresh(local)
+    return local
+
+
 # ── Fixtures de Datos ─────────────────────────────────────────
 
 @pytest.fixture
-def sample_config(db):
+def sample_config(db, sample_local):
     """Configuracion del negocio de prueba."""
     config = models.Configuracion(
         nombre_negocio="Test Store",
         moneda_simbolo="$",
         moneda_codigo="COP",
         mensaje_recibo="Gracias por su compra",
+        local_id=sample_local.id,
     )
     db.add(config)
     db.commit()
@@ -140,9 +170,9 @@ def sample_config(db):
 
 
 @pytest.fixture
-def sample_categoria(db):
+def sample_categoria(db, sample_local):
     """Categoria de prueba."""
-    cat = models.Categoria(nombre="Electronicos", descripcion="Productos electronicos")
+    cat = models.Categoria(nombre="Electronicos", descripcion="Productos electronicos", local_id=sample_local.id)
     db.add(cat)
     db.commit()
     db.refresh(cat)
@@ -150,7 +180,7 @@ def sample_categoria(db):
 
 
 @pytest.fixture
-def sample_proveedor(db):
+def sample_proveedor(db, sample_local):
     """Proveedor de prueba."""
     prov = models.Proveedor(
         nombre="Proveedor Test",
@@ -159,6 +189,7 @@ def sample_proveedor(db):
         email="prov@test.com",
         nit_ruc="900123456",
         activo=True,
+        local_id=sample_local.id,
     )
     db.add(prov)
     db.commit()
@@ -167,7 +198,7 @@ def sample_proveedor(db):
 
 
 @pytest.fixture
-def sample_producto(db, sample_categoria, sample_proveedor):
+def sample_producto(db, sample_categoria, sample_proveedor, sample_local):
     """Producto de prueba con stock."""
     prod = models.Producto(
         codigo="PROD-001",
@@ -181,6 +212,7 @@ def sample_producto(db, sample_categoria, sample_proveedor):
         stock_minimo=5.0,
         unidad_medida="UND",
         activo=True,
+        local_id=sample_local.id,
     )
     db.add(prod)
     db.commit()
@@ -189,7 +221,7 @@ def sample_producto(db, sample_categoria, sample_proveedor):
 
 
 @pytest.fixture
-def sample_cliente(db):
+def sample_cliente(db, sample_local):
     """Cliente de prueba."""
     cli = models.Cliente(
         nombre="Cliente Test",
@@ -198,6 +230,7 @@ def sample_cliente(db):
         telefono="3109876543",
         email="cli@test.com",
         activo=True,
+        local_id=sample_local.id,
     )
     db.add(cli)
     db.commit()
@@ -206,7 +239,7 @@ def sample_cliente(db):
 
 
 @pytest.fixture
-def sample_deuda(db, sample_proveedor):
+def sample_deuda(db, sample_proveedor, sample_local):
     """Deuda de prueba."""
     from datetime import datetime, timedelta
     deuda = models.Deuda(
@@ -219,6 +252,7 @@ def sample_deuda(db, sample_proveedor):
         fecha_deuda=datetime.now(),
         fecha_vencimiento=datetime.now() + timedelta(days=30),
         estado="PENDIENTE",
+        local_id=sample_local.id,
     )
     db.add(deuda)
     db.commit()
@@ -227,7 +261,7 @@ def sample_deuda(db, sample_proveedor):
 
 
 @pytest.fixture
-def sample_factura(db):
+def sample_factura(db, sample_local):
     """Factura de prueba."""
     from datetime import datetime, timedelta
     factura = models.Factura(
@@ -240,6 +274,7 @@ def sample_factura(db):
         fecha_emision=datetime.now(),
         fecha_vencimiento=datetime.now() + timedelta(days=30),
         estado="PENDIENTE",
+        local_id=sample_local.id,
     )
     db.add(factura)
     db.commit()
@@ -248,7 +283,7 @@ def sample_factura(db):
 
 
 @pytest.fixture
-def sample_gasto(db):
+def sample_gasto(db, sample_local):
     """Gasto de prueba."""
     from datetime import datetime
     gasto = models.Gasto(
@@ -259,6 +294,7 @@ def sample_gasto(db):
         fecha=datetime.now(),
         metodo_pago="TRANSFERENCIA",
         comprobante="TRX-001",
+        local_id=sample_local.id,
     )
     db.add(gasto)
     db.commit()
@@ -267,7 +303,7 @@ def sample_gasto(db):
 
 
 @pytest.fixture
-def caja_abierta(db, admin_user):
+def caja_abierta(db, admin_user, sample_local):
     """Caja abierta para el admin."""
     from datetime import datetime
     caja = models.Caja(
@@ -275,6 +311,7 @@ def caja_abierta(db, admin_user):
         monto_apertura=100000.0,
         estado="ABIERTA",
         fecha_apertura=datetime.now(),
+        local_id=sample_local.id,
     )
     db.add(caja)
     db.commit()
@@ -283,7 +320,7 @@ def caja_abierta(db, admin_user):
 
 
 @pytest.fixture
-def sample_acreedor(db):
+def sample_acreedor(db, sample_local):
     """Acreedor de prueba."""
     acreedor = models.Acreedor(
         nombre="Acreedor Test",
@@ -292,6 +329,7 @@ def sample_acreedor(db):
         telefono="3001112222",
         email="acreedor@test.com",
         activo=True,
+        local_id=sample_local.id,
     )
     db.add(acreedor)
     db.commit()

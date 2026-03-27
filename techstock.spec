@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for TechStock v2.0.
+PyInstaller spec file for TechStock v3.0.
 Bundles the FastAPI app + launcher into a distributable directory.
 Entry point: launcher.py (tkinter GUI that manages PG + uvicorn).
 In frozen mode, uvicorn runs in-process (no subprocess Python needed).
@@ -26,6 +26,7 @@ hidden = [
     "routers.configuracion", "routers.clientes", "routers.ventas",
     "routers.caja", "routers.backup", "routers.importar",
     "routers.perfil", "routers.auditoria",
+    "routers.locales", "routers.super_dashboard",
     # Utils
     "utils", "utils.constants", "utils.financial", "utils.pagination",
     "utils.excel", "utils.queries", "utils.dashboard", "utils.pdf",

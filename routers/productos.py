@@ -3,7 +3,7 @@ from templates_config import templates
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 from utils.queries import categorias_activas, proveedores_activos
 import models
 
@@ -23,7 +23,10 @@ def lista_productos(
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     es_stock_bajo = stock_bajo in ("true", "True", "1", "on") if stock_bajo else False
 
+    local_id = get_local_id(request)
     query = db.query(models.Producto).filter(models.Producto.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
 
     if buscar:
         query = query.filter(
@@ -40,7 +43,7 @@ def lista_productos(
         joinedload(models.Producto.categoria),
         joinedload(models.Producto.proveedor_principal),
     ).order_by(models.Producto.nombre).all()
-    categorias = categorias_activas(db)
+    categorias = categorias_activas(db, local_id=local_id)
 
     return templates.TemplateResponse("productos/lista.html", {
         "request": request,
@@ -56,8 +59,9 @@ def lista_productos(
 
 @router.get("/nuevo")
 def nuevo_producto_form(request: Request, db: Session = Depends(get_db)):
-    categorias = categorias_activas(db)
-    proveedores = proveedores_activos(db)
+    local_id = get_local_id(request)
+    categorias = categorias_activas(db, local_id=local_id)
+    proveedores = proveedores_activos(db, local_id=local_id)
     return templates.TemplateResponse("productos/form.html", {
         "request": request,
         "producto": None,
@@ -85,7 +89,11 @@ def crear_producto(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    existe = db.query(models.Producto).filter(models.Producto.codigo == codigo.strip()).first()
+    local_id = get_local_id(request)
+    existe_query = db.query(models.Producto).filter(models.Producto.codigo == codigo.strip())
+    if local_id is not None:
+        existe_query = existe_query.filter(models.Producto.local_id == local_id)
+    existe = existe_query.first()
     if existe:
         return RedirectResponse(f"/productos/nuevo?error=Ya+existe+un+producto+con+el+código+{codigo}", status_code=303)
 
@@ -103,6 +111,7 @@ def crear_producto(
         stock_minimo=stock_minimo,
         unidad_medida=unidad_medida.strip().upper() or "UND",
     )
+    producto.local_id = local_id
     db.add(producto)
     db.flush()
 
@@ -117,6 +126,7 @@ def crear_producto(
             precio_unitario=precio_costo,
             observaciones="Stock inicial al crear producto",
         )
+        mov.local_id = local_id
         db.add(mov)
 
     db.commit()
@@ -130,11 +140,15 @@ def crear_producto(
 
 @router.get("/{prod_id}/editar")
 def editar_producto_form(prod_id: int, request: Request, db: Session = Depends(get_db)):
-    producto = db.query(models.Producto).filter(models.Producto.id == prod_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Producto).filter(models.Producto.id == prod_id)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
+    producto = query.first()
     if not producto:
         return RedirectResponse("/productos?error=Producto+no+encontrado", status_code=303)
-    categorias = categorias_activas(db)
-    proveedores = proveedores_activos(db)
+    categorias = categorias_activas(db, local_id=local_id)
+    proveedores = proveedores_activos(db, local_id=local_id)
     return templates.TemplateResponse("productos/form.html", {
         "request": request,
         "producto": producto,
@@ -162,14 +176,21 @@ def actualizar_producto(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    producto = db.query(models.Producto).filter(models.Producto.id == prod_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Producto).filter(models.Producto.id == prod_id)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
+    producto = query.first()
     if not producto:
         return RedirectResponse("/productos?error=Producto+no+encontrado", status_code=303)
 
-    existe = db.query(models.Producto).filter(
+    existe_query = db.query(models.Producto).filter(
         models.Producto.codigo == codigo.strip().upper(),
         models.Producto.id != prod_id
-    ).first()
+    )
+    if local_id is not None:
+        existe_query = existe_query.filter(models.Producto.local_id == local_id)
+    existe = existe_query.first()
     if existe:
         return RedirectResponse(f"/productos/{prod_id}/editar?error=Ya+existe+otro+producto+con+ese+código", status_code=303)
 
@@ -197,7 +218,11 @@ def actualizar_producto(
 def eliminar_producto(prod_id: int, request: Request,
                       db: Session = Depends(get_db),
                       current_user: models.Usuario = Depends(require_auth)):
-    producto = db.query(models.Producto).filter(models.Producto.id == prod_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Producto).filter(models.Producto.id == prod_id)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
+    producto = query.first()
     if not producto:
         return RedirectResponse("/productos?error=Producto+no+encontrado", status_code=303)
     producto.activo = False

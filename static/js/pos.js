@@ -20,7 +20,7 @@ function addToCart(id, code, name, price, cost, stock, unit, ref) {
   } else {
     cart.push({
       producto_id: id, codigo: code, nombre: name,
-      precio_unitario: price, precio_costo: cost,
+      precio_unitario: price, precio_original: price, precio_costo: cost,
       cantidad: 1, stock: stock, descuento: 0,
       referencia: ref || ''
     });
@@ -87,6 +87,10 @@ function renderCart() {
     var ganancia = (item.precio_unitario - item.precio_costo) * item.cantidad;
     total += sub;
     gananciaTotal += ganancia;
+    var precioModificado = item.precio_unitario !== item.precio_original;
+    var precioOrigLabel = precioModificado
+      ? '<span class="precio-original"><s>' + formatMoney(item.precio_original) + '</s> &rarr;</span> '
+      : '';
     html += '<div class="cart-item" data-idx="' + idx + '">' +
       '<div class="qty-control">' +
         '<button class="btn btn-sm btn-outline-secondary" data-action="qty-down">-</button>' +
@@ -96,9 +100,13 @@ function renderCart() {
       '<div class="item-info">' +
         '<div class="item-name">' + _escapeHtml(item.nombre) + '</div>' +
         '<div class="item-price-edit">' +
-          '<input type="number" class="form-control form-control-sm price-input" ' +
+          '<i class="bi bi-pencil-fill price-edit-icon"></i>' +
+          precioOrigLabel +
+          '<input type="number" class="form-control form-control-sm price-input' +
+                 (precioModificado ? ' price-modified' : '') + '" ' +
                  'value="' + item.precio_unitario + '" min="0" step="100" ' +
-                 'data-action="price-input" title="Editar precio">' +
+                 'data-action="price-input" title="Precio de venta — click para editar">' +
+          '<span class="price-unit">c/u</span>' +
         '</div>' +
       '</div>' +
       '<div class="text-end">' +

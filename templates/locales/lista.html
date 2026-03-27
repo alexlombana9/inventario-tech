@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Locales{% endblock %}
+{% block page_title %}Gestión de Locales{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <form method="GET" class="d-flex gap-2">
+      <input type="text" name="q" value="{{ q }}" class="form-control form-control-sm" placeholder="Buscar local..." style="max-width:250px">
+      <button class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button>
+    </form>
+  </div>
+  <a href="/locales/nuevo" class="btn btn-primary btn-sm">
+    <i class="bi bi-plus-lg me-1"></i>Nuevo Local
+  </a>
+</div>
+
+{% if request.query_params.get('error') %}
+<div class="alert alert-danger alert-dismissible fade show">
+  {{ request.query_params.get('error', '') }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  {% for local in locales %}
+  <div class="col-md-6 col-lg-4">
+    <div class="card h-100 {{ 'border-secondary opacity-50' if not local.activo }}">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+          <div>
+            <h6 class="card-title mb-0">
+              <i class="bi bi-building me-1"></i>{{ local.nombre }}
+            </h6>
+            <small class="text-muted">{{ local.codigo }}</small>
+          </div>
+          <span class="badge {{ 'bg-success' if local.activo else 'bg-secondary' }}">
+            {{ 'Activo' if local.activo else 'Inactivo' }}
+          </span>
+        </div>
+
+        {% if local.ciudad %}<p class="card-text mb-1"><small><i class="bi bi-geo-alt me-1"></i>{{ local.ciudad }}</small></p>{% endif %}
+        {% if local.responsable %}<p class="card-text mb-1"><small><i class="bi bi-person me-1"></i>{{ local.responsable }}</small></p>{% endif %}
+        {% if local.telefono %}<p class="card-text mb-1"><small><i class="bi bi-telephone me-1"></i>{{ local.telefono }}</small></p>{% endif %}
+
+        <hr class="my-2">
+        <div class="d-flex gap-3 text-muted" style="font-size:0.8rem">
+          <span><i class="bi bi-people me-1"></i>{{ stats[local.id].usuarios }} usuarios</span>
+          <span><i class="bi bi-cart me-1"></i>{{ stats[local.id].ventas }} ventas</span>
+        </div>
+      </div>
+      <div class="card-footer bg-transparent d-flex gap-1">
+        <a href="/locales/seleccionar/{{ local.id }}" class="btn btn-sm btn-outline-primary flex-grow-1" title="Trabajar en este local">
+          <i class="bi bi-box-arrow-in-right me-1"></i>Entrar
+        </a>
+        <a href="/locales/{{ local.id }}/editar" class="btn btn-sm btn-outline-secondary" title="Editar">
+          <i class="bi bi-pencil"></i>
+        </a>
+        <form method="POST" action="/locales/{{ local.id }}/toggle" style="display:inline">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <button type="submit" class="btn btn-sm btn-outline-{{ 'warning' if local.activo else 'success' }}" title="{{ 'Desactivar' if local.activo else 'Activar' }}">
+            <i class="bi bi-{{ 'pause' if local.activo else 'play' }}"></i>
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12">
+    <div class="text-center text-muted py-5">
+      <i class="bi bi-building" style="font-size:3rem"></i>
+      <p class="mt-2">No hay locales registrados.</p>
+      <a href="/locales/nuevo" class="btn btn-primary btn-sm">Crear primer local</a>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

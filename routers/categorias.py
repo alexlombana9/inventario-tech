@@ -3,7 +3,7 @@ from templates_config import templates
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from database import get_db
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/categorias", tags=["categorias"])
@@ -12,7 +12,10 @@ router = APIRouter(prefix="/categorias", tags=["categorias"])
 @router.get("")
 def lista_categorias(request: Request, db: Session = Depends(get_db),
                      buscar: str = None, msg: str = None, error: str = None):
+    local_id = get_local_id(request)
     query = db.query(models.Categoria).filter(models.Categoria.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Categoria.local_id == local_id)
     if buscar:
         query = query.filter(
             models.Categoria.nombre.ilike(f"%{buscar}%") |
@@ -36,11 +39,16 @@ def crear_categoria(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    existe = db.query(models.Categoria).filter(models.Categoria.nombre == nombre).first()
+    local_id = get_local_id(request)
+    existe_query = db.query(models.Categoria).filter(models.Categoria.nombre == nombre)
+    if local_id is not None:
+        existe_query = existe_query.filter(models.Categoria.local_id == local_id)
+    existe = existe_query.first()
     if existe:
         return RedirectResponse(f"/categorias?error=Ya+existe+una+categoría+con+ese+nombre", status_code=303)
 
     cat = models.Categoria(nombre=nombre.strip(), descripcion=descripcion.strip())
+    cat.local_id = local_id
     db.add(cat)
     db.commit()
 
@@ -60,14 +68,21 @@ def editar_categoria(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    cat = db.query(models.Categoria).filter(models.Categoria.id == cat_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Categoria).filter(models.Categoria.id == cat_id)
+    if local_id is not None:
+        query = query.filter(models.Categoria.local_id == local_id)
+    cat = query.first()
     if not cat:
         return RedirectResponse("/categorias?error=Categoría+no+encontrada", status_code=303)
 
-    existe = db.query(models.Categoria).filter(
+    existe_query = db.query(models.Categoria).filter(
         models.Categoria.nombre == nombre,
         models.Categoria.id != cat_id
-    ).first()
+    )
+    if local_id is not None:
+        existe_query = existe_query.filter(models.Categoria.local_id == local_id)
+    existe = existe_query.first()
     if existe:
         return RedirectResponse(f"/categorias?error=Ya+existe+una+categoría+con+ese+nombre", status_code=303)
 
@@ -85,7 +100,11 @@ def editar_categoria(
 @router.post("/{cat_id}/eliminar")
 def eliminar_categoria(cat_id: int, request: Request, db: Session = Depends(get_db),
                        current_user: models.Usuario = Depends(require_auth)):
-    cat = db.query(models.Categoria).filter(models.Categoria.id == cat_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Categoria).filter(models.Categoria.id == cat_id)
+    if local_id is not None:
+        query = query.filter(models.Categoria.local_id == local_id)
+    cat = query.first()
     if not cat:
         return RedirectResponse("/categorias?error=Categoría+no+encontrada", status_code=303)
 

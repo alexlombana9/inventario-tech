@@ -70,6 +70,21 @@
       </div>
     </div>
 
+    {% if all_locales is defined and all_locales|length > 0 and current_user is defined and is_superadmin(current_user) %}
+    <div class="mb-3">
+      <label class="form-label">Local asignado</label>
+      <select name="local_id_form" class="form-select">
+        <option value="">— Sin local (Super Admin) —</option>
+        {% for loc in all_locales %}
+        <option value="{{ loc.id }}" {% if usuario and usuario.local_id == loc.id %}selected{% endif %}>
+          {{ loc.nombre }} ({{ loc.codigo }})
+        </option>
+        {% endfor %}
+      </select>
+      <div class="form-text">El local al que pertenecerá este usuario.</div>
+    </div>
+    {% endif %}
+
     {% if usuario %}
     <div class="mb-3">
       <div class="form-check form-switch">

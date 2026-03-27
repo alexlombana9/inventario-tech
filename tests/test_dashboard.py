@@ -19,12 +19,13 @@ class TestDashboard:
         assert resp.status_code == 303
         assert "/login" in resp.headers["location"]
 
-    def test_dashboard_muestra_stock_bajo(self, admin_client, db, sample_categoria):
+    def test_dashboard_muestra_stock_bajo(self, admin_client, db, sample_categoria, sample_local):
         prod = models.Producto(
             codigo="LOW-DASH", nombre="Bajo Stock Dashboard",
             precio_costo=100, precio_venta=200,
             stock_actual=1, stock_minimo=10,
             categoria_id=sample_categoria.id, activo=True,
+            local_id=sample_local.id,
         )
         db.add(prod)
         db.commit()
@@ -34,7 +35,7 @@ class TestDashboard:
         assert "Bajo Stock Dashboard" in resp.text
 
     def test_dashboard_metricas_ventas(
-        self, admin_client, db, sample_producto, admin_user
+        self, admin_client, db, sample_producto, admin_user, sample_local
     ):
         """Verifica que las metricas de ventas se calculan."""
         from datetime import datetime
@@ -48,6 +49,7 @@ class TestDashboard:
             cambio=500.0,
             estado="COMPLETADA",
             fecha=datetime.now(),
+            local_id=sample_local.id,
         )
         db.add(venta)
         db.commit()
@@ -56,7 +58,7 @@ class TestDashboard:
         assert resp.status_code == 200
 
 
-    def test_dashboard_con_movimientos(self, admin_client, db, sample_producto):
+    def test_dashboard_con_movimientos(self, admin_client, db, sample_producto, sample_local):
         """Line 179: Dashboard calcula movimientos de los ultimos 7 dias."""
         from datetime import datetime
         mov = models.MovimientoInventario(
@@ -67,6 +69,7 @@ class TestDashboard:
             stock_resultante=sample_producto.stock_actual + 10,
             precio_unitario=sample_producto.precio_costo,
             fecha=datetime.now(),
+            local_id=sample_local.id,
         )
         db.add(mov)
         db.commit()

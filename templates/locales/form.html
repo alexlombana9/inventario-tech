@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if local else 'Nuevo' }} Local{% endblock %}
+{% block page_title %}{{ 'Editar' if local else 'Nuevo' }} Local{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8 col-lg-6">
+
+    {% if request.query_params.get('error') %}
+    <div class="alert alert-danger alert-dismissible fade show">
+      {{ request.query_params.get('error', '') }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-body">
+        <form method="POST" action="{{ '/locales/' ~ local.id ~ '/editar' if local else '/locales/nuevo' }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+
+          <div class="row g-3">
+            <div class="col-md-8">
+              <label class="form-label">Nombre del Local *</label>
+              <input type="text" name="nombre" class="form-control" required
+                     value="{{ local.nombre if local else '' }}" placeholder="Ej: Sede Centro">
+            </div>
+            <div class="col-md-4">
+              <label class="form-label">Código *</label>
+              <input type="text" name="codigo" class="form-control" required
+                     value="{{ local.codigo if local else '' }}" placeholder="Ej: SEDE-001"
+                     style="text-transform:uppercase" {{ 'readonly' if local else '' }}>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Ciudad</label>
+              <input type="text" name="ciudad" class="form-control"
+                     value="{{ local.ciudad if local else '' }}" placeholder="Ej: Barrancabermeja">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Responsable</label>
+              <input type="text" name="responsable" class="form-control"
+                     value="{{ local.responsable if local else '' }}" placeholder="Nombre del encargado">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Dirección</label>
+              <input type="text" name="direccion" class="form-control"
+                     value="{{ local.direccion if local else '' }}" placeholder="Dirección completa">
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Teléfono</label>
+              <input type="text" name="telefono" class="form-control"
+                     value="{{ local.telefono if local else '' }}" placeholder="Ej: 3001234567">
+            </div>
+            <div class="col-md-6">
+              <label class="form-label">Email</label>
+              <input type="email" name="email" class="form-control"
+                     value="{{ local.email if local else '' }}" placeholder="local@empresa.com">
+            </div>
+          </div>
+
+          <div class="mt-4 d-flex gap-2">
+            <button type="submit" class="btn btn-primary">
+              <i class="bi bi-check-lg me-1"></i>{{ 'Guardar Cambios' if local else 'Crear Local' }}
+            </button>
+            <a href="/locales" class="btn btn-outline-secondary">Cancelar</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

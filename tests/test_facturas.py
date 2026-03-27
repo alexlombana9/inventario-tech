@@ -244,7 +244,7 @@ class TestEditarFacturaPostNotFound:
         assert resp.status_code == 303
         assert "error" in resp.headers["location"].lower()
 
-    def test_post_editar_numero_duplicado(self, admin_client, db, sample_factura):
+    def test_post_editar_numero_duplicado(self, admin_client, db, sample_factura, sample_local):
         """Linea 197: numero_factura ya en uso por otra factura → redirect con error."""
         # Crear una segunda factura
         from datetime import datetime as dt
@@ -256,6 +256,7 @@ class TestEditarFacturaPostNotFound:
             monto_cobrado=0.0,
             fecha_emision=dt.now(),
             estado="PENDIENTE",
+            local_id=sample_local.id,
         )
         db.add(segunda)
         db.commit()

@@ -151,6 +151,174 @@ def run_migrations(engine):
                 migrations_applied += 1
                 print("  [Migration] categorias: agregada columna activo")
 
+        # ── Crear tabla locales (multi-tenant) ──
+        if not table_exists(conn, "locales"):
+            conn.execute(text("""
+                CREATE TABLE locales (
+                    id SERIAL PRIMARY KEY,
+                    nombre VARCHAR(200) NOT NULL,
+                    codigo VARCHAR(50) UNIQUE NOT NULL,
+                    direccion TEXT DEFAULT '',
+                    telefono VARCHAR(50) DEFAULT '',
+                    email VARCHAR(100) DEFAULT '',
+                    ciudad VARCHAR(100) DEFAULT '',
+                    responsable VARCHAR(200) DEFAULT '',
+                    activo BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT NOW(),
+                    updated_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            conn.execute(text("CREATE INDEX ix_locales_codigo ON locales (codigo)"))
+            conn.execute(text("CREATE INDEX ix_locales_activo ON locales (activo)"))
+            conn.commit()
+            migrations_applied += 1
+            print("  [Migration] locales: tabla creada")
+
+        # ── Crear local por defecto si no existe ──
+        has_locales = conn.execute(text("SELECT id FROM locales LIMIT 1")).first()
+        if not has_locales:
+            conn.execute(text(
+                "INSERT INTO locales (nombre, codigo, activo) "
+                "VALUES ('Sede Principal', 'SEDE-001', TRUE)"
+            ))
+            conn.commit()
+            print("  [Migration] locales: local por defecto creado")
+
+        default_local_id = conn.execute(text("SELECT id FROM locales ORDER BY id LIMIT 1")).scalar()
+
+        # ── Agregar local_id a todas las tablas existentes ──
+        _local_id_tables = [
+            "usuarios", "audit_log", "categorias", "proveedores", "productos",
+            "movimientos_inventario", "acreedores", "deudas", "pagos_deuda",
+            "facturas", "cobros_factura", "gastos", "configuracion", "clientes",
+            "ventas", "detalle_venta", "cajas", "movimientos_caja",
+        ]
+        for tbl in _local_id_tables:
+            if table_exists(conn, tbl):
+                columns = get_table_columns(conn, tbl)
+                if "local_id" not in columns:
+                    conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN local_id INTEGER NULL"))
+                    conn.execute(text(f"CREATE INDEX ix_{tbl}_local_id ON {tbl} (local_id)"))
+                    # Backfill: asignar local por defecto a registros existentes
+                    if default_local_id:
+                        conn.execute(text(f"UPDATE {tbl} SET local_id = :lid"), {"lid": default_local_id})
+                    conn.commit()
+                    migrations_applied += 1
+                    print(f"  [Migration] {tbl}: agregada columna local_id")
+
+        # ── Cambiar unique constraints a compuestos con local_id ──
+        # categorias.nombre → (nombre, local_id)
+        if table_exists(conn, "categorias"):
+            exists = conn.execute(text(
+                "SELECT 1 FROM pg_constraint WHERE conname = 'uq_categorias_nombre_local'"
+            )).first()
+            if not exists:
+                # Drop old unique on nombre if exists
+                old_uq = conn.execute(text(
+                    "SELECT conname FROM pg_constraint "
+                    "WHERE conrelid = 'categorias'::regclass AND contype = 'u' "
+                    "AND array_length(conkey, 1) = 1"
+                )).fetchall()
+                for row in old_uq:
+                    conn.execute(text(f"ALTER TABLE categorias DROP CONSTRAINT IF EXISTS {row[0]}"))
+                conn.execute(text(
+                    "ALTER TABLE categorias ADD CONSTRAINT uq_categorias_nombre_local "
+                    "UNIQUE (nombre, local_id)"
+                ))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] categorias: unique constraint cambiado a (nombre, local_id)")
+
+        # productos.codigo → (codigo, local_id)
+        if table_exists(conn, "productos"):
+            exists = conn.execute(text(
+                "SELECT 1 FROM pg_constraint WHERE conname = 'uq_productos_codigo_local'"
+            )).first()
+            if not exists:
+                old_uq = conn.execute(text(
+                    "SELECT conname FROM pg_constraint "
+                    "WHERE conrelid = 'productos'::regclass AND contype = 'u' "
+                    "AND array_length(conkey, 1) = 1"
+                )).fetchall()
+                for row in old_uq:
+                    conn.execute(text(f"ALTER TABLE productos DROP CONSTRAINT IF EXISTS {row[0]}"))
+                conn.execute(text(
+                    "ALTER TABLE productos ADD CONSTRAINT uq_productos_codigo_local "
+                    "UNIQUE (codigo, local_id)"
+                ))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] productos: unique constraint cambiado a (codigo, local_id)")
+
+        # facturas.numero_factura → (numero_factura, local_id)
+        if table_exists(conn, "facturas"):
+            exists = conn.execute(text(
+                "SELECT 1 FROM pg_constraint WHERE conname = 'uq_facturas_numero_local'"
+            )).first()
+            if not exists:
+                old_uq = conn.execute(text(
+                    "SELECT conname FROM pg_constraint "
+                    "WHERE conrelid = 'facturas'::regclass AND contype = 'u' "
+                    "AND array_length(conkey, 1) = 1"
+                )).fetchall()
+                for row in old_uq:
+                    conn.execute(text(f"ALTER TABLE facturas DROP CONSTRAINT IF EXISTS {row[0]}"))
+                conn.execute(text(
+                    "ALTER TABLE facturas ADD CONSTRAINT uq_facturas_numero_local "
+                    "UNIQUE (numero_factura, local_id)"
+                ))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] facturas: unique constraint cambiado a (numero_factura, local_id)")
+
+        # ventas.numero_venta → (numero_venta, local_id)
+        if table_exists(conn, "ventas"):
+            exists = conn.execute(text(
+                "SELECT 1 FROM pg_constraint WHERE conname = 'uq_ventas_numero_local'"
+            )).first()
+            if not exists:
+                old_uq = conn.execute(text(
+                    "SELECT conname FROM pg_constraint "
+                    "WHERE conrelid = 'ventas'::regclass AND contype = 'u' "
+                    "AND array_length(conkey, 1) = 1"
+                )).fetchall()
+                for row in old_uq:
+                    conn.execute(text(f"ALTER TABLE ventas DROP CONSTRAINT IF EXISTS {row[0]}"))
+                conn.execute(text(
+                    "ALTER TABLE ventas ADD CONSTRAINT uq_ventas_numero_local "
+                    "UNIQUE (numero_venta, local_id)"
+                ))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] ventas: unique constraint cambiado a (numero_venta, local_id)")
+
+        # ── Configuracion: agregar unique en local_id ──
+        if table_exists(conn, "configuracion"):
+            exists = conn.execute(text(
+                "SELECT 1 FROM pg_constraint WHERE conname = 'uq_configuracion_local'"
+            )).first()
+            if not exists:
+                conn.execute(text(
+                    "ALTER TABLE configuracion ADD CONSTRAINT uq_configuracion_local "
+                    "UNIQUE (local_id)"
+                ))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] configuracion: unique constraint en local_id")
+
+        # ── Actualizar admin existente a SUPERADMIN ──
+        if table_exists(conn, "usuarios"):
+            first_admin = conn.execute(text(
+                "SELECT id, rol FROM usuarios ORDER BY id LIMIT 1"
+            )).first()
+            if first_admin and first_admin[1] == "ADMIN":
+                conn.execute(text(
+                    "UPDATE usuarios SET rol = 'SUPERADMIN', local_id = NULL WHERE id = :uid"
+                ), {"uid": first_admin[0]})
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] usuarios: primer admin actualizado a SUPERADMIN")
+
         # ── Crear índices de rendimiento ──
         _perf_indexes = [
             ("ix_productos_categoria_id", "productos", "categoria_id"),

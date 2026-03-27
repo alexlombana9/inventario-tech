@@ -3,7 +3,7 @@ from templates_config import templates
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from database import get_db
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/proveedores", tags=["proveedores"])
@@ -12,7 +12,10 @@ router = APIRouter(prefix="/proveedores", tags=["proveedores"])
 @router.get("")
 def lista_proveedores(request: Request, db: Session = Depends(get_db),
                       buscar: str = None, msg: str = None, error: str = None):
+    local_id = get_local_id(request)
     query = db.query(models.Proveedor).filter(models.Proveedor.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Proveedor.local_id == local_id)
     if buscar:
         query = query.filter(
             models.Proveedor.nombre.ilike(f"%{buscar}%") |
@@ -52,6 +55,7 @@ def crear_proveedor(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
+    local_id = get_local_id(request)
     prov = models.Proveedor(
         nombre=nombre.strip(),
         contacto=contacto.strip(),
@@ -60,6 +64,7 @@ def crear_proveedor(
         direccion=direccion.strip(),
         nit_ruc=nit_ruc.strip(),
     )
+    prov.local_id = local_id
     db.add(prov)
     db.commit()
 
@@ -72,7 +77,11 @@ def crear_proveedor(
 
 @router.get("/{prov_id}/editar")
 def editar_proveedor_form(prov_id: int, request: Request, db: Session = Depends(get_db)):
-    prov = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id)
+    if local_id is not None:
+        query = query.filter(models.Proveedor.local_id == local_id)
+    prov = query.first()
     if not prov:
         return RedirectResponse("/proveedores?error=Proveedor+no+encontrado", status_code=303)
     return templates.TemplateResponse("proveedores/form.html", {
@@ -95,7 +104,11 @@ def actualizar_proveedor(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    prov = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id)
+    if local_id is not None:
+        query = query.filter(models.Proveedor.local_id == local_id)
+    prov = query.first()
     if not prov:
         return RedirectResponse("/proveedores?error=Proveedor+no+encontrado", status_code=303)
 
@@ -118,7 +131,11 @@ def actualizar_proveedor(
 def eliminar_proveedor(prov_id: int, request: Request,
                        db: Session = Depends(get_db),
                        current_user: models.Usuario = Depends(require_auth)):
-    prov = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id)
+    if local_id is not None:
+        query = query.filter(models.Proveedor.local_id == local_id)
+    prov = query.first()
     if not prov:
         return RedirectResponse("/proveedores?error=Proveedor+no+encontrado", status_code=303)
     prov.activo = False
@@ -133,18 +150,28 @@ def eliminar_proveedor(prov_id: int, request: Request,
 
 @router.get("/{prov_id}/detalle")
 def detalle_proveedor(prov_id: int, request: Request, db: Session = Depends(get_db)):
-    prov = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id)
+    if local_id is not None:
+        query = query.filter(models.Proveedor.local_id == local_id)
+    prov = query.first()
     if not prov:
         return RedirectResponse("/proveedores?error=Proveedor+no+encontrado", status_code=303)
 
-    movimientos = db.query(models.MovimientoInventario).filter(
+    mov_query = db.query(models.MovimientoInventario).filter(
         models.MovimientoInventario.proveedor_id == prov_id
-    ).order_by(models.MovimientoInventario.fecha.desc()).limit(20).all()
+    )
+    if local_id is not None:
+        mov_query = mov_query.filter(models.MovimientoInventario.local_id == local_id)
+    movimientos = mov_query.order_by(models.MovimientoInventario.fecha.desc()).limit(20).all()
 
-    productos = db.query(models.Producto).filter(
+    prod_query = db.query(models.Producto).filter(
         models.Producto.proveedor_id == prov_id,
         models.Producto.activo == True
-    ).all()
+    )
+    if local_id is not None:
+        prod_query = prod_query.filter(models.Producto.local_id == local_id)
+    productos = prod_query.all()
 
     return templates.TemplateResponse("proveedores/detalle.html", {
         "request": request,

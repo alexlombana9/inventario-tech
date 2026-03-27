@@ -34,7 +34,7 @@ PG_DB = "techstock"
 PG_PASSWORD = "techstock"
 WEB_PORT = 8000
 
-VERSION = "2.0"
+VERSION = "3.0"
 
 # ── Colores para terminal ──
 GREEN = "\033[92m"

@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from templates_config import templates
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/clientes", tags=["clientes"])
@@ -22,7 +22,10 @@ def lista_clientes(
     msg: str = None,
     error: str = None,
 ):
+    local_id = get_local_id(request)
     query = db.query(models.Cliente).filter(models.Cliente.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Cliente.local_id == local_id)
     if buscar:
         query = query.filter(
             models.Cliente.nombre.ilike(f"%{buscar}%") |
@@ -80,6 +83,7 @@ def crear_cliente(
         direccion=direccion.strip(),
         notas=notas.strip(),
     )
+    cliente.local_id = get_local_id(request)
     db.add(cliente)
     db.commit()
 
@@ -96,7 +100,11 @@ def editar_cliente_form(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Cliente).filter(models.Cliente.id == cliente_id)
+    if local_id is not None:
+        query = query.filter(models.Cliente.local_id == local_id)
+    cliente = query.first()
     if not cliente:
         return RedirectResponse("/clientes?error=Cliente+no+encontrado", status_code=303)
 
@@ -122,7 +130,11 @@ def actualizar_cliente(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Cliente).filter(models.Cliente.id == cliente_id)
+    if local_id is not None:
+        query = query.filter(models.Cliente.local_id == local_id)
+    cliente = query.first()
     if not cliente:
         return RedirectResponse("/clientes?error=Cliente+no+encontrado", status_code=303)
 
@@ -145,14 +157,21 @@ def detalle_cliente(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Cliente).filter(models.Cliente.id == cliente_id)
+    if local_id is not None:
+        query = query.filter(models.Cliente.local_id == local_id)
+    cliente = query.first()
     if not cliente:
         return RedirectResponse("/clientes?error=Cliente+no+encontrado", status_code=303)
 
-    ventas = db.query(models.Venta).filter(
+    ventas_query = db.query(models.Venta).filter(
         models.Venta.cliente_id == cliente_id,
         models.Venta.estado == "COMPLETADA"
-    ).order_by(models.Venta.fecha.desc()).limit(20).all()
+    )
+    if local_id is not None:
+        ventas_query = ventas_query.filter(models.Venta.local_id == local_id)
+    ventas = ventas_query.order_by(models.Venta.fecha.desc()).limit(20).all()
 
     total_compras = sum(v.total for v in ventas)
 
@@ -171,7 +190,11 @@ def eliminar_cliente(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    cliente = db.query(models.Cliente).filter(models.Cliente.id == cliente_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Cliente).filter(models.Cliente.id == cliente_id)
+    if local_id is not None:
+        query = query.filter(models.Cliente.local_id == local_id)
+    cliente = query.first()
     if not cliente:
         return RedirectResponse("/clientes?error=Cliente+no+encontrado", status_code=303)
     cliente.activo = False

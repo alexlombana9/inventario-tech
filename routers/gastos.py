@@ -6,7 +6,7 @@ from datetime import datetime, date, timedelta
 
 from database import get_db
 from templates_config import templates
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/gastos", tags=["gastos"])
@@ -31,6 +31,7 @@ def lista_gastos(
     pagina: str = None,
 ):
     pag = int(pagina) if pagina and pagina.strip() else 1
+    local_id = get_local_id(request)
 
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
@@ -38,6 +39,8 @@ def lista_gastos(
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.Gasto).filter(models.Gasto.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Gasto.local_id == local_id)
 
     fd = fh = None
     try:
@@ -61,25 +64,34 @@ def lista_gastos(
     query = query.order_by(models.Gasto.fecha.desc())
     gastos, total, total_paginas = paginate(query, pag)
 
-    total_gastos = db.query(func.sum(models.Gasto.monto)).filter(
+    sum_query = db.query(func.sum(models.Gasto.monto)).filter(
         models.Gasto.activo == True,
         models.Gasto.fecha >= fd if fd else True,
         models.Gasto.fecha <= fh if fh else True,
-    ).scalar() or 0
+    )
+    if local_id is not None:
+        sum_query = sum_query.filter(models.Gasto.local_id == local_id)
+    total_gastos = sum_query.scalar() or 0
 
-    total_directos = db.query(func.sum(models.Gasto.monto)).filter(
+    dir_query = db.query(func.sum(models.Gasto.monto)).filter(
         models.Gasto.activo == True,
         models.Gasto.tipo == "DIRECTO",
         models.Gasto.fecha >= fd if fd else True,
         models.Gasto.fecha <= fh if fh else True,
-    ).scalar() or 0
+    )
+    if local_id is not None:
+        dir_query = dir_query.filter(models.Gasto.local_id == local_id)
+    total_directos = dir_query.scalar() or 0
 
-    total_indirectos = db.query(func.sum(models.Gasto.monto)).filter(
+    indir_query = db.query(func.sum(models.Gasto.monto)).filter(
         models.Gasto.activo == True,
         models.Gasto.tipo == "INDIRECTO",
         models.Gasto.fecha >= fd if fd else True,
         models.Gasto.fecha <= fh if fh else True,
-    ).scalar() or 0
+    )
+    if local_id is not None:
+        indir_query = indir_query.filter(models.Gasto.local_id == local_id)
+    total_indirectos = indir_query.scalar() or 0
 
     return templates.TemplateResponse("gastos/lista.html", {
         "request": request,
@@ -148,6 +160,7 @@ def crear_gasto(
         except ValueError:
             pass
 
+    local_id = get_local_id(request)
     gasto = models.Gasto(
         concepto=concepto.strip(),
         tipo=tipo,
@@ -158,6 +171,7 @@ def crear_gasto(
         comprobante=comprobante.strip(),
         notas=notas.strip(),
     )
+    gasto.local_id = local_id
     db.add(gasto)
     db.commit()
 
@@ -177,9 +191,13 @@ def editar_gasto_form(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    gasto = db.query(models.Gasto).filter(
+    local_id = get_local_id(request)
+    query = db.query(models.Gasto).filter(
         models.Gasto.id == gasto_id, models.Gasto.activo == True
-    ).first()
+    )
+    if local_id is not None:
+        query = query.filter(models.Gasto.local_id == local_id)
+    gasto = query.first()
     if not gasto:
         return RedirectResponse("/gastos?error=Gasto+no+encontrado", status_code=303)
 
@@ -207,9 +225,13 @@ def actualizar_gasto(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    gasto = db.query(models.Gasto).filter(
+    local_id = get_local_id(request)
+    query = db.query(models.Gasto).filter(
         models.Gasto.id == gasto_id, models.Gasto.activo == True
-    ).first()
+    )
+    if local_id is not None:
+        query = query.filter(models.Gasto.local_id == local_id)
+    gasto = query.first()
     if not gasto:
         return RedirectResponse("/gastos?error=Gasto+no+encontrado", status_code=303)
 
@@ -250,9 +272,13 @@ def eliminar_gasto(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    gasto = db.query(models.Gasto).filter(
+    local_id = get_local_id(request)
+    query = db.query(models.Gasto).filter(
         models.Gasto.id == gasto_id, models.Gasto.activo == True
-    ).first()
+    )
+    if local_id is not None:
+        query = query.filter(models.Gasto.local_id == local_id)
+    gasto = query.first()
     if not gasto:
         return RedirectResponse("/gastos?error=Gasto+no+encontrado", status_code=303)
 

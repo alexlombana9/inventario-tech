@@ -18,13 +18,16 @@ def actualizar_estado_pago(entity, monto_pagado_field: str = "monto_pagado"):
         entity.estado = "PENDIENTE"
 
 
-def siguiente_numero(db: Session, model, campo_numero: str, prefijo: str) -> str:
+def siguiente_numero(db: Session, model, campo_numero: str, prefijo: str, local_id: int = None) -> str:
     """Genera el proximo numero correlativo para una entidad.
 
     Uso: siguiente_numero(db, Factura, "numero_factura", "FAC")
          siguiente_numero(db, Venta, "numero_venta", "VTA")
     """
-    ultimo = db.query(model).order_by(model.id.desc()).first()
+    query = db.query(model)
+    if local_id is not None and hasattr(model, "local_id"):
+        query = query.filter(model.local_id == local_id)
+    ultimo = query.order_by(model.id.desc()).first()
     if not ultimo:
         return f"{prefijo}-0001"
     try:

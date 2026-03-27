@@ -24,8 +24,14 @@
   .cart-item .item-info { flex: 1; min-width: 0; }
   .cart-item .item-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cart-item .item-price { font-size: 0.75rem; color: #6c757d; }
-  .cart-item .item-price-edit input.price-input { width: 90px; font-size: 0.78rem; padding: 1px 4px; border: 1px solid #dee2e6; border-radius: 4px; }
-  .cart-item .item-price-edit input.price-input:focus { border-color: #0d6efd; outline: none; box-shadow: 0 0 0 2px rgba(13,110,253,.15); }
+  .cart-item .item-price-edit { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+  .cart-item .item-price-edit .price-edit-icon { font-size: 0.65rem; color: #0d6efd; flex-shrink: 0; }
+  .cart-item .item-price-edit .precio-original { font-size: 0.7rem; color: #999; white-space: nowrap; }
+  .cart-item .item-price-edit input.price-input { width: 100px; font-size: 0.82rem; padding: 2px 6px; border: 1px solid #c5cad0; border-radius: 4px; font-weight: 600; background: #f8f9fa; }
+  .cart-item .item-price-edit input.price-input:focus { border-color: #0d6efd; outline: none; box-shadow: 0 0 0 2px rgba(13,110,253,.15); background: #fff; }
+  .cart-item .item-price-edit input.price-modified { border-color: #ffc107; background: #fff9e6; color: #856404; }
+  .cart-item .item-price-edit input.price-modified:focus { border-color: #ffc107; box-shadow: 0 0 0 2px rgba(255,193,7,.2); }
+  .cart-item .item-price-edit .price-unit { font-size: 0.7rem; color: #999; flex-shrink: 0; }
   .cart-item .item-ganancia { font-size: 0.7rem; }
   .cart-item .item-subtotal { font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
   .cart-item .remove-btn { color: #dc3545; cursor: pointer; border: none; background: none; font-size: 0.9rem; }

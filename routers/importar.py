@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from templates_config import templates
-from auth import require_role, log_audit
+from auth import require_role, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/importar", tags=["importar"])
@@ -174,21 +174,23 @@ async def procesar_importacion(
     headers = [str(h).strip().lower() if h else "" for h in rows[0]]
     data_rows = rows[1:]
 
+    lid = get_local_id(request)
+
     # Despachar según tipo
     if tipo == "productos":
-        result = _importar_productos(db, headers, data_rows, current_user, request)
+        result = _importar_productos(db, headers, data_rows, current_user, request, lid)
     elif tipo == "clientes":
-        result = _importar_clientes(db, headers, data_rows, current_user, request)
+        result = _importar_clientes(db, headers, data_rows, current_user, request, lid)
     elif tipo == "proveedores":
-        result = _importar_proveedores(db, headers, data_rows, current_user, request)
+        result = _importar_proveedores(db, headers, data_rows, current_user, request, lid)
     elif tipo == "acreedores":
-        result = _importar_acreedores(db, headers, data_rows, current_user, request)
+        result = _importar_acreedores(db, headers, data_rows, current_user, request, lid)
     elif tipo == "deudas":
-        result = _importar_deudas(db, headers, data_rows, current_user, request)
+        result = _importar_deudas(db, headers, data_rows, current_user, request, lid)
     elif tipo == "categorias":
-        result = _importar_categorias(db, headers, data_rows, current_user, request)
+        result = _importar_categorias(db, headers, data_rows, current_user, request, lid)
     elif tipo == "facturas":
-        result = _importar_facturas(db, headers, data_rows, current_user, request)
+        result = _importar_facturas(db, headers, data_rows, current_user, request, lid)
     else:
         return RedirectResponse("/importar?error=Tipo+de+importación+no+válido", status_code=303)
 
@@ -225,7 +227,7 @@ def _cell_float(row, idx, default=0.0) -> float:
 
 # ── Importar Productos ──────────────────────────────────────────
 
-def _importar_productos(db: Session, headers: list, data_rows: list, user, request: Request):
+def _importar_productos(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_codigo = _col_index(headers, "codigo")
     col_ref = _col_index(headers, "referencia")
     col_nombre = _col_index(headers, "nombre")
@@ -268,7 +270,7 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
                     models.Categoria.nombre.ilike(cat_nombre)
                 ).first()
                 if not cat_obj:
-                    cat_obj = models.Categoria(nombre=cat_nombre)
+                    cat_obj = models.Categoria(nombre=cat_nombre, local_id=local_id)
                     db.add(cat_obj)
                     db.flush()
                 cat_cache[cat_nombre] = cat_obj.id
@@ -332,6 +334,7 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
                 stock_actual=stock_val,
                 stock_minimo=_cell_float(row, col_smin),
                 unidad_medida=_cell_str(row, col_um) or "UND",
+                local_id=local_id,
             )
             db.add(producto)
             db.flush()
@@ -346,6 +349,7 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
                     stock_resultante=stock_val,
                     precio_unitario=_cell_float(row, col_pcosto),
                     observaciones="Importación desde Excel",
+                    local_id=local_id,
                 )
                 db.add(mov)
 
@@ -371,7 +375,7 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
 
 # ── Importar Clientes ───────────────────────────────────────────
 
-def _importar_clientes(db: Session, headers: list, data_rows: list, user, request: Request):
+def _importar_clientes(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_nombre = _col_index(headers, "nombre")
     col_tipodoc = _col_index(headers, "tipo_documento")
     col_doc = _col_index(headers, "documento")
@@ -414,6 +418,7 @@ def _importar_clientes(db: Session, headers: list, data_rows: list, user, reques
             email=_cell_str(row, col_email),
             direccion=_cell_str(row, col_dir),
             notas=_cell_str(row, col_notas),
+            local_id=local_id,
         )
         db.add(cliente)
         creados += 1
@@ -432,7 +437,7 @@ def _importar_clientes(db: Session, headers: list, data_rows: list, user, reques
 
 # ── Importar Proveedores ────────────────────────────────────────
 
-def _importar_proveedores(db: Session, headers: list, data_rows: list, user, request: Request):
+def _importar_proveedores(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_nombre = _col_index(headers, "nombre")
     col_contacto = _col_index(headers, "contacto")
     col_tel = _col_index(headers, "telefono")
@@ -470,6 +475,7 @@ def _importar_proveedores(db: Session, headers: list, data_rows: list, user, req
             email=_cell_str(row, col_email),
             direccion=_cell_str(row, col_dir),
             nit_ruc=_cell_str(row, col_nit),
+            local_id=local_id,
         )
         db.add(proveedor)
         creados += 1
@@ -488,7 +494,7 @@ def _importar_proveedores(db: Session, headers: list, data_rows: list, user, req
 
 # ── Importar Acreedores ────────────────────────────────────────
 
-def _importar_acreedores(db: Session, headers: list, data_rows: list, user, request: Request):
+def _importar_acreedores(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_nombre = _col_index(headers, "nombre")
     col_tipo = _col_index(headers, "tipo")
     col_doc = _col_index(headers, "documento")
@@ -534,6 +540,7 @@ def _importar_acreedores(db: Session, headers: list, data_rows: list, user, requ
             email=_cell_str(row, col_email),
             direccion=_cell_str(row, col_dir),
             notas=_cell_str(row, col_notas),
+            local_id=local_id,
         )
         db.add(acreedor)
         creados += 1
@@ -552,7 +559,7 @@ def _importar_acreedores(db: Session, headers: list, data_rows: list, user, requ
 
 # ── Importar Deudas ────────────────────────────────────────────
 
-def _importar_deudas(db: Session, headers: list, data_rows: list, user, request: Request):
+def _importar_deudas(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_concepto = _col_index(headers, "concepto")
     col_acr_nombre = _col_index(headers, "acreedor_nombre")
     col_acr_tipo = _col_index(headers, "acreedor_tipo")
@@ -623,6 +630,7 @@ def _importar_deudas(db: Session, headers: list, data_rows: list, user, request:
             fecha_vencimiento=fecha_venc,
             estado=estado,
             notas=_cell_str(row, col_notas),
+            local_id=local_id,
         )
         db.add(deuda)
         creados += 1
@@ -644,7 +652,7 @@ def _importar_deudas(db: Session, headers: list, data_rows: list, user, request:
 
 # ── Importar Categorías ──────────────────────────────────────
 
-def _importar_categorias(db: Session, headers: list, data_rows: list, user, request: Request):
+def _importar_categorias(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_nombre = _col_index(headers, "nombre")
     col_desc = _col_index(headers, "descripcion")
 
@@ -673,6 +681,7 @@ def _importar_categorias(db: Session, headers: list, data_rows: list, user, requ
         categoria = models.Categoria(
             nombre=nombre,
             descripcion=_cell_str(row, col_desc),
+            local_id=local_id,
         )
         db.add(categoria)
         creados += 1
@@ -691,7 +700,7 @@ def _importar_categorias(db: Session, headers: list, data_rows: list, user, requ
 
 # ── Importar Facturas / Cuentas por Cobrar ──────────────────
 
-def _importar_facturas(db: Session, headers: list, data_rows: list, user, request: Request):
+def _importar_facturas(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_num = _col_index(headers, "numero_factura")
     col_cliente = _col_index(headers, "cliente_nombre")
     col_doc = _col_index(headers, "cliente_documento")
@@ -775,6 +784,7 @@ def _importar_facturas(db: Session, headers: list, data_rows: list, user, reques
             fecha_vencimiento=fecha_venc,
             estado=estado,
             notas=_cell_str(row, col_notas),
+            local_id=local_id,
         )
         db.add(factura)
         creados += 1

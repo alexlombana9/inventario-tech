@@ -26,12 +26,13 @@ class TestListaProductos:
         assert resp.status_code == 200
         assert "Laptop Test" in resp.text
 
-    def test_filtro_stock_bajo(self, admin_client, db, sample_categoria):
+    def test_filtro_stock_bajo(self, admin_client, db, sample_categoria, sample_local):
         prod = models.Producto(
             codigo="LOW-001", nombre="Stock Bajo",
             precio_costo=100, precio_venta=200,
             stock_actual=2.0, stock_minimo=10.0,
             categoria_id=sample_categoria.id, activo=True,
+            local_id=sample_local.id,
         )
         db.add(prod)
         db.commit()

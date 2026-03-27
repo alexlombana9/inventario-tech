@@ -48,5 +48,13 @@ def _csrf_token(request):
     return generate_csrf_token(cookie)
 
 
+def _is_superadmin(user):
+    """Template helper to check if user is SUPERADMIN."""
+    if not user:
+        return False
+    return user.rol == "SUPERADMIN"
+
+
 templates.env.globals["has_permiso"] = _has_permiso
 templates.env.globals["csrf_token"] = _csrf_token
+templates.env.globals["is_superadmin"] = _is_superadmin

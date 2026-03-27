@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date, timedelta
 from database import get_db
 from templates_config import templates
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/facturas", tags=["facturas"])
@@ -20,9 +20,9 @@ def _actualizar_estado(factura: models.Factura):
     actualizar_estado_pago(factura, "monto_cobrado")
 
 
-def _siguiente_numero(db: Session) -> str:
+def _siguiente_numero(db: Session, local_id: int = None) -> str:
     """Genera el próximo número de factura correlativo."""
-    return siguiente_numero(db, models.Factura, "numero_factura", "FAC")
+    return siguiente_numero(db, models.Factura, "numero_factura", "FAC", local_id=local_id)
 
 
 # ── Lista ────────────────────────────────────────────────────────────────────
@@ -39,7 +39,10 @@ def lista_facturas(
     msg: str = None,
     error: str = None,
 ):
+    local_id = get_local_id(request)
     query = db.query(models.Factura)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
     if estado:
         query = query.filter(models.Factura.estado == estado)
     if buscar:
@@ -93,10 +96,11 @@ def lista_facturas(
 
 @router.get("/nueva")
 def nueva_factura_form(request: Request, db: Session = Depends(get_db)):
+    local_id = get_local_id(request)
     return templates.TemplateResponse("facturas/form.html", {
         "request": request,
         "factura": None,
-        "numero_sugerido": _siguiente_numero(db),
+        "numero_sugerido": _siguiente_numero(db, local_id=local_id),
         "accion": "Nueva",
         "error": None,
     })
@@ -118,9 +122,13 @@ def crear_factura(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    existe = db.query(models.Factura).filter(
+    local_id = get_local_id(request)
+    existe_query = db.query(models.Factura).filter(
         models.Factura.numero_factura == numero_factura.strip()
-    ).first()
+    )
+    if local_id is not None:
+        existe_query = existe_query.filter(models.Factura.local_id == local_id)
+    existe = existe_query.first()
     if existe:
         return RedirectResponse(
             f"/facturas/nueva?error=Ya+existe+una+factura+con+el+número+{numero_factura}",
@@ -142,6 +150,7 @@ def crear_factura(
         fecha_vencimiento=fec_venc,
         notas=notas.strip(),
     )
+    factura.local_id = local_id
     db.add(factura)
     db.commit()
 
@@ -156,7 +165,11 @@ def crear_factura(
 
 @router.get("/{factura_id}/editar")
 def editar_factura_form(factura_id: int, request: Request, db: Session = Depends(get_db)):
-    factura = db.query(models.Factura).filter(models.Factura.id == factura_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Factura).filter(models.Factura.id == factura_id)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
+    factura = query.first()
     if not factura:
         return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
     return templates.TemplateResponse("facturas/form.html", {
@@ -185,14 +198,21 @@ def actualizar_factura(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    factura = db.query(models.Factura).filter(models.Factura.id == factura_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Factura).filter(models.Factura.id == factura_id)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
+    factura = query.first()
     if not factura:
         return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
 
-    duplicado = db.query(models.Factura).filter(
+    dup_query = db.query(models.Factura).filter(
         models.Factura.numero_factura == numero_factura.strip(),
         models.Factura.id != factura_id,
-    ).first()
+    )
+    if local_id is not None:
+        dup_query = dup_query.filter(models.Factura.local_id == local_id)
+    duplicado = dup_query.first()
     if duplicado:
         return RedirectResponse(
             f"/facturas/{factura_id}/editar?error=Número+de+factura+ya+en+uso",
@@ -224,9 +244,13 @@ def actualizar_factura(
 @router.get("/{factura_id}/detalle")
 def detalle_factura(factura_id: int, request: Request, db: Session = Depends(get_db),
                     msg: str = None, error: str = None):
-    factura = db.query(models.Factura).options(
+    local_id = get_local_id(request)
+    query = db.query(models.Factura).options(
         joinedload(models.Factura.cobros)
-    ).filter(models.Factura.id == factura_id).first()
+    ).filter(models.Factura.id == factura_id)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
+    factura = query.first()
     if not factura:
         return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
     return templates.TemplateResponse("facturas/detalle.html", {
@@ -252,7 +276,11 @@ def registrar_cobro(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    factura = db.query(models.Factura).filter(models.Factura.id == factura_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Factura).filter(models.Factura.id == factura_id)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
+    factura = query.first()
     if not factura:
         return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
     if factura.estado == "PAGADO":
@@ -269,6 +297,7 @@ def registrar_cobro(
         comprobante=comprobante.strip(),
         notas=notas.strip(),
     )
+    cobro.local_id = local_id
     db.add(cobro)
     factura.monto_cobrado = round(factura.monto_cobrado + monto_aplicar, 2)
     _actualizar_estado(factura)
@@ -287,10 +316,14 @@ def registrar_cobro(
 def eliminar_cobro(factura_id: int, cobro_id: int, request: Request,
                    db: Session = Depends(get_db),
                    current_user: models.Usuario = Depends(require_auth)):
-    cobro = db.query(models.PagoFactura).filter(
+    local_id = get_local_id(request)
+    query = db.query(models.PagoFactura).filter(
         models.PagoFactura.id == cobro_id,
         models.PagoFactura.factura_id == factura_id,
-    ).first()
+    )
+    if local_id is not None:
+        query = query.filter(models.PagoFactura.local_id == local_id)
+    cobro = query.first()
     if not cobro:
         return RedirectResponse(f"/facturas/{factura_id}/detalle?error=Cobro+no+encontrado", status_code=303)
     factura = cobro.factura
@@ -317,12 +350,16 @@ def reporte_facturas(
     fecha_desde: str = None,
     fecha_hasta: str = None,
 ):
+    local_id = get_local_id(request)
+
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=90)).strftime("%Y-%m-%d")
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.Factura)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -358,6 +395,7 @@ def reporte_facturas(
 
 @router.get("/reporte/pdf")
 def reporte_facturas_pdf(
+    request: Request,
     db: Session = Depends(get_db),
     estado: str = None,
     fecha_desde: str = None,
@@ -365,12 +403,16 @@ def reporte_facturas_pdf(
 ):
     from utils.pdf import generate_report_pdf
 
+    local_id = get_local_id(request)
+
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=90)).strftime("%Y-%m-%d")
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.Factura)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -427,7 +469,11 @@ def reporte_facturas_pdf(
 def eliminar_factura(factura_id: int, request: Request,
                      db: Session = Depends(get_db),
                      current_user: models.Usuario = Depends(require_auth)):
-    factura = db.query(models.Factura).filter(models.Factura.id == factura_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Factura).filter(models.Factura.id == factura_id)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
+    factura = query.first()
     if not factura:
         return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
 

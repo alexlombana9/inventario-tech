@@ -26,12 +26,30 @@ def _generate_secure_password(length: int = 12) -> str:
 
 def run_seed(db: Session):
     """Crea datos por defecto si no existen."""
-    _seed_admin(db)
-    _seed_config(db)
+    default_local = _seed_default_local(db)
+    _seed_admin(db, default_local)
+    _seed_config(db, default_local)
 
 
-def _seed_admin(db: Session):
-    """Crea el usuario admin por defecto si la tabla está vacía.
+def _seed_default_local(db: Session) -> models.Local:
+    """Crea el local por defecto 'Sede Principal' si no existen locales."""
+    local = db.query(models.Local).first()
+    if local:
+        return local
+
+    local = models.Local(
+        nombre="Sede Principal",
+        codigo="SEDE-001",
+        activo=True,
+    )
+    db.add(local)
+    db.commit()
+    logger.info("Local por defecto 'Sede Principal' creado (id=%s)", local.id)
+    return local
+
+
+def _seed_admin(db: Session, default_local: models.Local):
+    """Crea el usuario SUPERADMIN por defecto si la tabla está vacía.
 
     Lee credenciales desde variables de entorno (usadas por el instalador):
       ADMIN_USERNAME  (default: admin)
@@ -55,7 +73,8 @@ def _seed_admin(db: Session):
         username=username,
         password_hash=hash_password(password),
         nombre_completo=fullname,
-        rol="ADMIN",
+        rol="SUPERADMIN",
+        local_id=None,
         activo=True,
     )
     db.add(admin)
@@ -63,16 +82,16 @@ def _seed_admin(db: Session):
 
     if generated:
         logger.warning("=" * 55)
-        logger.warning("  CREDENCIALES ADMIN GENERADAS (cambiar al primer login)")
+        logger.warning("  CREDENCIALES SUPERADMIN GENERADAS (cambiar al primer login)")
         logger.warning("  Usuario:    %s", username)
         logger.warning("  Contraseña: %s", password)
         logger.warning("=" * 55)
     else:
-        logger.info("Usuario admin '%s' creado", username)
+        logger.info("Usuario SUPERADMIN '%s' creado", username)
 
 
-def _seed_config(db: Session):
-    """Crea la configuración por defecto si no existe."""
+def _seed_config(db: Session, default_local: models.Local):
+    """Crea la configuración por defecto para el local principal si no existe."""
     count = db.query(models.Configuracion).count()
     if count > 0:
         return
@@ -82,7 +101,8 @@ def _seed_config(db: Session):
         moneda_simbolo="$",
         moneda_codigo="COP",
         mensaje_recibo="Gracias por su compra",
+        local_id=default_local.id,
     )
     db.add(config)
     db.commit()
-    logger.info("Configuracion del negocio creada")
+    logger.info("Configuracion del negocio creada para local '%s'", default_local.nombre)

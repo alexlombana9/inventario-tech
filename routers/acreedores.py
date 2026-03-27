@@ -3,7 +3,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from database import get_db
 from templates_config import templates
-from auth import require_auth, log_audit
+from auth import require_auth, log_audit, get_local_id
 import models
 
 router = APIRouter(prefix="/acreedores", tags=["acreedores"])
@@ -21,7 +21,10 @@ def lista_acreedores(
     msg: str = None,
     error: str = None,
 ):
+    local_id = get_local_id(request)
     query = db.query(models.Acreedor).filter(models.Acreedor.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Acreedor.local_id == local_id)
     if buscar:
         term = f"%{buscar}%"
         query = query.filter(
@@ -71,6 +74,7 @@ def crear_acreedor(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
+    local_id = get_local_id(request)
     acreedor = models.Acreedor(
         nombre=nombre.strip(),
         tipo=tipo,
@@ -80,6 +84,7 @@ def crear_acreedor(
         direccion=direccion.strip(),
         notas=notas.strip(),
     )
+    acreedor.local_id = local_id
     db.add(acreedor)
     db.commit()
 
@@ -97,7 +102,11 @@ def editar_acreedor_form(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    acreedor = db.query(models.Acreedor).filter(models.Acreedor.id == acreedor_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Acreedor).filter(models.Acreedor.id == acreedor_id)
+    if local_id is not None:
+        query = query.filter(models.Acreedor.local_id == local_id)
+    acreedor = query.first()
     if not acreedor:
         return RedirectResponse("/acreedores?error=Acreedor+no+encontrado", status_code=303)
     return templates.TemplateResponse("acreedores/form.html", {
@@ -122,7 +131,11 @@ def actualizar_acreedor(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    acreedor = db.query(models.Acreedor).filter(models.Acreedor.id == acreedor_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Acreedor).filter(models.Acreedor.id == acreedor_id)
+    if local_id is not None:
+        query = query.filter(models.Acreedor.local_id == local_id)
+    acreedor = query.first()
     if not acreedor:
         return RedirectResponse("/acreedores?error=Acreedor+no+encontrado", status_code=303)
 
@@ -149,7 +162,11 @@ def eliminar_acreedor(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    acreedor = db.query(models.Acreedor).filter(models.Acreedor.id == acreedor_id).first()
+    local_id = get_local_id(request)
+    query = db.query(models.Acreedor).filter(models.Acreedor.id == acreedor_id)
+    if local_id is not None:
+        query = query.filter(models.Acreedor.local_id == local_id)
+    acreedor = query.first()
     if not acreedor:
         return RedirectResponse("/acreedores?error=Acreedor+no+encontrado", status_code=303)
     acreedor.activo = False
