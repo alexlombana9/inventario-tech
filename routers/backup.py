@@ -9,7 +9,7 @@ from sqlalchemy import text
 
 from database import get_db, DATABASE_URL
 from templates_config import templates
-from auth import require_role, set_flash, log_audit
+from auth import require_role, require_superadmin, set_flash, log_audit
 import models
 
 router = APIRouter(prefix="/backup", tags=["backup"])
@@ -23,7 +23,7 @@ def _parse_pg_url(url: str) -> dict:
     from urllib.parse import urlparse
     parsed = urlparse(url)
     return {
-        "host": parsed.hostname or "localhost",
+        "host": parsed.hostname or "127.0.0.1",
         "port": str(parsed.port or 5432),
         "dbname": (parsed.path or "/inventario").lstrip("/"),
         "user": parsed.username or "postgres",
@@ -118,7 +118,7 @@ def _fallback_dump(db: Session) -> bytes:
 def backup_page(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: models.Usuario = Depends(require_role("ADMIN")),
+    current_user: models.Usuario = Depends(require_superadmin),
     msg: str = None,
     error: str = None,
 ):
@@ -147,7 +147,7 @@ def backup_page(
 def descargar_backup(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: models.Usuario = Depends(require_role("ADMIN")),
+    current_user: models.Usuario = Depends(require_superadmin),
 ):
     pg = _parse_pg_url(DATABASE_URL)
     content = _pg_dump_sql(pg)
@@ -174,7 +174,7 @@ def descargar_backup(
 def crear_backup_local(
     request: Request,
     db: Session = Depends(get_db),
-    current_user: models.Usuario = Depends(require_role("ADMIN")),
+    current_user: models.Usuario = Depends(require_superadmin),
 ):
     os.makedirs(BACKUP_DIR, exist_ok=True)
 
@@ -202,7 +202,7 @@ async def subir_backup(
     request: Request,
     archivo: UploadFile = File(...),
     db: Session = Depends(get_db),
-    current_user: models.Usuario = Depends(require_role("ADMIN")),
+    current_user: models.Usuario = Depends(require_superadmin),
 ):
     # Validar extension
     if not archivo.filename or not archivo.filename.endswith(".sql"):
@@ -246,7 +246,7 @@ def descargar_backup_local(
     filename: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: models.Usuario = Depends(require_role("ADMIN")),
+    current_user: models.Usuario = Depends(require_superadmin),
 ):
     # Sanitizar: solo permitir nombre de archivo sin path traversal
     safe_name = os.path.basename(filename)
@@ -277,7 +277,7 @@ def restaurar_backup(
     filename: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: models.Usuario = Depends(require_role("ADMIN")),
+    current_user: models.Usuario = Depends(require_superadmin),
 ):
     safe_name = os.path.basename(filename)
     if not safe_name.endswith(".sql"):
@@ -379,7 +379,7 @@ def eliminar_backup_local(
     filename: str,
     request: Request,
     db: Session = Depends(get_db),
-    current_user: models.Usuario = Depends(require_role("ADMIN")),
+    current_user: models.Usuario = Depends(require_superadmin),
 ):
     safe_name = os.path.basename(filename)
     if not safe_name.endswith(".sql"):

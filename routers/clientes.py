@@ -147,6 +147,9 @@ def actualizar_cliente(
     cliente.notas = notas.strip()
     db.commit()
 
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "UPDATE", "cliente", cliente.id, f"Cliente actualizado: {cliente.nombre}", ip)
+
     return RedirectResponse("/clientes?msg=Cliente+actualizado+correctamente", status_code=303)
 
 

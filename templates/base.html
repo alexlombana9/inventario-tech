@@ -248,12 +248,14 @@
         <span>Importar Excel</span>
       </a>
     </li>
+    {% if is_superadmin(current_user) %}
     <li class="nav-item">
       <a href="/backup" class="nav-link {% if '/backup' in request.url.path %}active{% endif %}">
         <i class="bi bi-shield-check"></i>
         <span>Backups</span>
       </a>
     </li>
+    {% endif %}
     <li class="nav-item">
       <a href="/auditoria" class="nav-link {% if '/auditoria' in request.url.path %}active{% endif %}">
         <i class="bi bi-clock-history"></i>

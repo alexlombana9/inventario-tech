@@ -14,11 +14,15 @@ class TestBackupPage:
         resp = bodeguero_client.get("/backup", follow_redirects=False)
         assert resp.status_code in (303, 403)
 
+    def test_page_admin_no_puede(self, admin_client):
+        resp = admin_client.get("/backup", follow_redirects=False)
+        assert resp.status_code in (303, 403)
+
     def test_page_sin_auth_redirige(self, client):
         resp = client.get("/backup", follow_redirects=False)
         assert resp.status_code in (303, 302, 401)
 
-    def test_page_lista_archivos_existentes(self, admin_client, tmp_path, monkeypatch):
+    def test_page_lista_archivos_existentes(self, superadmin_client, tmp_path, monkeypatch):
         """Verifica que la pagina lista archivos .sql en BACKUP_DIR."""
         import routers.backup as backup_router
         # Crear archivo .sql temporal en tmp_path
@@ -28,15 +32,15 @@ class TestBackupPage:
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
-            resp = admin_client.get("/backup")
+            resp = superadmin_client.get("/backup")
             assert resp.status_code == 200
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
 
 class TestDescargarBackup:
-    def test_descargar_genera_sql(self, admin_client, db, sample_producto):
-        resp = admin_client.get("/backup/descargar")
+    def test_descargar_genera_sql(self, superadmin_client, db, sample_producto):
+        resp = superadmin_client.get("/backup/descargar")
         assert resp.status_code == 200
         assert resp.headers.get("content-type") in (
             "application/sql",
@@ -45,14 +49,14 @@ class TestDescargarBackup:
         content = resp.content.decode("utf-8")
         assert "TechStock Backup" in content or "pg_dump" in content.lower() or "INSERT" in content
 
-    def test_descargar_tiene_header_disposition(self, admin_client):
-        resp = admin_client.get("/backup/descargar")
+    def test_descargar_tiene_header_disposition(self, superadmin_client):
+        resp = superadmin_client.get("/backup/descargar")
         assert resp.status_code == 200
         assert "attachment" in resp.headers.get("content-disposition", "")
         assert ".sql" in resp.headers.get("content-disposition", "")
 
-    def test_descargar_registra_audit(self, admin_client, db):
-        resp = admin_client.get("/backup/descargar")
+    def test_descargar_registra_audit(self, superadmin_client, db):
+        resp = superadmin_client.get("/backup/descargar")
         assert resp.status_code == 200
         log = db.query(models.AuditLog).filter(
             models.AuditLog.accion == "CREATE",
@@ -62,21 +66,21 @@ class TestDescargarBackup:
 
 
 class TestCrearBackupLocal:
-    def test_crear_backup_crea_archivo(self, admin_client, tmp_path, monkeypatch):
+    def test_crear_backup_crea_archivo(self, superadmin_client, tmp_path, monkeypatch):
         """Verifica que se crea un archivo .sql en BACKUP_DIR."""
         import routers.backup as backup_router
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
-            resp = admin_client.post("/backup/crear", follow_redirects=False)
+            resp = superadmin_client.post("/backup/crear", follow_redirects=False)
             assert resp.status_code == 303
             sql_files = list(tmp_path.glob("*.sql"))
             assert len(sql_files) == 1
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_crear_backup_registra_audit(self, admin_client, db):
-        resp = admin_client.post("/backup/crear", follow_redirects=False)
+    def test_crear_backup_registra_audit(self, superadmin_client, db):
+        resp = superadmin_client.post("/backup/crear", follow_redirects=False)
         assert resp.status_code == 303
         log = db.query(models.AuditLog).filter(
             models.AuditLog.accion == "CREATE",
@@ -93,42 +97,42 @@ class TestSubirBackup:
     def _make_sql_upload(self, filename="test_backup.sql", content=b"-- test\nINSERT INTO categorias (id, nombre) VALUES (99, 'test');"):
         return {"archivo": (filename, io.BytesIO(content), "application/sql")}
 
-    def test_subir_backup_valido(self, admin_client, tmp_path, monkeypatch):
+    def test_subir_backup_valido(self, superadmin_client, tmp_path, monkeypatch):
         import routers.backup as backup_router
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
             files = self._make_sql_upload()
-            resp = admin_client.post("/backup/subir", files=files, follow_redirects=False)
+            resp = superadmin_client.post("/backup/subir", files=files, follow_redirects=False)
             assert resp.status_code == 303
             assert "backup" in resp.headers["location"].lower()
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_subir_backup_extension_invalida(self, admin_client):
+    def test_subir_backup_extension_invalida(self, superadmin_client):
         files = {"archivo": ("malicious.txt", io.BytesIO(b"not sql"), "text/plain")}
-        resp = admin_client.post("/backup/subir", files=files, follow_redirects=False)
+        resp = superadmin_client.post("/backup/subir", files=files, follow_redirects=False)
         assert resp.status_code == 303
         assert "backup" in resp.headers["location"].lower()
 
-    def test_subir_backup_archivo_vacio(self, admin_client):
+    def test_subir_backup_archivo_vacio(self, superadmin_client):
         files = {"archivo": ("empty.sql", io.BytesIO(b""), "application/sql")}
-        resp = admin_client.post("/backup/subir", files=files, follow_redirects=False)
+        resp = superadmin_client.post("/backup/subir", files=files, follow_redirects=False)
         assert resp.status_code == 303
 
-    def test_subir_backup_muy_grande(self, admin_client):
+    def test_subir_backup_muy_grande(self, superadmin_client):
         big_content = b"-- test\n" + b"x" * (51 * 1024 * 1024)  # 51 MB
         files = {"archivo": ("big.sql", io.BytesIO(big_content), "application/sql")}
-        resp = admin_client.post("/backup/subir", files=files, follow_redirects=False)
+        resp = superadmin_client.post("/backup/subir", files=files, follow_redirects=False)
         assert resp.status_code == 303
 
-    def test_subir_backup_registra_audit(self, admin_client, db, tmp_path, monkeypatch):
+    def test_subir_backup_registra_audit(self, superadmin_client, db, tmp_path, monkeypatch):
         import routers.backup as backup_router
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
             files = self._make_sql_upload()
-            resp = admin_client.post("/backup/subir", files=files, follow_redirects=False)
+            resp = superadmin_client.post("/backup/subir", files=files, follow_redirects=False)
             assert resp.status_code == 303
             log = db.query(models.AuditLog).filter(
                 models.AuditLog.accion == "CREATE",
@@ -145,38 +149,38 @@ class TestDescargarBackupLocal:
         filepath.write_bytes(b"-- TechStock Backup\nINSERT INTO categorias (id, nombre) VALUES (1, 'test');")
         return filename
 
-    def test_descargar_local_existente(self, admin_client, tmp_path, monkeypatch):
+    def test_descargar_local_existente(self, superadmin_client, tmp_path, monkeypatch):
         import routers.backup as backup_router
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
             filename = self._create_backup_file(tmp_path)
-            resp = admin_client.get(f"/backup/descargar-local/{filename}")
+            resp = superadmin_client.get(f"/backup/descargar-local/{filename}")
             assert resp.status_code == 200
             assert "attachment" in resp.headers.get("content-disposition", "")
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_descargar_local_no_existe(self, admin_client, tmp_path, monkeypatch):
+    def test_descargar_local_no_existe(self, superadmin_client, tmp_path, monkeypatch):
         import routers.backup as backup_router
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
-            resp = admin_client.get(
+            resp = superadmin_client.get(
                 "/backup/descargar-local/noexiste.sql", follow_redirects=False
             )
             assert resp.status_code == 303
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_descargar_local_extension_invalida(self, admin_client):
-        resp = admin_client.get(
+    def test_descargar_local_extension_invalida(self, superadmin_client):
+        resp = superadmin_client.get(
             "/backup/descargar-local/malicious.txt", follow_redirects=False
         )
         assert resp.status_code == 303
 
-    def test_descargar_local_path_traversal(self, admin_client):
-        resp = admin_client.get(
+    def test_descargar_local_path_traversal(self, superadmin_client):
+        resp = superadmin_client.get(
             "/backup/descargar-local/../../etc/passwd.sql", follow_redirects=False
         )
         assert resp.status_code in (303, 200, 404)
@@ -195,25 +199,25 @@ class TestRestaurarBackup:
         )
         return filename
 
-    def test_restaurar_archivo_no_existe(self, admin_client, tmp_path, monkeypatch):
+    def test_restaurar_archivo_no_existe(self, superadmin_client, tmp_path, monkeypatch):
         import routers.backup as backup_router
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 "/backup/restaurar/noexiste.sql", follow_redirects=False
             )
             assert resp.status_code == 303
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_restaurar_extension_invalida(self, admin_client):
-        resp = admin_client.post(
+    def test_restaurar_extension_invalida(self, superadmin_client):
+        resp = superadmin_client.post(
             "/backup/restaurar/malicious.txt", follow_redirects=False
         )
         assert resp.status_code == 303
 
-    def test_restaurar_fallback_sqlalchemy(self, admin_client, db, tmp_path, monkeypatch):
+    def test_restaurar_fallback_sqlalchemy(self, superadmin_client, db, tmp_path, monkeypatch):
         """Cuando psql no esta disponible, usa fallback SQLAlchemy."""
         import routers.backup as backup_router
         import subprocess
@@ -233,7 +237,7 @@ class TestRestaurarBackup:
 
         try:
             filename = self._create_simple_backup(tmp_path)
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 f"/backup/restaurar/{filename}", follow_redirects=False
             )
             assert resp.status_code == 303
@@ -247,7 +251,7 @@ class TestRestaurarBackup:
         )
         assert resp.status_code in (303, 403)
 
-    def test_restaurar_psql_exitoso(self, admin_client, db, tmp_path, monkeypatch):
+    def test_restaurar_psql_exitoso(self, superadmin_client, db, tmp_path, monkeypatch):
         """Restauracion con psql que retorna returncode=0."""
         import subprocess
         import routers.backup as backup_router
@@ -271,7 +275,7 @@ class TestRestaurarBackup:
 
         try:
             filename = self._create_simple_backup(tmp_path)
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 f"/backup/restaurar/{filename}", follow_redirects=False
             )
             assert resp.status_code == 303
@@ -279,7 +283,7 @@ class TestRestaurarBackup:
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_restaurar_psql_falla_con_error(self, admin_client, db, tmp_path, monkeypatch):
+    def test_restaurar_psql_falla_con_error(self, superadmin_client, db, tmp_path, monkeypatch):
         """Restauracion con psql que retorna returncode != 0."""
         import subprocess
         import routers.backup as backup_router
@@ -303,14 +307,14 @@ class TestRestaurarBackup:
 
         try:
             filename = self._create_simple_backup(tmp_path)
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 f"/backup/restaurar/{filename}", follow_redirects=False
             )
             assert resp.status_code == 303
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_restaurar_psql_timeout(self, admin_client, db, tmp_path, monkeypatch):
+    def test_restaurar_psql_timeout(self, superadmin_client, db, tmp_path, monkeypatch):
         """Restauracion con psql que da TimeoutExpired."""
         import subprocess
         import routers.backup as backup_router
@@ -329,14 +333,14 @@ class TestRestaurarBackup:
 
         try:
             filename = self._create_simple_backup(tmp_path)
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 f"/backup/restaurar/{filename}", follow_redirects=False
             )
             assert resp.status_code == 303
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_restaurar_fallback_con_stmt_con_error(self, admin_client, db, tmp_path, monkeypatch):
+    def test_restaurar_fallback_con_stmt_con_error(self, superadmin_client, db, tmp_path, monkeypatch):
         """Fallback SQLAlchemy: sentencia con error incrementa contador errors."""
         import subprocess
         import routers.backup as backup_router
@@ -362,14 +366,14 @@ class TestRestaurarBackup:
                 "INSERT INTO categorias (nombre) VALUES ('RestoreErrTest');\n",
                 encoding="utf-8",
             )
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 "/backup/restaurar/restore_errors.sql", follow_redirects=False
             )
             assert resp.status_code == 303
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_restaurar_fallback_excepcion_inesperada(self, admin_client, db, tmp_path, monkeypatch):
+    def test_restaurar_fallback_excepcion_inesperada(self, superadmin_client, db, tmp_path, monkeypatch):
         """Fallback: excepcion al abrir/leer archivo entra al except final."""
         import subprocess
         import routers.backup as backup_router
@@ -390,7 +394,7 @@ class TestRestaurarBackup:
         try:
             sql_file = tmp_path / "encoding_error.sql"
             sql_file.write_bytes(b"\xff\xfe-- contenido invalido utf8\n")
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 "/backup/restaurar/encoding_error.sql", follow_redirects=False
             )
             # La respuesta puede ser 303 con mensaje de exito o error
@@ -405,13 +409,13 @@ class TestEliminarBackupLocal:
         filepath.write_bytes(b"-- TechStock Backup\n")
         return filename
 
-    def test_eliminar_existente(self, admin_client, db, tmp_path, monkeypatch):
+    def test_eliminar_existente(self, superadmin_client, db, tmp_path, monkeypatch):
         import routers.backup as backup_router
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
             filename = self._create_backup_file(tmp_path)
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 f"/backup/eliminar/{filename}", follow_redirects=False
             )
             assert resp.status_code == 303
@@ -421,19 +425,19 @@ class TestEliminarBackupLocal:
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
-    def test_eliminar_extension_invalida(self, admin_client):
-        resp = admin_client.post(
+    def test_eliminar_extension_invalida(self, superadmin_client):
+        resp = superadmin_client.post(
             "/backup/eliminar/malicious.txt", follow_redirects=False
         )
         assert resp.status_code == 303
 
-    def test_eliminar_registra_audit(self, admin_client, db, tmp_path, monkeypatch):
+    def test_eliminar_registra_audit(self, superadmin_client, db, tmp_path, monkeypatch):
         import routers.backup as backup_router
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
         try:
             filename = self._create_backup_file(tmp_path)
-            resp = admin_client.post(
+            resp = superadmin_client.post(
                 f"/backup/eliminar/{filename}", follow_redirects=False
             )
             assert resp.status_code == 303

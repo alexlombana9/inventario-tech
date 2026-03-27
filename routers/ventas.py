@@ -210,6 +210,7 @@ def procesar_venta(
                 observaciones=f"Venta {numero}",
                 fecha=datetime.now(),
             )
+            mov.local_id = local_id
             db.add(mov)
 
         # Cash register movement
@@ -495,6 +496,7 @@ def anular_venta(
                 observaciones=f"Anulación venta {venta.numero_venta}",
                 fecha=datetime.now(),
             )
+            mov.local_id = local_id
             db.add(mov)
 
     venta.estado = "ANULADA"

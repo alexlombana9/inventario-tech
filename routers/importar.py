@@ -266,9 +266,12 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
         cat_nombre = _cell_str(row, col_cat)
         if cat_nombre:
             if cat_nombre not in cat_cache:
-                cat_obj = db.query(models.Categoria).filter(
+                cat_query = db.query(models.Categoria).filter(
                     models.Categoria.nombre.ilike(cat_nombre)
-                ).first()
+                )
+                if local_id is not None:
+                    cat_query = cat_query.filter(models.Categoria.local_id == local_id)
+                cat_obj = cat_query.first()
                 if not cat_obj:
                     cat_obj = models.Categoria(nombre=cat_nombre, local_id=local_id)
                     db.add(cat_obj)
@@ -281,14 +284,20 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
         prov_nombre = _cell_str(row, col_prov)
         if prov_nombre:
             if prov_nombre not in prov_cache:
-                prov_obj = db.query(models.Proveedor).filter(
+                prov_query = db.query(models.Proveedor).filter(
                     models.Proveedor.nombre.ilike(prov_nombre)
-                ).first()
+                )
+                if local_id is not None:
+                    prov_query = prov_query.filter(models.Proveedor.local_id == local_id)
+                prov_obj = prov_query.first()
                 prov_cache[prov_nombre] = prov_obj.id if prov_obj else None
             proveedor_id = prov_cache[prov_nombre]
 
         # Buscar producto existente por código
-        existente = db.query(models.Producto).filter(models.Producto.codigo == codigo).first()
+        prod_query = db.query(models.Producto).filter(models.Producto.codigo == codigo)
+        if local_id is not None:
+            prod_query = prod_query.filter(models.Producto.local_id == local_id)
+        existente = prod_query.first()
 
         if existente:
             existente.nombre = nombre
@@ -403,9 +412,12 @@ def _importar_clientes(db: Session, headers: list, data_rows: list, user, reques
 
         # Verificar duplicado por documento si existe
         if documento:
-            existente = db.query(models.Cliente).filter(
+            cli_query = db.query(models.Cliente).filter(
                 models.Cliente.documento == documento
-            ).first()
+            )
+            if local_id is not None:
+                cli_query = cli_query.filter(models.Cliente.local_id == local_id)
+            existente = cli_query.first()
             if existente:
                 omitidos += 1
                 continue
@@ -461,9 +473,12 @@ def _importar_proveedores(db: Session, headers: list, data_rows: list, user, req
             continue
 
         # Verificar duplicado por nombre
-        existente = db.query(models.Proveedor).filter(
+        prov_query = db.query(models.Proveedor).filter(
             models.Proveedor.nombre.ilike(nombre)
-        ).first()
+        )
+        if local_id is not None:
+            prov_query = prov_query.filter(models.Proveedor.local_id == local_id)
+        existente = prov_query.first()
         if existente:
             omitidos += 1
             continue
@@ -520,10 +535,13 @@ def _importar_acreedores(db: Session, headers: list, data_rows: list, user, requ
             continue
 
         # Verificar duplicado por nombre
-        existente = db.query(models.Acreedor).filter(
+        acr_query = db.query(models.Acreedor).filter(
             models.Acreedor.nombre.ilike(nombre),
             models.Acreedor.activo == True,
-        ).first()
+        )
+        if local_id is not None:
+            acr_query = acr_query.filter(models.Acreedor.local_id == local_id)
+        existente = acr_query.first()
         if existente:
             omitidos += 1
             continue
@@ -596,10 +614,13 @@ def _importar_deudas(db: Session, headers: list, data_rows: list, user, request:
         # Buscar acreedor registrado por nombre (cache)
         acreedor_id = None
         if acr_nombre not in acr_cache:
-            acr_obj = db.query(models.Acreedor).filter(
+            acr_query = db.query(models.Acreedor).filter(
                 models.Acreedor.nombre.ilike(acr_nombre),
                 models.Acreedor.activo == True,
-            ).first()
+            )
+            if local_id is not None:
+                acr_query = acr_query.filter(models.Acreedor.local_id == local_id)
+            acr_obj = acr_query.first()
             acr_cache[acr_nombre] = acr_obj.id if acr_obj else None
         acreedor_id = acr_cache[acr_nombre]
 
@@ -671,9 +692,12 @@ def _importar_categorias(db: Session, headers: list, data_rows: list, user, requ
             omitidos += 1
             continue
 
-        existente = db.query(models.Categoria).filter(
+        existente_query = db.query(models.Categoria).filter(
             models.Categoria.nombre.ilike(nombre)
-        ).first()
+        )
+        if local_id is not None:
+            existente_query = existente_query.filter(models.Categoria.local_id == local_id)
+        existente = existente_query.first()
         if existente:
             omitidos += 1
             continue
@@ -724,7 +748,10 @@ def _importar_facturas(db: Session, headers: list, data_rows: list, user, reques
     errores = 0
 
     # Generar siguiente numero si no se proporciona columna
-    ultimo = db.query(models.Factura).order_by(models.Factura.id.desc()).first()
+    ultimo_query = db.query(models.Factura)
+    if local_id is not None:
+        ultimo_query = ultimo_query.filter(models.Factura.local_id == local_id)
+    ultimo = ultimo_query.order_by(models.Factura.id.desc()).first()
     next_num = 1
     if ultimo:
         try:
@@ -748,9 +775,12 @@ def _importar_facturas(db: Session, headers: list, data_rows: list, user, reques
             next_num += 1
 
         # Verificar duplicado por numero_factura
-        existente = db.query(models.Factura).filter(
+        dup_query = db.query(models.Factura).filter(
             models.Factura.numero_factura == num_factura
-        ).first()
+        )
+        if local_id is not None:
+            dup_query = dup_query.filter(models.Factura.local_id == local_id)
+        existente = dup_query.first()
         if existente:
             omitidos += 1
             continue

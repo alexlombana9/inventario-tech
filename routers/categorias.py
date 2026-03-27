@@ -108,10 +108,13 @@ def eliminar_categoria(cat_id: int, request: Request, db: Session = Depends(get_
     if not cat:
         return RedirectResponse("/categorias?error=Categoría+no+encontrada", status_code=303)
 
-    tiene_productos = db.query(models.Producto).filter(
+    productos_query = db.query(models.Producto).filter(
         models.Producto.categoria_id == cat_id,
         models.Producto.activo == True,
-    ).count()
+    )
+    if local_id is not None:
+        productos_query = productos_query.filter(models.Producto.local_id == local_id)
+    tiene_productos = productos_query.count()
     if tiene_productos > 0:
         return RedirectResponse(
             f"/categorias?error=No+se+puede+eliminar,+tiene+{tiene_productos}+producto(s)+activo(s)+asociado(s)",

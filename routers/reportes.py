@@ -38,7 +38,10 @@ def reporte_stock(
         query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
 
     productos = query.order_by(models.Producto.nombre).all()
-    categorias = db.query(models.Categoria).order_by(models.Categoria.nombre).all()
+    categorias_query = db.query(models.Categoria).filter(models.Categoria.activo == True)
+    if local_id is not None:
+        categorias_query = categorias_query.filter(models.Categoria.local_id == local_id)
+    categorias = categorias_query.order_by(models.Categoria.nombre).all()
 
     valor_total = sum(p.stock_actual * p.precio_costo for p in productos)
     valor_venta = sum(p.stock_actual * p.precio_venta for p in productos)
@@ -101,7 +104,10 @@ def reporte_movimientos(
     valor_entradas = sum(m.cantidad * m.precio_unitario for m in movimientos if m.tipo == "ENTRADA")
     valor_salidas = sum(m.cantidad * m.precio_unitario for m in movimientos if m.tipo == "SALIDA")
 
-    categorias = db.query(models.Categoria).order_by(models.Categoria.nombre).all()
+    categorias_query = db.query(models.Categoria).filter(models.Categoria.activo == True)
+    if local_id is not None:
+        categorias_query = categorias_query.filter(models.Categoria.local_id == local_id)
+    categorias = categorias_query.order_by(models.Categoria.nombre).all()
 
     return templates.TemplateResponse("reportes/movimientos.html", {
         "request": request,
