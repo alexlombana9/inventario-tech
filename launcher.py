@@ -856,10 +856,14 @@ class TechStockLauncher:
     # ────────────────────────────────────────────────────────
 
     def _pg_env(self):
-        """Retorna env dict con PGDATA configurado."""
+        """Retorna env dict con PGDATA y PATH configurados."""
         env = os.environ.copy()
         env["PGDATA"] = PG_DATA
         env["PGPORT"] = PG_PORT
+        env["PGCTLTIMEOUT"] = "120"
+        # Agregar bin/ y lib/ de PG al PATH para que encuentre DLLs
+        pg_paths = PG_BIN + ";" + os.path.join(PG_DIR, "lib")
+        env["PATH"] = pg_paths + ";" + env.get("PATH", "")
         return env
 
     def _pg_exists(self):
@@ -917,7 +921,7 @@ class TechStockLauncher:
         """Verifica si el puerto PG ya esta en uso."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             s.settimeout(2)
-            result = s.connect_ex(("localhost", int(PG_PORT)))
+            result = s.connect_ex(("127.0.0.1", int(PG_PORT)))
             return result == 0  # True = puerto en uso
 
     def _pg_check_connection(self):
@@ -926,7 +930,7 @@ class TechStockLauncher:
             psql = _pg_cmd("psql")
             env = self._pg_env()
             result = subprocess.run(
-                [psql, "-U", "postgres", "-p", PG_PORT, "-tAc", "SELECT 1"],
+                [psql, "-U", "postgres", "-h", "127.0.0.1", "-p", PG_PORT, "-tAc", "SELECT 1"],
                 capture_output=True, text=True, timeout=5, env=env,
                 creationflags=_SUBPROCESS_FLAGS,
             )
@@ -940,18 +944,47 @@ class TechStockLauncher:
         if not os.path.exists(conf_path):
             return
         try:
+            import re
             with open(conf_path, "r") as f:
                 content = f.read()
-            # Reducir shared_buffers si es mayor a 32MB (causa crashes en PCs con poca RAM)
-            import re
+            original = content
+            fixes = []
+
+            # 1. Reducir shared_buffers si es mayor a 32MB
             match = re.search(r"shared_buffers\s*=\s*(\d+)MB", content)
             if match and int(match.group(1)) > 32:
-                old_val = f"{match.group(1)}MB"
-                content = content.replace(f"shared_buffers = {old_val}", "shared_buffers = 32MB")
+                content = re.sub(r"shared_buffers\s*=\s*\d+MB", "shared_buffers = 32MB", content)
+                fixes.append(f"shared_buffers: {match.group(1)}MB -> 32MB")
+
+            # 2. Forzar IPv4 (localhost puede resolver a IPv6 y fallar)
+            if "listen_addresses = 'localhost'" in content:
+                content = content.replace(
+                    "listen_addresses = 'localhost'",
+                    "listen_addresses = '127.0.0.1'")
+                fixes.append("listen_addresses: localhost -> 127.0.0.1")
+
+            # 3. synchronous_commit debe ser on (off causa crashes en Windows)
+            if "synchronous_commit = off" in content:
+                content = content.replace(
+                    "synchronous_commit = off",
+                    "synchronous_commit = on")
+                fixes.append("synchronous_commit: off -> on")
+
+            # 4. Agregar max_connections si no existe
+            if "max_connections" not in content:
+                content += "\nmax_connections = 20\n"
+                fixes.append("max_connections: agregado (20)")
+
+            # 5. Agregar work_mem si no existe
+            if "work_mem" not in content:
+                content += "work_mem = 1MB\n"
+                fixes.append("work_mem: agregado (1MB)")
+
+            if content != original:
                 with open(conf_path, "w") as f:
                     f.write(content)
-                self.root.after(0, self._log,
-                    f"shared_buffers reducido de {old_val} a 32MB (previene crashes)", "WARN")
+                for fix in fixes:
+                    self.root.after(0, self._log, f"postgresql.conf: {fix}", "WARN")
         except Exception as e:
             self.root.after(0, self._log, f"Error revisando postgresql.conf: {e}", "WARN")
 
@@ -1038,12 +1071,21 @@ class TechStockLauncher:
             with open(conf_path, "a") as f:
                 f.write(f"\n# TechStock config\n")
                 f.write(f"port = {PG_PORT}\n")
-                f.write(f"listen_addresses = 'localhost'\n")
+                f.write(f"listen_addresses = '127.0.0.1'\n")
                 f.write(f"log_destination = 'stderr'\n")
                 f.write(f"logging_collector = off\n")
                 f.write(f"shared_buffers = 32MB\n")
+                f.write(f"max_connections = 20\n")
+                f.write(f"work_mem = 1MB\n")
                 f.write(f"fsync = on\n")
-                f.write(f"synchronous_commit = off\n")
+                f.write(f"synchronous_commit = on\n")
+
+            # Configurar pg_hba.conf para IPv4 trust
+            hba_path = os.path.join(PG_DATA, "pg_hba.conf")
+            with open(hba_path, "w") as f:
+                f.write("# TechStock — solo conexiones locales IPv4\n")
+                f.write("local   all   all                 trust\n")
+                f.write("host    all   all   127.0.0.1/32  trust\n")
 
             return True
         except subprocess.TimeoutExpired:
@@ -1154,6 +1196,13 @@ class TechStockLauncher:
         self.root.after(0, self._set_pg_status, "PostgreSQL activo", SUCCESS)
         self.root.after(0, self._log, f"PostgreSQL iniciado en puerto {PG_PORT}.", "OK")
 
+        # Esperar a que PG acepte SQL real antes de crear usuario/DB
+        self.root.after(0, self._log, "Verificando que PostgreSQL acepte consultas...", "INFO")
+        for _i in range(15):
+            if self._pg_check_connection():
+                break
+            time.sleep(1)
+
         self._pg_ensure_db()
         return True
 
@@ -1166,7 +1215,7 @@ class TechStockLauncher:
 
         try:
             result = subprocess.run(
-                [psql, "-U", "postgres", "-p", PG_PORT, "-tAc",
+                [psql, "-U", "postgres", "-h", "127.0.0.1", "-p", PG_PORT, "-tAc",
                  f"SELECT 1 FROM pg_roles WHERE rolname='{PG_USER}'"],
                 capture_output=True, text=True, timeout=15, env=env,
                 creationflags=_SUBPROCESS_FLAGS,
@@ -1177,7 +1226,7 @@ class TechStockLauncher:
                 return
             if "1" not in result.stdout:
                 r = subprocess.run(
-                    [psql, "-U", "postgres", "-p", PG_PORT, "-c",
+                    [psql, "-U", "postgres", "-h", "127.0.0.1", "-p", PG_PORT, "-c",
                      f"CREATE USER {PG_USER} WITH PASSWORD '{PG_PASSWORD}' CREATEDB"],
                     capture_output=True, text=True, timeout=15, env=env,
                     creationflags=_SUBPROCESS_FLAGS,
@@ -1193,7 +1242,7 @@ class TechStockLauncher:
 
         try:
             result = subprocess.run(
-                [psql, "-U", "postgres", "-p", PG_PORT, "-tAc",
+                [psql, "-U", "postgres", "-h", "127.0.0.1", "-p", PG_PORT, "-tAc",
                  f"SELECT 1 FROM pg_database WHERE datname='{PG_DB}'"],
                 capture_output=True, text=True, timeout=15, env=env,
                 creationflags=_SUBPROCESS_FLAGS,
@@ -1204,7 +1253,7 @@ class TechStockLauncher:
                 return
             if "1" not in result.stdout:
                 r = subprocess.run(
-                    [createdb, "-U", "postgres", "-p", PG_PORT,
+                    [createdb, "-U", "postgres", "-h", "127.0.0.1", "-p", PG_PORT,
                      "-O", PG_USER, PG_DB],
                     capture_output=True, text=True, timeout=15, env=env,
                     creationflags=_SUBPROCESS_FLAGS,
@@ -1384,7 +1433,7 @@ class TechStockLauncher:
             from sqlalchemy import create_engine, text as sa_text
 
             db_url = os.environ.get("DATABASE_URL",
-                f"postgresql://{PG_USER}:{PG_PASSWORD}@localhost:{PG_PORT}/{PG_DB}")
+                f"postgresql://{PG_USER}:{PG_PASSWORD}@127.0.0.1:{PG_PORT}/{PG_DB}")
 
             test_engine = create_engine(
                 db_url,
@@ -1435,7 +1484,7 @@ class TechStockLauncher:
             #    (antes de cualquier check, para que todo use los valores correctos)
             existing_url = os.environ.get("DATABASE_URL", "").strip()
             constructed_url = (
-                f"postgresql://{PG_USER}:{PG_PASSWORD}@localhost:{PG_PORT}/{PG_DB}"
+                f"postgresql://{PG_USER}:{PG_PASSWORD}@127.0.0.1:{PG_PORT}/{PG_DB}"
             )
             if not existing_url:
                 os.environ["DATABASE_URL"] = constructed_url

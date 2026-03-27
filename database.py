@@ -41,7 +41,7 @@ def _default_database_url() -> str:
         data_dir = os.path.join(os.path.expanduser("~"), ".techstock")  # pragma: no cover
 
     os.makedirs(data_dir, exist_ok=True)  # pragma: no cover
-    return "postgresql://techstock:techstock@localhost:5433/techstock"  # pragma: no cover
+    return "postgresql://techstock:techstock@127.0.0.1:5433/techstock"  # pragma: no cover
 
 
 # ── Configuracion de Base de Datos ────────────────────────────
