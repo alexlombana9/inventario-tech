@@ -920,9 +920,73 @@ class TechStockLauncher:
             result = s.connect_ex(("localhost", int(PG_PORT)))
             return result == 0  # True = puerto en uso
 
+    def _pg_fix_config(self):
+        """Revisa y corrige configuraciones problematicas en postgresql.conf."""
+        conf_path = os.path.join(PG_DATA, "postgresql.conf")
+        if not os.path.exists(conf_path):
+            return
+        try:
+            with open(conf_path, "r") as f:
+                content = f.read()
+            # Reducir shared_buffers si es mayor a 32MB (causa crashes en PCs con poca RAM)
+            import re
+            match = re.search(r"shared_buffers\s*=\s*(\d+)MB", content)
+            if match and int(match.group(1)) > 32:
+                old_val = f"{match.group(1)}MB"
+                content = content.replace(f"shared_buffers = {old_val}", "shared_buffers = 32MB")
+                with open(conf_path, "w") as f:
+                    f.write(content)
+                self.root.after(0, self._log,
+                    f"shared_buffers reducido de {old_val} a 32MB (previene crashes)", "WARN")
+        except Exception as e:
+            self.root.after(0, self._log, f"Error revisando postgresql.conf: {e}", "WARN")
+
+    def _pg_force_cleanup(self):
+        """Fuerza la limpieza de un PG en mal estado: mata procesos y limpia PID."""
+        # 1. Intentar pg_ctl stop -m immediate (no espera, mata todo)
+        try:
+            pg_ctl = _pg_cmd("pg_ctl")
+            env = self._pg_env()
+            subprocess.run(
+                [pg_ctl, "stop", "-D", PG_DATA, "-m", "immediate", "-t", "5"],
+                capture_output=True, text=True, timeout=10, env=env,
+                creationflags=_SUBPROCESS_FLAGS,
+            )
+        except Exception:
+            pass
+
+        # 2. Buscar y matar cualquier proceso postgres huerfano en nuestro puerto
+        if sys.platform == "win32":
+            try:
+                result = subprocess.run(
+                    ["netstat", "-ano"],
+                    capture_output=True, text=True, timeout=5,
+                    creationflags=_SUBPROCESS_FLAGS,
+                )
+                for line in result.stdout.splitlines():
+                    if f":{PG_PORT}" in line and "LISTENING" in line:
+                        parts = line.split()
+                        pid = int(parts[-1])
+                        subprocess.run(
+                            ["taskkill", "/F", "/PID", str(pid)],
+                            capture_output=True, timeout=5,
+                            creationflags=_SUBPROCESS_FLAGS,
+                        )
+                        self.root.after(0, self._log,
+                            f"Proceso PG huerfano (PID {pid}) terminado.", "WARN")
+                        time.sleep(1)
+                        break
+            except Exception:
+                pass
+
+        # 3. Limpiar PID file
+        self._pg_check_stale_pid()
+        time.sleep(0.5)
+
     def _pg_init_db(self):
         if os.path.exists(os.path.join(PG_DATA, "PG_VERSION")):
             self.root.after(0, self._log, "Cluster PG existente encontrado.", "INFO")
+            self._pg_fix_config()
             return True
 
         self.root.after(0, self._log, "Primera ejecucion: inicializando PostgreSQL...", "INFO")
@@ -1005,7 +1069,7 @@ class TechStockLauncher:
 
             proc = subprocess.Popen(
                 [pg_ctl, "start", "-D", PG_DATA, "-l", PG_LOG,
-                 "-w", "-t", "30",
+                 "-w", "-t", "15",
                  "-o", f"-p {PG_PORT}"],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, env=env, creationflags=_SUBPROCESS_FLAGS,
@@ -1014,9 +1078,9 @@ class TechStockLauncher:
             start_t = time.time()
             while proc.poll() is None:
                 elapsed = int(time.time() - start_t)
-                if elapsed > 45:
+                if elapsed > 20:
                     proc.kill()
-                    self.root.after(0, self._log, "Forzando fin \u2014 pg_ctl excedio 45s", "ERROR")
+                    self.root.after(0, self._log, "Forzando fin \u2014 pg_ctl excedio 20s", "ERROR")
                     break
                 if elapsed % 5 == 0 and elapsed > 0:
                     self.root.after(0, self._set_pg_status,
@@ -1153,6 +1217,7 @@ class TechStockLauncher:
 
     def _pg_health_monitor(self):
         """Thread que monitorea la salud de PostgreSQL y lo reinicia si se cae."""
+        _consecutive_fails = 0
         while self.running and not self._stopping:
             time.sleep(10)
             if not self.running or self._stopping or not self.pg_running:
@@ -1160,22 +1225,38 @@ class TechStockLauncher:
             if not self._pg_exists():
                 break
             if not self._pg_check_port_in_use():
+                _consecutive_fails += 1
+                if _consecutive_fails >= 3:
+                    self.root.after(0, self._log,
+                        "PostgreSQL no responde tras multiples intentos. Deteniendo monitor.", "ERROR")
+                    self.root.after(0, self._set_pg_status,
+                        "PostgreSQL caido — reinicie la app", DANGER)
+                    break
+
                 self.root.after(0, self._log,
-                    "PostgreSQL dejo de responder. Intentando reiniciar...", "ERROR")
+                    f"PostgreSQL dejo de responder (intento {_consecutive_fails}/3). Reiniciando...", "ERROR")
                 self.root.after(0, self._set_pg_status,
                     "Reiniciando PostgreSQL...", WARNING)
+
+                # Mostrar pg.log para diagnostico
+                log_tail = self._pg_read_log_tail()
+                if log_tail:
+                    self.root.after(0, self._log, "--- pg.log (crash) ---", "WARN")
+                    for line in log_tail:
+                        self.root.after(0, self._log, f"  {line}", "WARN")
+
+                # Forzar limpieza antes de reiniciar
+                self._pg_force_cleanup()
+
                 if self._pg_start():
                     self.root.after(0, self._log,
                         "PostgreSQL reiniciado exitosamente.", "OK")
+                    _consecutive_fails = 0
                 else:
                     self.root.after(0, self._log,
-                        "No se pudo reiniciar PostgreSQL. Revise el log.", "ERROR")
-                    log_tail = self._pg_read_log_tail()
-                    if log_tail:
-                        self.root.after(0, self._log,
-                            "--- Ultimas lineas de pg.log ---", "WARN")
-                        for line in log_tail:
-                            self.root.after(0, self._log, f"  {line}", "WARN")
+                        "No se pudo reiniciar PostgreSQL.", "ERROR")
+            else:
+                _consecutive_fails = 0
 
     # ────────────────────────────────────────────────────────
     #  Web port management
