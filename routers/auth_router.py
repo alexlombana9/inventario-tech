@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 from datetime import datetime
 
 from database import get_db
@@ -45,9 +46,16 @@ def login(
             "agregar": agregar,
         })
 
-    user = db.query(models.Usuario).filter(
-        models.Usuario.username == username.strip().lower()
-    ).first()
+    try:
+        user = db.query(models.Usuario).filter(
+            models.Usuario.username == username.strip().lower()
+        ).first()
+    except OperationalError:
+        return templates.TemplateResponse("auth/login.html", {
+            "request": request,
+            "error": "Error de conexion a la base de datos. Verifica que PostgreSQL este activo.",
+            "agregar": agregar,
+        })
 
     if not user or not verify_password(password, user.password_hash):
         login_limiter.record(ip)

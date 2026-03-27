@@ -963,7 +963,7 @@ class TechStockLauncher:
                 f.write(f"listen_addresses = 'localhost'\n")
                 f.write(f"log_destination = 'stderr'\n")
                 f.write(f"logging_collector = off\n")
-                f.write(f"shared_buffers = 128MB\n")
+                f.write(f"shared_buffers = 32MB\n")
                 f.write(f"fsync = on\n")
                 f.write(f"synchronous_commit = off\n")
 
@@ -1150,6 +1150,32 @@ class TechStockLauncher:
         self.pg_running = False
         self.root.after(0, self._set_pg_status, "PostgreSQL detenido", DANGER)
         self.root.after(0, self._log, "PostgreSQL detenido.", "INFO")
+
+    def _pg_health_monitor(self):
+        """Thread que monitorea la salud de PostgreSQL y lo reinicia si se cae."""
+        while self.running and not self._stopping:
+            time.sleep(10)
+            if not self.running or self._stopping or not self.pg_running:
+                break
+            if not self._pg_exists():
+                break
+            if not self._pg_check_port_in_use():
+                self.root.after(0, self._log,
+                    "PostgreSQL dejo de responder. Intentando reiniciar...", "ERROR")
+                self.root.after(0, self._set_pg_status,
+                    "Reiniciando PostgreSQL...", WARNING)
+                if self._pg_start():
+                    self.root.after(0, self._log,
+                        "PostgreSQL reiniciado exitosamente.", "OK")
+                else:
+                    self.root.after(0, self._log,
+                        "No se pudo reiniciar PostgreSQL. Revise el log.", "ERROR")
+                    log_tail = self._pg_read_log_tail()
+                    if log_tail:
+                        self.root.after(0, self._log,
+                            "--- Ultimas lineas de pg.log ---", "WARN")
+                        for line in log_tail:
+                            self.root.after(0, self._log, f"  {line}", "WARN")
 
     # ────────────────────────────────────────────────────────
     #  Web port management
@@ -1389,6 +1415,7 @@ class TechStockLauncher:
                 port=WEB_PORT,
                 log_level="info",
                 access_log=True,
+                log_config=None,
             )
             self._server = uvicorn.Server(config)
 
@@ -1398,6 +1425,8 @@ class TechStockLauncher:
 
             threading.Thread(target=self._run_server, daemon=True).start()
             threading.Thread(target=self._wait_ready, daemon=True).start()
+            if self.pg_running and self._pg_exists():
+                threading.Thread(target=self._pg_health_monitor, daemon=True).start()
 
         except Exception as e:
             self._on_start_failed(f"No se pudo iniciar: {e}")
@@ -1433,6 +1462,8 @@ class TechStockLauncher:
 
         threading.Thread(target=self._read_output, daemon=True).start()
         threading.Thread(target=self._wait_ready, daemon=True).start()
+        if self.pg_running and self._pg_exists():
+            threading.Thread(target=self._pg_health_monitor, daemon=True).start()
 
     def _read_output(self):
         try:

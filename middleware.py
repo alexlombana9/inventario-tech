@@ -10,6 +10,7 @@ from urllib.parse import parse_qs
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import RedirectResponse, Response
 from sqlalchemy.orm import Session
+from sqlalchemy.exc import OperationalError
 
 from database import SessionLocal
 from auth import decode_session_cookie, validate_csrf_token, COOKIE_NAME
@@ -76,6 +77,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 models.Usuario.id == data["user_id"],
                 models.Usuario.activo == True
             ).first()
+        except OperationalError:
+            db.close()
+            return RedirectResponse(
+                "/login?error=Error+de+conexion+a+la+base+de+datos.+Verifica+que+PostgreSQL+este+activo.",
+                status_code=303,
+            )
         finally:
             db.close()
 
