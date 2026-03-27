@@ -77,7 +77,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 models.Usuario.id == data["user_id"],
                 models.Usuario.activo == True
             ).first()
-        except OperationalError:
+        except Exception:
             db.close()
             return RedirectResponse(
                 "/login?error=Error+de+conexion+a+la+base+de+datos.+Verifica+que+PostgreSQL+este+activo.",
@@ -120,4 +120,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 if not validate_csrf_token(csrf_token, cookie):
                     return Response("CSRF token inválido", status_code=403)
 
-        return await call_next(request)
+        try:
+            return await call_next(request)
+        except Exception as e:
+            if "OperationalError" in type(e).__name__ or "connection" in str(e).lower():
+                return RedirectResponse(
+                    "/login?error=Error+de+conexion+a+la+base+de+datos.+Verifica+que+PostgreSQL+este+activo.",
+                    status_code=303,
+                )
+            raise

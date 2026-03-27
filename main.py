@@ -17,6 +17,8 @@ logging.basicConfig(
 )
 logger = logging.getLogger("techstock")
 
+from sqlalchemy.exc import OperationalError
+
 from database import engine, Base, get_db
 from templates_config import templates
 from middleware import AuthMiddleware
@@ -47,6 +49,16 @@ _static_dir = os.path.join(
     "static"
 )
 app.mount("/static", StaticFiles(directory=_static_dir), name="static")
+
+
+@app.exception_handler(OperationalError)
+async def db_connection_error_handler(request: Request, exc: OperationalError):
+    """Muestra error amigable cuando PostgreSQL no responde."""
+    logger.error(f"DB connection error: {exc}")
+    return RedirectResponse(
+        "/login?error=Error+de+conexion+a+la+base+de+datos.+Verifica+que+PostgreSQL+este+activo.",
+        status_code=303,
+    )
 
 # ── Routers ──
 from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas, acreedores, gastos
