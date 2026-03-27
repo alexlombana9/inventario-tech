@@ -18,7 +18,7 @@ import models
 
 
 # Rutas que NO requieren autenticación
-PUBLIC_PATHS = {"/login", "/favicon.ico"}
+PUBLIC_PATHS = {"/login", "/setup", "/favicon.ico"}
 PUBLIC_PREFIXES = ("/static/",)
 
 # Rutas POST exentas de CSRF (APIs JSON internas)

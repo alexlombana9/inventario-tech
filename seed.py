@@ -27,7 +27,6 @@ def _generate_secure_password(length: int = 12) -> str:
 def run_seed(db: Session):
     """Crea datos por defecto si no existen."""
     default_local = _seed_default_local(db)
-    _seed_admin(db, default_local)
     _seed_config(db, default_local)
 
 
@@ -46,48 +45,6 @@ def _seed_default_local(db: Session) -> models.Local:
     db.commit()
     logger.info("Local por defecto 'Sede Principal' creado (id=%s)", local.id)
     return local
-
-
-def _seed_admin(db: Session, default_local: models.Local):
-    """Crea el usuario SUPERADMIN por defecto si la tabla está vacía.
-
-    Lee credenciales desde variables de entorno (usadas por el instalador):
-      ADMIN_USERNAME  (default: admin)
-      ADMIN_PASSWORD  (si no se define, genera una segura y la muestra en consola)
-      ADMIN_NAME      (default: Administrador)
-    """
-    count = db.query(models.Usuario).count()
-    if count > 0:
-        return
-
-    username = os.environ.get("ADMIN_USERNAME", "admin")
-    password = os.environ.get("ADMIN_PASSWORD", "")
-    fullname = os.environ.get("ADMIN_NAME", "Administrador")
-
-    generated = False
-    if not password:
-        password = _generate_secure_password()
-        generated = True
-
-    admin = models.Usuario(
-        username=username,
-        password_hash=hash_password(password),
-        nombre_completo=fullname,
-        rol="SUPERADMIN",
-        local_id=None,
-        activo=True,
-    )
-    db.add(admin)
-    db.commit()
-
-    if generated:
-        logger.warning("=" * 55)
-        logger.warning("  CREDENCIALES SUPERADMIN GENERADAS (cambiar al primer login)")
-        logger.warning("  Usuario:    %s", username)
-        logger.warning("  Contraseña: %s", password)
-        logger.warning("=" * 55)
-    else:
-        logger.info("Usuario SUPERADMIN '%s' creado", username)
 
 
 def _seed_config(db: Session, default_local: models.Local):

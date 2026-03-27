@@ -920,6 +920,20 @@ class TechStockLauncher:
             result = s.connect_ex(("localhost", int(PG_PORT)))
             return result == 0  # True = puerto en uso
 
+    def _pg_check_connection(self):
+        """Verifica conectividad SQL real a PostgreSQL (no solo puerto)."""
+        try:
+            psql = _pg_cmd("psql")
+            env = self._pg_env()
+            result = subprocess.run(
+                [psql, "-U", "postgres", "-p", PG_PORT, "-tAc", "SELECT 1"],
+                capture_output=True, text=True, timeout=5, env=env,
+                creationflags=_SUBPROCESS_FLAGS,
+            )
+            return result.returncode == 0 and "1" in result.stdout
+        except Exception:
+            return False
+
     def _pg_fix_config(self):
         """Revisa y corrige configuraciones problematicas en postgresql.conf."""
         conf_path = os.path.join(PG_DATA, "postgresql.conf")
@@ -1060,32 +1074,34 @@ class TechStockLauncher:
             self._pg_ensure_db()
             return True
 
+        # Primera ejecucion necesita mas tiempo
+        _first_start = not os.path.exists(PG_LOG) or os.path.getsize(PG_LOG) < 100
+        _max_wait = 45 if _first_start else 30
+
         self.root.after(0, self._set_pg_status, "Iniciando PostgreSQL...", WARNING)
         self.root.after(0, self._log, "Iniciando PostgreSQL...", "INFO")
+
+        if _first_start:
+            self.root.after(0, self._log, "Primera ejecucion — puede tomar hasta 45s...", "INFO")
 
         try:
             pg_ctl = _pg_cmd("pg_ctl")
             env = self._pg_env()
 
+            # Iniciar PG sin -w (no esperar) para evitar que pg_ctl se cuelgue
             proc = subprocess.Popen(
                 [pg_ctl, "start", "-D", PG_DATA, "-l", PG_LOG,
-                 "-w", "-t", "15",
                  "-o", f"-p {PG_PORT}"],
                 stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                 text=True, env=env, creationflags=_SUBPROCESS_FLAGS,
             )
 
-            start_t = time.time()
-            while proc.poll() is None:
-                elapsed = int(time.time() - start_t)
-                if elapsed > 20:
-                    proc.kill()
-                    self.root.after(0, self._log, "Forzando fin \u2014 pg_ctl excedio 20s", "ERROR")
-                    break
-                if elapsed % 5 == 0 and elapsed > 0:
-                    self.root.after(0, self._set_pg_status,
-                        f"Iniciando PostgreSQL... ({elapsed}s)", WARNING)
-                time.sleep(1)
+            # Esperar a que pg_ctl termine (solo lanza el proceso, no espera)
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                self.root.after(0, self._log, "pg_ctl no respondio en 10s", "ERROR")
 
             rc = proc.returncode
             stdout = ""
@@ -1094,7 +1110,7 @@ class TechStockLauncher:
             except Exception:
                 pass
 
-            if rc != 0:
+            if rc is not None and rc != 0:
                 err = stdout.strip() if stdout else f"Codigo de salida: {rc}"
                 self.root.after(0, self._log, f"Error al iniciar PG: {err}", "ERROR")
 
@@ -1114,11 +1130,18 @@ class TechStockLauncher:
             self.root.after(0, self._set_pg_status, "Error PostgreSQL", DANGER)
             return False
 
-        # Verificar que realmente esta escuchando
-        time.sleep(0.5)
-        if not self._pg_check_port_in_use():
+        # Esperar a que PG responda en el puerto (polling propio)
+        self.root.after(0, self._log, "Esperando que PostgreSQL acepte conexiones...", "INFO")
+        for i in range(_max_wait):  # Max 30-45 segundos
+            if self._pg_check_port_in_use():
+                break
+            if i > 0 and i % 5 == 0:
+                self.root.after(0, self._set_pg_status,
+                    f"Iniciando PostgreSQL... ({i}s)", WARNING)
+            time.sleep(1)
+        else:
             self.root.after(0, self._log,
-                f"pg_ctl reporto exito pero el puerto {PG_PORT} no responde", "ERROR")
+                f"PostgreSQL no respondio en {_max_wait}s en puerto {PG_PORT}", "ERROR")
             log_tail = self._pg_read_log_tail()
             if log_tail:
                 self.root.after(0, self._log, "--- pg.log ---", "WARN")
@@ -1224,7 +1247,7 @@ class TechStockLauncher:
                 break
             if not self._pg_exists():
                 break
-            if not self._pg_check_port_in_use():
+            if not self._pg_check_connection():
                 _consecutive_fails += 1
                 if _consecutive_fails >= 3:
                     self.root.after(0, self._log,
@@ -1442,6 +1465,14 @@ class TechStockLauncher:
                 return
 
             self.root.after(0, self._log, "Conexion a base de datos verificada.", "OK")
+
+            # Mostrar diagnostico PG
+            log_tail = self._pg_read_log_tail(5)
+            if log_tail:
+                self.root.after(0, self._log, "--- pg.log (ultimas lineas) ---", "INFO")
+                for line in log_tail:
+                    self.root.after(0, self._log, f"  {line}", "INFO")
+
             if not self.pg_running:
                 self.root.after(0, self._set_pg_status, "PostgreSQL externo", SUCCESS)
                 self.pg_running = True

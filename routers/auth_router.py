@@ -8,6 +8,7 @@ from database import get_db
 from templates_config import templates
 from auth import (
     verify_password, create_session_cookie, decode_session_cookie,
+    hash_password, validate_password,
     COOKIE_NAME, set_flash, log_audit, login_limiter, SESSION_MAX_AGE,
     get_saved_accounts, save_accounts_cookie, remove_accounts_cookie,
 )
@@ -17,7 +18,14 @@ router = APIRouter(tags=["auth"])
 
 
 @router.get("/login")
-def login_page(request: Request, error: str = None, agregar: str = None):
+def login_page(request: Request, error: str = None, agregar: str = None, db: Session = Depends(get_db)):
+    # Si no hay usuarios, redirigir al wizard de configuracion inicial
+    try:
+        count = db.query(models.Usuario).count()
+        if count == 0:
+            return RedirectResponse("/setup", status_code=303)
+    except Exception:
+        pass
     user = getattr(request.state, "user", None)
     if user and not agregar:
         return RedirectResponse("/", status_code=303)
@@ -209,3 +217,90 @@ def cerrar_cuenta_guardada(
     response = RedirectResponse("/perfil", status_code=303)
     save_accounts_cookie(response, accounts)
     return set_flash(response, "Sesion guardada removida")
+
+
+@router.get("/setup")
+def setup_page(request: Request, error: str = None, db: Session = Depends(get_db)):
+    """Wizard de configuracion inicial. Solo accesible cuando no hay usuarios."""
+    count = db.query(models.Usuario).count()
+    if count > 0:
+        return RedirectResponse("/login", status_code=303)
+    return templates.TemplateResponse("auth/setup.html", {
+        "request": request,
+        "error": error,
+    })
+
+
+@router.post("/setup")
+def setup(
+    request: Request,
+    nombre_negocio: str = Form(...),
+    nombre_completo: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
+    confirmar_password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    """Crea la cuenta de administrador inicial y configura el negocio."""
+    # Si ya existen usuarios, no permitir configuracion
+    count = db.query(models.Usuario).count()
+    if count > 0:
+        return RedirectResponse("/login", status_code=303)
+
+    # Validar contrasenas coincidan
+    if password != confirmar_password:
+        return templates.TemplateResponse("auth/setup.html", {
+            "request": request,
+            "error": "Las contrasenas no coinciden",
+        })
+
+    # Validar fortaleza de contrasena
+    pwd_error = validate_password(password)
+    if pwd_error:
+        return templates.TemplateResponse("auth/setup.html", {
+            "request": request,
+            "error": pwd_error,
+        })
+
+    # Validar longitud de usuario
+    if len(username.strip()) < 3:
+        return templates.TemplateResponse("auth/setup.html", {
+            "request": request,
+            "error": "El usuario debe tener al menos 3 caracteres",
+        })
+
+    # Crear local si no existe
+    local = db.query(models.Local).first()
+    if not local:
+        local = models.Local(nombre="Sede Principal", codigo="SEDE-001", activo=True)
+        db.add(local)
+        db.commit()
+
+    # Crear usuario SUPERADMIN
+    admin = models.Usuario(
+        username=username.strip().lower(),
+        password_hash=hash_password(password),
+        nombre_completo=nombre_completo.strip(),
+        rol="SUPERADMIN",
+        local_id=None,
+        activo=True,
+    )
+    db.add(admin)
+    db.commit()
+
+    # Configurar nombre del negocio
+    config = db.query(models.Configuracion).first()
+    if config:
+        config.nombre_negocio = nombre_negocio.strip()
+    else:
+        config = models.Configuracion(
+            nombre_negocio=nombre_negocio.strip(),
+            moneda_simbolo="$",
+            moneda_codigo="COP",
+            mensaje_recibo="Gracias por su compra",
+            local_id=local.id,
+        )
+        db.add(config)
+    db.commit()
+
+    return RedirectResponse("/login", status_code=303)

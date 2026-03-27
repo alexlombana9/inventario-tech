@@ -1,6 +1,7 @@
 """Tests para el modulo de autenticacion (login, logout, sesiones)."""
 import time
 import pytest
+import models
 
 
 class TestLoginPage:
@@ -668,3 +669,107 @@ class TestGetSecretKey:
         monkeypatch.setattr(auth_module, "SECRET_KEY_FILE", key_file)
         key = auth_module._get_secret_key()
         assert key == expected_key
+
+
+class TestSetupWizard:
+    """Tests para el wizard de configuracion inicial (/setup)."""
+
+    def test_get_setup_shows_form_when_no_users(self, client):
+        """GET /setup sin usuarios muestra el formulario de configuracion."""
+        resp = client.get("/setup")
+        assert resp.status_code == 200
+        assert "Configuracion Inicial" in resp.text
+        assert "nombre_negocio" in resp.text
+        assert "nombre_completo" in resp.text
+
+    def test_get_setup_redirects_when_users_exist(self, client, admin_user):
+        """GET /setup con usuarios existentes redirige a /login."""
+        resp = client.get("/setup", follow_redirects=False)
+        assert resp.status_code == 303
+        assert resp.headers["location"] == "/login"
+
+    def test_login_redirects_to_setup_when_no_users(self, client):
+        """GET /login sin usuarios redirige a /setup."""
+        resp = client.get("/login", follow_redirects=False)
+        assert resp.status_code == 303
+        assert resp.headers["location"] == "/setup"
+
+    def test_post_setup_creates_superadmin(self, client, db):
+        """POST /setup crea un SUPERADMIN y configura el negocio."""
+        resp = client.post("/setup", data={
+            "nombre_negocio": "Mi Tienda",
+            "nombre_completo": "Juan Admin",
+            "username": "juanadmin",
+            "password": "Secure123",
+            "confirmar_password": "Secure123",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+        assert resp.headers["location"] == "/login"
+
+        # Verificar que se creo el usuario SUPERADMIN
+        user = db.query(models.Usuario).filter(
+            models.Usuario.username == "juanadmin"
+        ).first()
+        assert user is not None
+        assert user.rol == "SUPERADMIN"
+        assert user.nombre_completo == "Juan Admin"
+        assert user.local_id is None
+        assert user.activo is True
+
+        # Verificar que se creo/actualizo la configuracion
+        config = db.query(models.Configuracion).first()
+        assert config is not None
+        assert config.nombre_negocio == "Mi Tienda"
+
+        # Verificar que se creo el local
+        local = db.query(models.Local).first()
+        assert local is not None
+
+    def test_post_setup_mismatched_passwords(self, client):
+        """POST /setup con contrasenas diferentes muestra error."""
+        resp = client.post("/setup", data={
+            "nombre_negocio": "Mi Tienda",
+            "nombre_completo": "Juan Admin",
+            "username": "juanadmin",
+            "password": "Secure123",
+            "confirmar_password": "Different123",
+        })
+        assert resp.status_code == 200
+        assert "no coinciden" in resp.text.lower()
+
+    def test_post_setup_weak_password(self, client):
+        """POST /setup con contrasena debil muestra error."""
+        resp = client.post("/setup", data={
+            "nombre_negocio": "Mi Tienda",
+            "nombre_completo": "Juan Admin",
+            "username": "juanadmin",
+            "password": "short",
+            "confirmar_password": "short",
+        })
+        assert resp.status_code == 200
+        # validate_password retorna error sobre longitud minima
+        assert "8" in resp.text
+
+    def test_post_setup_short_username(self, client):
+        """POST /setup con usuario corto muestra error."""
+        resp = client.post("/setup", data={
+            "nombre_negocio": "Mi Tienda",
+            "nombre_completo": "Juan Admin",
+            "username": "ab",
+            "password": "Secure123",
+            "confirmar_password": "Secure123",
+        })
+        assert resp.status_code == 200
+        assert "3 caracteres" in resp.text.lower()
+
+    def test_post_setup_redirects_when_users_exist(self, client, admin_user):
+        """POST /setup con usuarios existentes redirige a /login."""
+        resp = client.post("/setup", data={
+            "nombre_negocio": "Mi Tienda",
+            "nombre_completo": "Otro Admin",
+            "username": "otroadmin",
+            "password": "Secure123",
+            "confirmar_password": "Secure123",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+        assert resp.headers["location"] == "/login"
