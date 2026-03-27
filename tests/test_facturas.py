@@ -161,7 +161,8 @@ class TestEliminarFactura:
             follow_redirects=False,
         )
         assert resp.status_code == 303
-        assert db.query(models.Factura).filter_by(id=sample_factura.id).first() is None
+        db.refresh(sample_factura)
+        assert sample_factura.estado == "ANULADO"
 
 
 class TestReporteFacturas:

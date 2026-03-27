@@ -22,6 +22,7 @@
 
 <div class="form-card">
   <form method="POST" action="/usuarios{% if usuario %}/{{ usuario.id }}/editar{% else %}/nuevo{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
 
     {% if not usuario %}
     <div class="mb-3">

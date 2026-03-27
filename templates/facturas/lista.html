@@ -203,6 +203,7 @@
           </a>
           <form action="/facturas/{{ f.id }}/eliminar" method="post" class="d-inline form-delete"
                 data-name="Factura {{ f.numero_factura }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
             <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
               <i class="bi bi-trash"></i>
             </button>

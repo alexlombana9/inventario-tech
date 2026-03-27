@@ -5,23 +5,21 @@ from sqlalchemy import func
 from datetime import datetime, date, timedelta
 from database import get_db
 from templates_config import templates
+from auth import require_auth, log_audit
 import models
 import io
 
 router = APIRouter(prefix="/deudas", tags=["deudas"])
 
-METODOS_PAGO = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "CHEQUE"]
-TIPOS_ACREEDOR = ["PROVEEDOR", "BANCO", "PERSONA", "OTRO"]
+from utils.constants import METODOS_PAGO, TIPOS_ACREEDOR
+
+
+from utils.financial import actualizar_estado_pago as _actualizar_estado_pago
 
 
 def _actualizar_estado(deuda: models.Deuda):
     """Recalcula el estado de la deuda según montos."""
-    if deuda.monto_pagado >= deuda.monto_total:
-        deuda.estado = "PAGADO"
-    elif deuda.monto_pagado > 0:
-        deuda.estado = "PARCIAL"
-    else:
-        deuda.estado = "PENDIENTE"
+    _actualizar_estado_pago(deuda, "monto_pagado")
 
 
 # ── Lista ────────────────────────────────────────────────────────────────────
@@ -82,6 +80,7 @@ def nueva_deuda_form(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/nueva")
 def crear_deuda(
+    request: Request,
     concepto: str = Form(...),
     acreedor_nombre: str = Form(...),
     acreedor_tipo: str = Form("OTRO"),
@@ -92,6 +91,7 @@ def crear_deuda(
     fecha_vencimiento: str = Form(""),
     notas: str = Form(""),
     db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     prov_id = int(proveedor_id) if proveedor_id.strip() else None
     acr_id = int(acreedor_id) if acreedor_id.strip() else None
@@ -111,6 +111,11 @@ def crear_deuda(
     )
     db.add(deuda)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "deuda", deuda.id,
+              f"Deuda creada: {concepto.strip()} por ${monto_total:,.2f}", ip)
+
     return RedirectResponse("/deudas?msg=Deuda+registrada+correctamente", status_code=303)
 
 
@@ -137,6 +142,7 @@ def editar_deuda_form(deuda_id: int, request: Request, db: Session = Depends(get
 @router.post("/{deuda_id}/editar")
 def actualizar_deuda(
     deuda_id: int,
+    request: Request,
     concepto: str = Form(...),
     acreedor_nombre: str = Form(...),
     acreedor_tipo: str = Form("OTRO"),
@@ -147,6 +153,7 @@ def actualizar_deuda(
     fecha_vencimiento: str = Form(""),
     notas: str = Form(""),
     db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
     if not deuda:
@@ -163,6 +170,11 @@ def actualizar_deuda(
     deuda.notas = notas.strip()
     _actualizar_estado(deuda)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "UPDATE", "deuda", deuda.id,
+              f"Deuda actualizada: {concepto.strip()}", ip)
+
     return RedirectResponse(f"/deudas/{deuda_id}/detalle?msg=Deuda+actualizada+correctamente", status_code=303)
 
 
@@ -188,12 +200,14 @@ def detalle_deuda(deuda_id: int, request: Request, db: Session = Depends(get_db)
 @router.post("/{deuda_id}/pagar")
 def registrar_pago(
     deuda_id: int,
+    request: Request,
     monto: float = Form(...),
     fecha_pago: str = Form(...),
     metodo_pago: str = Form("EFECTIVO"),
     comprobante: str = Form(""),
     notas: str = Form(""),
     db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
     if not deuda:
@@ -216,13 +230,20 @@ def registrar_pago(
     deuda.monto_pagado = round(deuda.monto_pagado + monto_aplicar, 2)
     _actualizar_estado(deuda)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "pago_deuda", pago.id,
+              f"Pago registrado: ${monto_aplicar:,.2f} a deuda #{deuda_id}", ip)
+
     return RedirectResponse(f"/deudas/{deuda_id}/detalle?msg=Pago+registrado+correctamente", status_code=303)
 
 
 # ── Eliminar pago ────────────────────────────────────────────────────────────
 
 @router.post("/{deuda_id}/pagos/{pago_id}/eliminar")
-def eliminar_pago(deuda_id: int, pago_id: int, db: Session = Depends(get_db)):
+def eliminar_pago(deuda_id: int, pago_id: int, request: Request,
+                  db: Session = Depends(get_db),
+                  current_user: models.Usuario = Depends(require_auth)):
     pago = db.query(models.PagoDeuda).filter(
         models.PagoDeuda.id == pago_id,
         models.PagoDeuda.deuda_id == deuda_id,
@@ -230,10 +251,16 @@ def eliminar_pago(deuda_id: int, pago_id: int, db: Session = Depends(get_db)):
     if not pago:
         return RedirectResponse(f"/deudas/{deuda_id}/detalle?error=Pago+no+encontrado", status_code=303)
     deuda = pago.deuda
-    deuda.monto_pagado = max(0.0, round(deuda.monto_pagado - pago.monto, 2))
+    monto_pago = pago.monto
+    deuda.monto_pagado = max(0.0, round(deuda.monto_pagado - monto_pago, 2))
     db.delete(pago)
     _actualizar_estado(deuda)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "DELETE", "pago_deuda", pago_id,
+              f"Pago eliminado: ${monto_pago:,.2f} de deuda #{deuda_id}", ip)
+
     return RedirectResponse(f"/deudas/{deuda_id}/detalle?msg=Pago+eliminado+correctamente", status_code=303)
 
 
@@ -410,10 +437,19 @@ def reporte_deudas_pdf(
 # ── Eliminar deuda ───────────────────────────────────────────────────────────
 
 @router.post("/{deuda_id}/eliminar")
-def eliminar_deuda(deuda_id: int, db: Session = Depends(get_db)):
+def eliminar_deuda(deuda_id: int, request: Request,
+                   db: Session = Depends(get_db),
+                   current_user: models.Usuario = Depends(require_auth)):
     deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
-    db.delete(deuda)
+
+    concepto = deuda.concepto
+    deuda.estado = "ANULADO"
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "DELETE", "deuda", deuda_id,
+              f"Deuda anulada: {concepto}", ip)
+
     return RedirectResponse("/deudas?msg=Deuda+eliminada+correctamente", status_code=303)

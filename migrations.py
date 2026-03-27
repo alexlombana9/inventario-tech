@@ -27,7 +27,14 @@ def table_exists(conn, table_name: str) -> bool:
 
 
 def run_migrations(engine):
-    """Ejecuta migraciones pendientes de forma idempotente."""
+    """Ejecuta migraciones pendientes de forma idempotente (PostgreSQL).
+
+    En tests (SQLite in-memory), create_all() maneja el schema completo.
+    """
+    url_str = str(engine.url)
+    if url_str.startswith("sqlite"):
+        return 0
+
     migrations_applied = 0
 
     with engine.connect() as conn:
@@ -134,6 +141,15 @@ def run_migrations(engine):
                 conn.commit()
                 migrations_applied += 1
                 print("  [Migration] usuarios: agregada columna permisos")
+
+        # ── Agregar activo a categorias (soft delete) ──
+        if table_exists(conn, "categorias"):
+            columns = get_table_columns(conn, "categorias")
+            if "activo" not in columns:
+                conn.execute(text("ALTER TABLE categorias ADD COLUMN activo BOOLEAN DEFAULT TRUE"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] categorias: agregada columna activo")
 
     if migrations_applied > 0:
         print(f"  [Migration] {migrations_applied} migración(es) aplicada(s)")

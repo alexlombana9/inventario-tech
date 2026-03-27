@@ -59,6 +59,7 @@
     <div class="form-card">
       <h6 class="fw-bold mb-3">Registrar Movimiento Manual</h6>
       <form method="POST" action="/caja/movimiento">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <div class="mb-2">
           <select name="tipo" class="form-select" required>
             <option value="INGRESO">Ingreso</option>

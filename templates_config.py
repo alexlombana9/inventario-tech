@@ -1,6 +1,14 @@
+import os
+import sys
 from fastapi.templating import Jinja2Templates
 
-templates = Jinja2Templates(directory="templates")
+# Resolve paths correctly for both dev and PyInstaller frozen mode
+if getattr(sys, "frozen", False):
+    _BASE_DIR = os.path.dirname(sys.executable)
+else:
+    _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+templates = Jinja2Templates(directory=os.path.join(_BASE_DIR, "templates"))
 
 
 def formato_moneda(value):
@@ -31,4 +39,14 @@ def _has_permiso(user, modulo):
     return user_has_permiso(user, modulo)
 
 
+def _csrf_token(request):
+    """Genera token CSRF para formularios."""
+    from auth import generate_csrf_token, COOKIE_NAME
+    cookie = request.cookies.get(COOKIE_NAME, "")
+    if not cookie:
+        return ""
+    return generate_csrf_token(cookie)
+
+
 templates.env.globals["has_permiso"] = _has_permiso
+templates.env.globals["csrf_token"] = _csrf_token

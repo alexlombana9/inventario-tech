@@ -192,6 +192,7 @@
           </a>
           <form action="/deudas/{{ d.id }}/eliminar" method="post" class="d-inline form-delete"
                 data-name="{{ d.concepto }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
             <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
               <i class="bi bi-trash"></i>
             </button>

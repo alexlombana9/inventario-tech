@@ -8,7 +8,7 @@ import models
 
 router = APIRouter(prefix="/acreedores", tags=["acreedores"])
 
-TIPOS_ACREEDOR = ["PROVEEDOR", "BANCO", "PERSONA", "OTRO"]
+from utils.constants import TIPOS_ACREEDOR
 
 
 @router.get("")

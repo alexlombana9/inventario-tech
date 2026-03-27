@@ -77,7 +77,8 @@ class TestEliminarCategoria:
             follow_redirects=False,
         )
         assert resp.status_code == 303
-        assert db.query(models.Categoria).filter_by(id=sample_categoria.id).first() is None
+        db.refresh(sample_categoria)
+        assert sample_categoria.activo is False
 
     def test_eliminar_con_productos(self, admin_client, sample_producto):
         cat_id = sample_producto.categoria_id

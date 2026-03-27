@@ -31,6 +31,7 @@
         </div>
         <div>
           <form method="POST" action="/perfil/foto" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap" id="fotoForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
             <input type="file" name="foto" accept="image/jpeg,image/png,image/gif,image/webp"
                    class="form-control form-control-sm" style="max-width:280px" required
                    id="fotoInput">
@@ -41,6 +42,7 @@
           <div class="form-text mt-1">JPG, PNG, GIF o WebP. Maximo 2 MB.</div>
           {% if usuario.foto %}
           <form method="POST" action="/perfil/foto/eliminar" class="mt-2">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
             <button type="submit" class="btn btn-sm btn-outline-danger"
                     onclick="return confirm('¿Eliminar tu foto de perfil?')">
               <i class="bi bi-trash me-1"></i>Eliminar Foto
@@ -58,6 +60,7 @@
       <h5 class="fw-bold mb-3"><i class="bi bi-person me-2"></i>Datos Personales</h5>
 
       <form method="POST" action="/perfil">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <div class="mb-3">
           <label for="username" class="form-label">Usuario</label>
           <input type="text" class="form-control" id="username" value="{{ usuario.username }}" disabled>
@@ -117,6 +120,7 @@
       <h5 class="fw-bold mb-3"><i class="bi bi-shield-lock me-2"></i>Cambiar Contrasena</h5>
 
       <form method="POST" action="/perfil/password" id="passwordForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <div class="mb-3">
           <label for="password_actual" class="form-label">Contrasena Actual <span class="text-danger">*</span></label>
           <div class="input-group">

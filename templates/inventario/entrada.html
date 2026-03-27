@@ -33,6 +33,7 @@
 
 <div class="form-card">
   <form method="post" action="/inventario/registrar">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <input type="hidden" name="tipo" value="{{ tipo }}">
     <div class="row g-3">
 

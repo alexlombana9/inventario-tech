@@ -45,14 +45,33 @@ def _get_secret_key() -> str:
     return key
 
 
-_serializer = None
+_serializer = URLSafeTimedSerializer(_get_secret_key())
 
 
 def get_serializer() -> URLSafeTimedSerializer:
-    global _serializer
-    if _serializer is None:
-        _serializer = URLSafeTimedSerializer(_get_secret_key())
     return _serializer
+
+
+# ── CSRF Protection ──────────────────────────────────────
+CSRF_MAX_AGE = 3600  # 1 hora
+
+
+def generate_csrf_token(session_cookie: str) -> str:
+    """Genera un token CSRF vinculado a la sesion del usuario."""
+    s = get_serializer()
+    return s.dumps({"csrf": True, "session": session_cookie[:16]})
+
+
+def validate_csrf_token(token: str, session_cookie: str) -> bool:
+    """Valida el token CSRF contra la sesion actual."""
+    if not token or not session_cookie:
+        return False
+    s = get_serializer()
+    try:
+        data = s.loads(token, max_age=CSRF_MAX_AGE)
+        return data.get("csrf") is True and data.get("session") == session_cookie[:16]
+    except (BadSignature, SignatureExpired):
+        return False
 
 
 def create_session_cookie(user_id: int, username: str) -> str:
@@ -135,6 +154,7 @@ MODULOS_DISPONIBLES = [
     ("acreedores", "Acreedores"),
     ("deudas", "Cuentas por Pagar"),
     ("facturas", "Cuentas por Cobrar"),
+    ("gastos", "Gastos"),
     ("reportes", "Reportes"),
 ]
 
@@ -142,7 +162,7 @@ PERMISOS_POR_ROL = {
     "ADMIN": [m[0] for m in MODULOS_DISPONIBLES],
     "VENDEDOR": [
         "dashboard", "productos", "ventas_pos", "ventas_historial",
-        "clientes", "caja", "acreedores", "deudas", "facturas", "reportes",
+        "clientes", "caja", "acreedores", "deudas", "facturas", "gastos", "reportes",
     ],
     "BODEGUERO": [
         "dashboard", "productos", "categorias", "inventario",

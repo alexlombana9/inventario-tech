@@ -4,34 +4,26 @@ from sqlalchemy.orm import Session
 from datetime import datetime, date, timedelta
 from database import get_db
 from templates_config import templates
+from auth import require_auth, log_audit
 import models
 import io
 
 router = APIRouter(prefix="/facturas", tags=["facturas"])
 
-METODOS_PAGO = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "CHEQUE"]
+from utils.constants import METODOS_PAGO
+
+
+from utils.financial import actualizar_estado_pago, siguiente_numero
 
 
 def _actualizar_estado(factura: models.Factura):
     """Recalcula el estado de la factura según montos cobrados."""
-    if factura.monto_cobrado >= factura.monto_total:
-        factura.estado = "PAGADO"
-    elif factura.monto_cobrado > 0:
-        factura.estado = "PARCIAL"
-    else:
-        factura.estado = "PENDIENTE"
+    actualizar_estado_pago(factura, "monto_cobrado")
 
 
 def _siguiente_numero(db: Session) -> str:
     """Genera el próximo número de factura correlativo."""
-    ultimo = db.query(models.Factura).order_by(models.Factura.id.desc()).first()
-    if not ultimo:
-        return "FAC-0001"
-    try:
-        num = int(ultimo.numero_factura.split("-")[-1]) + 1
-        return f"FAC-{num:04d}"
-    except (ValueError, IndexError):
-        return f"FAC-{ultimo.id + 1:04d}"
+    return siguiente_numero(db, models.Factura, "numero_factura", "FAC")
 
 
 # ── Lista ────────────────────────────────────────────────────────────────────
@@ -113,6 +105,7 @@ def nueva_factura_form(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/nueva")
 def crear_factura(
+    request: Request,
     numero_factura: str = Form(...),
     cliente_nombre: str = Form(...),
     cliente_documento: str = Form(""),
@@ -124,6 +117,7 @@ def crear_factura(
     fecha_vencimiento: str = Form(""),
     notas: str = Form(""),
     db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     existe = db.query(models.Factura).filter(
         models.Factura.numero_factura == numero_factura.strip()
@@ -151,6 +145,11 @@ def crear_factura(
     )
     db.add(factura)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "factura", factura.id,
+              f"Factura creada: {numero_factura.strip()} por ${monto_total:,.2f}", ip)
+
     return RedirectResponse("/facturas?msg=Factura+creada+correctamente", status_code=303)
 
 
@@ -173,6 +172,7 @@ def editar_factura_form(factura_id: int, request: Request, db: Session = Depends
 @router.post("/{factura_id}/editar")
 def actualizar_factura(
     factura_id: int,
+    request: Request,
     numero_factura: str = Form(...),
     cliente_nombre: str = Form(...),
     cliente_documento: str = Form(""),
@@ -184,6 +184,7 @@ def actualizar_factura(
     fecha_vencimiento: str = Form(""),
     notas: str = Form(""),
     db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     factura = db.query(models.Factura).filter(models.Factura.id == factura_id).first()
     if not factura:
@@ -211,6 +212,11 @@ def actualizar_factura(
     factura.notas = notas.strip()
     _actualizar_estado(factura)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "UPDATE", "factura", factura.id,
+              f"Factura actualizada: {numero_factura.strip()}", ip)
+
     return RedirectResponse(f"/facturas/{factura_id}/detalle?msg=Factura+actualizada+correctamente", status_code=303)
 
 
@@ -236,12 +242,14 @@ def detalle_factura(factura_id: int, request: Request, db: Session = Depends(get
 @router.post("/{factura_id}/cobrar")
 def registrar_cobro(
     factura_id: int,
+    request: Request,
     monto: float = Form(...),
     fecha_cobro: str = Form(...),
     metodo_pago: str = Form("EFECTIVO"),
     comprobante: str = Form(""),
     notas: str = Form(""),
     db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     factura = db.query(models.Factura).filter(models.Factura.id == factura_id).first()
     if not factura:
@@ -264,13 +272,20 @@ def registrar_cobro(
     factura.monto_cobrado = round(factura.monto_cobrado + monto_aplicar, 2)
     _actualizar_estado(factura)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "cobro_factura", cobro.id,
+              f"Cobro registrado: ${monto_aplicar:,.2f} a factura #{factura_id}", ip)
+
     return RedirectResponse(f"/facturas/{factura_id}/detalle?msg=Cobro+registrado+correctamente", status_code=303)
 
 
 # ── Eliminar cobro ───────────────────────────────────────────────────────────
 
 @router.post("/{factura_id}/cobros/{cobro_id}/eliminar")
-def eliminar_cobro(factura_id: int, cobro_id: int, db: Session = Depends(get_db)):
+def eliminar_cobro(factura_id: int, cobro_id: int, request: Request,
+                   db: Session = Depends(get_db),
+                   current_user: models.Usuario = Depends(require_auth)):
     cobro = db.query(models.PagoFactura).filter(
         models.PagoFactura.id == cobro_id,
         models.PagoFactura.factura_id == factura_id,
@@ -278,10 +293,16 @@ def eliminar_cobro(factura_id: int, cobro_id: int, db: Session = Depends(get_db)
     if not cobro:
         return RedirectResponse(f"/facturas/{factura_id}/detalle?error=Cobro+no+encontrado", status_code=303)
     factura = cobro.factura
-    factura.monto_cobrado = max(0.0, round(factura.monto_cobrado - cobro.monto, 2))
+    monto_cobro = cobro.monto
+    factura.monto_cobrado = max(0.0, round(factura.monto_cobrado - monto_cobro, 2))
     db.delete(cobro)
     _actualizar_estado(factura)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "DELETE", "cobro_factura", cobro_id,
+              f"Cobro eliminado: ${monto_cobro:,.2f} de factura #{factura_id}", ip)
+
     return RedirectResponse(f"/facturas/{factura_id}/detalle?msg=Cobro+eliminado+correctamente", status_code=303)
 
 
@@ -452,10 +473,19 @@ def reporte_facturas_pdf(
 # ── Eliminar factura ─────────────────────────────────────────────────────────
 
 @router.post("/{factura_id}/eliminar")
-def eliminar_factura(factura_id: int, db: Session = Depends(get_db)):
+def eliminar_factura(factura_id: int, request: Request,
+                     db: Session = Depends(get_db),
+                     current_user: models.Usuario = Depends(require_auth)):
     factura = db.query(models.Factura).filter(models.Factura.id == factura_id).first()
     if not factura:
         return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
-    db.delete(factura)
+
+    numero = factura.numero_factura
+    factura.estado = "ANULADO"
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "DELETE", "factura", factura_id,
+              f"Factura anulada: {numero}", ip)
+
     return RedirectResponse("/facturas?msg=Factura+eliminada+correctamente", status_code=303)

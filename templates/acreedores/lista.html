@@ -98,6 +98,7 @@
             </a>
             <form method="post" action="/acreedores/{{ a.id }}/eliminar"
                   class="d-inline form-delete" data-name="{{ a.nombre }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
               <button type="submit" class="btn btn-sm btn-outline-danger" title="Desactivar">
                 <i class="bi bi-trash"></i>
               </button>

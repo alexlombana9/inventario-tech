@@ -11,6 +11,7 @@
 <div class="form-card" style="max-width:500px">
   <p class="text-muted mb-3">Ingresa el monto de efectivo con el que inicias la caja.</p>
   <form method="POST" action="/caja/abrir">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="mb-3">
       <label class="form-label">Monto de Apertura <span class="text-danger">*</span></label>
       <div class="input-group">

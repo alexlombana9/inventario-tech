@@ -24,6 +24,7 @@
 <div class="form-card">
   <form method="post"
         action="{% if factura %}/facturas/{{ factura.id }}/editar{% else %}/facturas/nueva{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
 
     <!-- Número y cliente -->
     <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">

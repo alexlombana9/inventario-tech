@@ -248,6 +248,25 @@ def sample_factura(db):
 
 
 @pytest.fixture
+def sample_gasto(db):
+    """Gasto de prueba."""
+    from datetime import datetime
+    gasto = models.Gasto(
+        concepto="Arriendo local",
+        tipo="DIRECTO",
+        categoria_gasto="Arriendo",
+        monto=2000000.0,
+        fecha=datetime.now(),
+        metodo_pago="TRANSFERENCIA",
+        comprobante="TRX-001",
+    )
+    db.add(gasto)
+    db.commit()
+    db.refresh(gasto)
+    return gasto
+
+
+@pytest.fixture
 def caja_abierta(db, admin_user):
     """Caja abierta para el admin."""
     from datetime import datetime

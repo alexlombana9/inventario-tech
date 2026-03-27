@@ -1,6 +1,7 @@
 /**
  * TechStock — Punto de Venta (POS)
  * Cart management, product search, payment handling.
+ * Supports manual price editing per item.
  */
 const cart = [];
 const formatter = new Intl.NumberFormat('es-CO', {
@@ -10,7 +11,7 @@ const formatter = new Intl.NumberFormat('es-CO', {
 
 function formatMoney(v) { return formatter.format(v); }
 
-function addToCart(id, code, name, price, stock, unit) {
+function addToCart(id, code, name, price, cost, stock, unit, ref) {
   const existing = cart.find(i => i.producto_id === id);
   if (existing) {
     if (existing.cantidad >= stock) { alert('Stock insuficiente'); return; }
@@ -18,7 +19,9 @@ function addToCart(id, code, name, price, stock, unit) {
   } else {
     cart.push({
       producto_id: id, codigo: code, nombre: name,
-      precio_unitario: price, cantidad: 1, stock: stock, descuento: 0
+      precio_unitario: price, precio_costo: cost,
+      cantidad: 1, stock: stock, descuento: 0,
+      referencia: ref || ''
     });
   }
   renderCart();
@@ -44,6 +47,14 @@ function setQty(idx, val) {
   renderCart();
 }
 
+function setPrice(idx, val) {
+  const item = cart[idx];
+  const price = parseFloat(val) || 0;
+  if (price < 0) return;
+  item.precio_unitario = price;
+  renderCart();
+}
+
 function clearCart() { cart.length = 0; renderCart(); }
 
 function renderCart() {
@@ -53,18 +64,22 @@ function renderCart() {
   if (cart.length === 0) {
     container.innerHTML = '<div class="text-center text-muted py-4" id="emptyCart">' +
       '<i class="bi bi-cart-x" style="font-size:2rem"></i>' +
-      '<p class="mt-2 mb-0">Carrito vacío</p></div>';
+      '<p class="mt-2 mb-0">Carrito vacio</p></div>';
     document.getElementById('cartTotal').textContent = '$0';
+    document.getElementById('cartGanancia').textContent = '$0';
     btn.disabled = true;
     return;
   }
 
   btn.disabled = false;
-  let html = '';
-  let total = 0;
+  var html = '';
+  var total = 0;
+  var gananciaTotal = 0;
   cart.forEach(function(item, idx) {
-    const sub = item.cantidad * item.precio_unitario;
+    var sub = item.cantidad * item.precio_unitario;
+    var ganancia = (item.precio_unitario - item.precio_costo) * item.cantidad;
     total += sub;
+    gananciaTotal += ganancia;
     html += '<div class="cart-item">' +
       '<div class="qty-control">' +
         '<button class="btn btn-sm btn-outline-secondary" onclick="updateQty(' + idx + ',-1)">-</button>' +
@@ -74,33 +89,49 @@ function renderCart() {
       '</div>' +
       '<div class="item-info">' +
         '<div class="item-name">' + item.nombre + '</div>' +
-        '<div class="item-price">' + formatMoney(item.precio_unitario) + '</div>' +
+        '<div class="item-price-edit">' +
+          '<input type="number" class="form-control form-control-sm price-input" ' +
+                 'value="' + item.precio_unitario + '" min="0" step="100" ' +
+                 'onchange="setPrice(' + idx + ',this.value)" ' +
+                 'onclick="event.stopPropagation()" title="Editar precio">' +
+        '</div>' +
       '</div>' +
-      '<div class="item-subtotal">' + formatMoney(sub) + '</div>' +
+      '<div class="text-end">' +
+        '<div class="item-subtotal">' + formatMoney(sub) + '</div>' +
+        '<div class="item-ganancia ' + (ganancia >= 0 ? 'text-success' : 'text-danger') + '">' +
+          (ganancia >= 0 ? '+' : '') + formatMoney(ganancia) +
+        '</div>' +
+      '</div>' +
       '<button class="remove-btn" onclick="removeFromCart(' + idx + ')"><i class="bi bi-x-lg"></i></button>' +
     '</div>';
   });
   container.innerHTML = html;
   document.getElementById('cartTotal').textContent = formatMoney(total);
+  var gananciaEl = document.getElementById('cartGanancia');
+  if (gananciaEl) {
+    gananciaEl.textContent = formatMoney(gananciaTotal);
+    gananciaEl.className = 'amount ' + (gananciaTotal >= 0 ? 'text-success' : 'text-danger');
+  }
   updateCambio();
 }
 
 function updateCambio() {
-  const total = cart.reduce(function(s, i) { return s + i.cantidad * i.precio_unitario; }, 0);
-  const recibido = parseFloat(document.getElementById('montoRecibido').value) || 0;
-  const cambio = Math.max(0, recibido - total);
+  var total = cart.reduce(function(s, i) { return s + i.cantidad * i.precio_unitario; }, 0);
+  var recibido = parseFloat(document.getElementById('montoRecibido').value) || 0;
+  var cambio = Math.max(0, recibido - total);
   document.getElementById('cambioDisplay').textContent = formatMoney(cambio);
 }
 
 // ── Event Listeners (initialized on DOMContentLoaded) ──
 document.addEventListener('DOMContentLoaded', function() {
-  // Product search filter
+  // Product search filter (name, code, reference)
   document.getElementById('productSearch').addEventListener('input', function() {
     var q = this.value.toLowerCase();
     document.querySelectorAll('.product-item').forEach(function(el) {
       var name = el.dataset.name.toLowerCase();
       var code = el.dataset.code.toLowerCase();
-      el.style.display = (name.includes(q) || code.includes(q)) ? '' : 'none';
+      var ref = (el.dataset.ref || '').toLowerCase();
+      el.style.display = (name.includes(q) || code.includes(q) || ref.includes(q)) ? '' : 'none';
     });
   });
 
@@ -109,7 +140,8 @@ document.addEventListener('DOMContentLoaded', function() {
     el.addEventListener('click', function() {
       addToCart(
         parseInt(el.dataset.id), el.dataset.code, el.dataset.name,
-        parseFloat(el.dataset.price), parseFloat(el.dataset.stock), el.dataset.unit
+        parseFloat(el.dataset.price), parseFloat(el.dataset.cost || '0'),
+        parseFloat(el.dataset.stock), el.dataset.unit, el.dataset.ref || ''
       );
     });
   });

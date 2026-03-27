@@ -34,6 +34,7 @@
       <h5 class="mt-2">Backup Local</h5>
       <p class="text-muted small">Guarda una copia en la carpeta backups/ del servidor.</p>
       <form method="POST" action="/backup/crear" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <button type="submit" class="btn btn-success"><i class="bi bi-hdd me-1"></i>Crear Backup</button>
       </form>
     </div>
@@ -46,6 +47,7 @@
       <h5 class="mt-2">Subir Backup</h5>
       <p class="text-muted small">Sube un archivo .sql para guardarlo o restaurarlo despues.</p>
       <form method="POST" action="/backup/subir" enctype="multipart/form-data" id="uploadForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <div class="d-flex gap-2 justify-content-center align-items-center flex-wrap">
           <input type="file" name="archivo" accept=".sql" class="form-control form-control-sm"
                  style="max-width:220px" required id="backupFileInput">
@@ -90,12 +92,14 @@
             </a>
             <form method="POST" action="/backup/restaurar/{{ b.filename }}" class="d-inline"
                   onsubmit="return confirm('¿Restaurar el backup {{ b.filename }}?\n\nEsta accion sobrescribira los datos actuales de la base de datos. Asegurate de tener un backup reciente antes de continuar.')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
               <button type="submit" class="btn btn-sm btn-outline-warning" title="Restaurar">
                 <i class="bi bi-arrow-counterclockwise"></i>
               </button>
             </form>
             <form method="POST" action="/backup/eliminar/{{ b.filename }}" class="d-inline"
                   onsubmit="return confirm('¿Eliminar el backup {{ b.filename }}?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
               <button type="submit" class="btn btn-sm btn-outline-danger" title="Eliminar">
                 <i class="bi bi-trash"></i>
               </button>

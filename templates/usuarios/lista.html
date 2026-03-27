@@ -109,6 +109,7 @@
             {% if u.id != request.state.user.id %}
             <form method="POST" action="/usuarios/{{ u.id }}/eliminar" class="d-inline"
                   onsubmit="return confirm('¿Desactivar al usuario {{ u.nombre_completo }}?')">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
               <button type="submit" class="btn btn-sm btn-outline-danger">
                 <i class="bi bi-person-x"></i>
               </button>

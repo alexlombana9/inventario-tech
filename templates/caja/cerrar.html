@@ -37,6 +37,7 @@
   </div>
 
   <form method="POST" action="/caja/cerrar">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="mb-3">
       <label class="form-label">Monto Real en Caja <span class="text-danger">*</span></label>
       <div class="input-group">

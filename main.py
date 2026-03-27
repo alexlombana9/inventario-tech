@@ -1,9 +1,10 @@
 import os
+import sys
 import logging
 from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func, cast, Date, extract
 from datetime import datetime, date, timedelta
 import uvicorn
@@ -42,10 +43,15 @@ if os.environ.get("TESTING") != "1":
 # ── App ──
 app = FastAPI(title="TechStock - Sistema de Inventario")
 app.add_middleware(AuthMiddleware)
-app.mount("/static", StaticFiles(directory="static"), name="static")
+_static_dir = os.path.join(
+    os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
+    else os.path.dirname(os.path.abspath(__file__)),
+    "static"
+)
+app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 # ── Routers ──
-from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas, acreedores
+from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas, acreedores, gastos
 from routers import auth_router, usuarios, configuracion, clientes, ventas, caja, backup, importar, perfil, auditoria
 
 app.include_router(auth_router.router)
@@ -66,6 +72,7 @@ app.include_router(reportes.router)
 app.include_router(deudas.router)
 app.include_router(facturas.router)
 app.include_router(acreedores.router)
+app.include_router(gastos.router)
 
 
 def _base_context(request: Request) -> dict:
@@ -91,9 +98,34 @@ def legal(request: Request):
 
 
 @app.get("/")
-def index(request: Request, db: Session = Depends(get_db)):
+def index(
+    request: Request,
+    db: Session = Depends(get_db),
+    fecha_desde: str = None,
+    fecha_hasta: str = None,
+):
     hoy = date.today()
     ctx = _base_context(request)
+
+    # ── Filtro temporal global ─────────────────────────────────
+    if fecha_desde:
+        try:
+            fd = datetime.strptime(fecha_desde, "%Y-%m-%d").date()
+        except ValueError:
+            fd = hoy - timedelta(days=30)
+    else:
+        fd = hoy - timedelta(days=30)
+
+    if fecha_hasta:
+        try:
+            fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").date()
+        except ValueError:
+            fh = hoy
+    else:
+        fh = hoy
+
+    fd_dt = datetime.combine(fd, datetime.min.time())
+    fh_dt = datetime.combine(fh, datetime.max.time())
 
     # ── Métricas generales ─────────────────────────────────────
     total_productos   = db.query(models.Producto).filter(models.Producto.activo == True).count()
@@ -109,54 +141,61 @@ def index(request: Request, db: Session = Depends(get_db)):
         func.sum(models.Producto.stock_actual * models.Producto.precio_costo)
     ).filter(models.Producto.activo == True).scalar() or 0.0
 
-    movimientos_hoy = db.query(models.MovimientoInventario).filter(
-        cast(models.MovimientoInventario.fecha, Date) == hoy
+    movimientos_periodo = db.query(models.MovimientoInventario).filter(
+        models.MovimientoInventario.fecha >= fd_dt,
+        models.MovimientoInventario.fecha <= fh_dt,
     ).count()
 
-    # ── Métricas de ventas ───────────────────────────────────────
-    ventas_hoy = db.query(func.sum(models.Venta.total)).filter(
-        cast(models.Venta.fecha, Date) == hoy,
+    # ── Métricas de ventas (filtradas por período) ────────────
+    ventas_periodo = db.query(func.sum(models.Venta.total)).filter(
+        models.Venta.fecha >= fd_dt,
+        models.Venta.fecha <= fh_dt,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0.0
 
-    ventas_mes = db.query(func.sum(models.Venta.total)).filter(
-        extract('year', models.Venta.fecha) == hoy.year,
-        extract('month', models.Venta.fecha) == hoy.month,
-        models.Venta.estado == "COMPLETADA"
-    ).scalar() or 0.0
-
-    num_ventas_hoy = db.query(func.count(models.Venta.id)).filter(
-        cast(models.Venta.fecha, Date) == hoy,
+    num_ventas_periodo = db.query(func.count(models.Venta.id)).filter(
+        models.Venta.fecha >= fd_dt,
+        models.Venta.fecha <= fh_dt,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0
 
+    # Ganancia del período
+    ganancia_periodo = db.query(
+        func.sum(models.DetalleVenta.subtotal - models.DetalleVenta.precio_costo * models.DetalleVenta.cantidad)
+    ).join(models.Venta).filter(
+        models.Venta.fecha >= fd_dt,
+        models.Venta.fecha <= fh_dt,
+        models.Venta.estado == "COMPLETADA"
+    ).scalar() or 0.0
+
     total_clientes = db.query(models.Cliente).filter(models.Cliente.activo == True).count()
 
-    # Top 5 productos más vendidos (mes actual)
+    # Top 5 productos más vendidos (en el período)
     top_productos = db.query(
         models.DetalleVenta.producto_nombre,
         func.sum(models.DetalleVenta.cantidad).label("total_qty"),
         func.sum(models.DetalleVenta.subtotal).label("total_revenue"),
     ).join(models.Venta).filter(
-        extract('year', models.Venta.fecha) == hoy.year,
-        extract('month', models.Venta.fecha) == hoy.month,
+        models.Venta.fecha >= fd_dt,
+        models.Venta.fecha <= fh_dt,
         models.Venta.estado == "COMPLETADA"
     ).group_by(models.DetalleVenta.producto_nombre) \
      .order_by(func.sum(models.DetalleVenta.cantidad).desc()).limit(5).all()
 
-    # Ventas últimos 7 días para gráfica (1 query en vez de 7)
-    inicio_7d = hoy - timedelta(days=6)
+    # Ventas últimos 7 días para gráfica (desde fh hacia atrás)
+    inicio_7d = fh - timedelta(days=6)
     ventas_7d_raw = dict(
         db.query(
             cast(models.Venta.fecha, Date),
             func.sum(models.Venta.total),
         ).filter(
             cast(models.Venta.fecha, Date) >= inicio_7d,
+            cast(models.Venta.fecha, Date) <= fh,
             models.Venta.estado == "COMPLETADA",
         ).group_by(cast(models.Venta.fecha, Date)).all()
     )
     ventas_7d = [
-        round(float(ventas_7d_raw.get(hoy - timedelta(days=i), 0)), 2)
+        round(float(ventas_7d_raw.get(fh - timedelta(days=i), 0)), 2)
         for i in range(6, -1, -1)
     ]
 
@@ -183,23 +222,28 @@ def index(request: Request, db: Session = Depends(get_db)):
         models.Factura.fecha_vencimiento < ahora
     ).count()
 
-    # ── Últimos movimientos ────────────────────────────────────
-    ultimos_movimientos = db.query(models.MovimientoInventario).order_by(
+    # ── Últimos movimientos (con joinedload para evitar N+1) ──
+    ultimos_movimientos = db.query(models.MovimientoInventario).options(
+        joinedload(models.MovimientoInventario.producto)
+    ).order_by(
         models.MovimientoInventario.fecha.desc()
     ).limit(8).all()
 
-    productos_stock_bajo = db.query(models.Producto).filter(
+    productos_stock_bajo = db.query(models.Producto).options(
+        joinedload(models.Producto.categoria)
+    ).filter(
         models.Producto.activo == True,
         models.Producto.stock_actual <= models.Producto.stock_minimo
     ).order_by(models.Producto.stock_actual.asc()).limit(5).all()
 
-    # ── Chart: movimientos últimos 7 días (2 queries en vez de 14) ──
+    # ── Chart: movimientos últimos 7 días (desde fh hacia atrás) ──
     mov_7d_raw = db.query(
         cast(models.MovimientoInventario.fecha, Date),
         models.MovimientoInventario.tipo,
         func.count(models.MovimientoInventario.id),
     ).filter(
         cast(models.MovimientoInventario.fecha, Date) >= inicio_7d,
+        cast(models.MovimientoInventario.fecha, Date) <= fh,
     ).group_by(
         cast(models.MovimientoInventario.fecha, Date),
         models.MovimientoInventario.tipo,
@@ -213,7 +257,7 @@ def index(request: Request, db: Session = Depends(get_db)):
     entradas_7d = []
     salidas_7d = []
     for i in range(6, -1, -1):
-        dia = hoy - timedelta(days=i)
+        dia = fh - timedelta(days=i)
         labels_7d.append(dia.strftime("%d/%m"))
         entradas_7d.append(mov_dict.get((dia, "ENTRADA"), 0))
         salidas_7d.append(mov_dict.get((dia, "SALIDA"), 0))
@@ -252,10 +296,13 @@ def index(request: Request, db: Session = Depends(get_db)):
             estados_factura[row[0]] = row[1]
 
     ctx.update({
+        # Filtro temporal
+        "fecha_desde":              fd.strftime("%Y-%m-%d"),
+        "fecha_hasta":              fh.strftime("%Y-%m-%d"),
         # Ventas
-        "ventas_hoy":               ventas_hoy,
-        "ventas_mes":               ventas_mes,
-        "num_ventas_hoy":           num_ventas_hoy,
+        "ventas_periodo":           ventas_periodo,
+        "ganancia_periodo":         round(ganancia_periodo, 2),
+        "num_ventas_periodo":       num_ventas_periodo,
         "total_clientes":           total_clientes,
         "top_productos":            top_productos,
         "chart_ventas_7d":          json.dumps(ventas_7d),
@@ -265,7 +312,7 @@ def index(request: Request, db: Session = Depends(get_db)):
         "total_categorias":         total_categorias,
         "stock_bajo":               stock_bajo,
         "valor_inventario":         valor_inventario,
-        "movimientos_hoy":          movimientos_hoy,
+        "movimientos_periodo":      movimientos_periodo,
         "deudas_pendientes_total":  deudas_pendientes_total,
         "deudas_vencidas_count":    deudas_vencidas_count,
         "facturas_por_cobrar_total":facturas_por_cobrar_total,

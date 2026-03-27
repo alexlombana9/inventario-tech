@@ -70,8 +70,8 @@ def _fallback_dump(db: Session) -> bytes:
     tables = [
         "usuarios", "categorias", "proveedores", "productos",
         "movimientos_inventario", "clientes", "ventas", "detalle_venta",
-        "cajas", "movimientos_caja", "deudas", "pagos_deuda",
-        "facturas", "cobros_factura", "configuracion", "audit_log",
+        "cajas", "movimientos_caja", "acreedores", "deudas", "pagos_deuda",
+        "facturas", "cobros_factura", "gastos", "configuracion", "audit_log",
     ]
 
     # Whitelist de tablas válidas (defensa en profundidad)

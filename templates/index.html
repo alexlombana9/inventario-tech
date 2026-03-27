@@ -4,7 +4,7 @@
 
 {% block content %}
 
-<!-- ════════════════════════ HEADER ════════════════════════ -->
+<!-- ════════════════════════ HEADER + FILTRO TEMPORAL ════════════════════════ -->
 <div class="page-header">
   <div>
     <h1><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard
@@ -12,6 +12,25 @@
     </h1>
     <small class="text-muted">{{ fecha_hoy }}</small>
   </div>
+</div>
+
+<div class="search-bar mb-3">
+  <form method="GET" class="row g-2 align-items-end">
+    <div class="col-auto">
+      <label class="form-label small mb-0">Desde</label>
+      <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+    </div>
+    <div class="col-auto">
+      <label class="form-label small mb-0">Hasta</label>
+      <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+    </div>
+    <div class="col-auto">
+      <button class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+    </div>
+    <div class="col-auto">
+      <a href="/" class="btn btn-outline-secondary btn-sm">Limpiar</a>
+    </div>
+  </form>
 </div>
 
 <!-- ════════════════════════ STAT CARDS — FILA 1 ════════════════════════ -->
@@ -62,8 +81,8 @@
           <i class="bi bi-arrow-left-right text-warning"></i>
         </div>
         <div>
-          <div class="stat-value">{{ movimientos_hoy }}</div>
-          <div class="stat-label">Movimientos Hoy</div>
+          <div class="stat-value">{{ movimientos_periodo }}</div>
+          <div class="stat-label">Movimientos</div>
         </div>
       </div>
     </div>
@@ -80,8 +99,8 @@
             <i class="bi bi-cart-check text-success"></i>
           </div>
           <div>
-            <div class="stat-value text-success" style="font-size:1.15rem">{{ ventas_hoy | moneda }}</div>
-            <div class="stat-label">Ventas Hoy ({{ num_ventas_hoy }})</div>
+            <div class="stat-value text-success" style="font-size:1.15rem">{{ ventas_periodo | moneda }}</div>
+            <div class="stat-label">Ventas ({{ num_ventas_periodo }})</div>
           </div>
         </div>
       </div>
@@ -95,8 +114,8 @@
             <i class="bi bi-graph-up-arrow" style="color:#4f46e5"></i>
           </div>
           <div>
-            <div class="stat-value" style="font-size:1.15rem; color:#4f46e5">{{ ventas_mes | moneda }}</div>
-            <div class="stat-label">Ventas del Mes</div>
+            <div class="stat-value" style="font-size:1.15rem; color:#4f46e5">{{ ganancia_periodo | moneda }}</div>
+            <div class="stat-label">Ganancia</div>
           </div>
         </div>
       </div>
@@ -428,7 +447,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/static/vendor/chartjs/chart.umd.min.js"></script>
 <script>
   window.dashboardData = {
     labels7d:   {{ chart_labels_7d | safe }},

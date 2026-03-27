@@ -1,9 +1,10 @@
-"""TechStock Launcher — Interfaz para gestionar el servidor con visor de logs."""
+"""TechStock Launcher — Interfaz para gestionar PostgreSQL + servidor web."""
 import os
 import sys
 import subprocess
 import threading
 import webbrowser
+import time
 import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
@@ -25,12 +26,28 @@ if os.path.exists(_env_path):
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
 
-# ── Python del venv ──
+# ── Python del venv o embebido ──
 VENV_PYTHON = os.path.join(BASE_DIR, "venv", "Scripts", "python.exe")
 if not os.path.exists(VENV_PYTHON):
     VENV_PYTHON = os.path.join(BASE_DIR, "venv", "bin", "python")
 if not os.path.exists(VENV_PYTHON):
     VENV_PYTHON = sys.executable
+
+# ── PostgreSQL portable ──
+PG_DIR = os.path.join(BASE_DIR, "pgsql")
+PG_BIN = os.path.join(PG_DIR, "bin")
+PG_DATA = os.path.join(
+    os.environ.get("APPDATA", os.path.expanduser("~")),
+    "TechStock", "pgdata"
+)
+PG_LOG = os.path.join(
+    os.environ.get("APPDATA", os.path.expanduser("~")),
+    "TechStock", "pg.log"
+)
+PG_PORT = "5433"
+PG_USER = "techstock"
+PG_DB = "techstock"
+PG_PASSWORD = "techstock"
 
 # ── Paleta de colores ──
 BG_DARK = "#0f0f1a"
@@ -55,10 +72,18 @@ LOG_MSG_COLOR = "#c0c0d0"
 LOG_TIME_COLOR = "#444466"
 
 
+def _pg_cmd(name):
+    """Retorna ruta completa al comando PostgreSQL."""
+    ext = ".exe" if sys.platform == "win32" else ""
+    return os.path.join(PG_BIN, f"{name}{ext}")
+
+
 class TechStockLauncher:
     def __init__(self):
         self.process = None
+        self.pg_process = None
         self.running = False
+        self.pg_running = False
         self._stopping = False
 
         self.root = tk.Tk()
@@ -86,6 +111,8 @@ class TechStockLauncher:
 
         self._log("TechStock v2.0 \u2014 Gestor de servidor listo.", "OK")
         self._log(f"Python: {VENV_PYTHON}", "INFO")
+        self._log(f"PostgreSQL: {PG_BIN}", "INFO")
+        self._log(f"Datos: {PG_DATA}", "INFO")
 
     # ────────────────────────────────────────────────────────
     #  UI
@@ -115,23 +142,35 @@ class TechStockLauncher:
         # ── Divider ──
         tk.Frame(root, bg=BORDER, height=1).pack(fill="x", padx=24, pady=8)
 
-        # ── Status + Controls ──
+        # ── Status bar ──
         bar = tk.Frame(root, bg=BG_DARK)
         bar.pack(fill="x", padx=24, pady=4)
 
-        # Status
+        # Status indicators
         st = tk.Frame(bar, bg=BG_DARK)
         st.pack(side="left")
 
-        self._dot = tk.Label(st, text="\u25cf", font=("Segoe UI", 13),
-                             fg=DANGER, bg=BG_DARK)
-        self._dot.pack(side="left", padx=(0, 6))
+        # PostgreSQL status
+        pg_frame = tk.Frame(st, bg=BG_DARK)
+        pg_frame.pack(side="left", padx=(0, 16))
+        self._pg_dot = tk.Label(pg_frame, text="\u25cf", font=("Segoe UI", 10),
+                                fg=DANGER, bg=BG_DARK)
+        self._pg_dot.pack(side="left", padx=(0, 4))
+        self._pg_status_var = tk.StringVar(value="PostgreSQL detenido")
+        tk.Label(pg_frame, textvariable=self._pg_status_var,
+                 font=("Segoe UI", 9), fg=TEXT_SECONDARY,
+                 bg=BG_DARK).pack(side="left")
 
+        # Server status
+        sv_frame = tk.Frame(st, bg=BG_DARK)
+        sv_frame.pack(side="left")
+        self._dot = tk.Label(sv_frame, text="\u25cf", font=("Segoe UI", 10),
+                             fg=DANGER, bg=BG_DARK)
+        self._dot.pack(side="left", padx=(0, 4))
         self._status_var = tk.StringVar(value="Servidor detenido")
-        self._status_lbl = tk.Label(st, textvariable=self._status_var,
-                                    font=("Segoe UI", 11, "bold"),
-                                    fg=TEXT_PRIMARY, bg=BG_DARK)
-        self._status_lbl.pack(side="left")
+        tk.Label(sv_frame, textvariable=self._status_var,
+                 font=("Segoe UI", 9), fg=TEXT_SECONDARY,
+                 bg=BG_DARK).pack(side="left")
 
         self._url_var = tk.StringVar(value="")
         self._url_lbl = tk.Label(st, textvariable=self._url_var,
@@ -149,14 +188,14 @@ class TechStockLauncher:
             btns, text="\u25b6  Iniciar", font=("Segoe UI", 10, "bold"),
             bg=ACCENT, fg="white", activebackground=ACCENT_HOVER,
             activeforeground="white", relief="flat", padx=18, pady=7,
-            cursor="hand2", command=self._start_server)
+            cursor="hand2", command=self._start_all)
         self._btn_start.pack(side="left", padx=3)
 
         self._btn_stop = tk.Button(
             btns, text="\u25a0  Detener", font=("Segoe UI", 10, "bold"),
             bg="#3a3a55", fg=TEXT_SECONDARY, activebackground="#4a4a65",
             activeforeground="white", relief="flat", padx=18, pady=7,
-            cursor="hand2", command=self._stop_server, state="disabled")
+            cursor="hand2", command=self._stop_all, state="disabled")
         self._btn_stop.pack(side="left", padx=3)
 
         self._btn_web = tk.Button(
@@ -212,8 +251,8 @@ class TechStockLauncher:
         # ── Footer ──
         ft = tk.Frame(root, bg=BG_DARK)
         ft.pack(fill="x", padx=24, pady=(0, 8))
-        tk.Label(ft, text="Puerto: 8000", font=("Segoe UI", 8),
-                 fg=TEXT_MUTED, bg=BG_DARK).pack(side="left")
+        tk.Label(ft, text=f"Puerto web: 8000 | Puerto PG: {PG_PORT}",
+                 font=("Segoe UI", 8), fg=TEXT_MUTED, bg=BG_DARK).pack(side="left")
         tk.Label(ft, text="TechStock \u00a9 2026",
                  font=("Segoe UI", 8), fg=TEXT_MUTED,
                  bg=BG_DARK).pack(side="right")
@@ -242,6 +281,10 @@ class TechStockLauncher:
     #  Status helpers
     # ────────────────────────────────────────────────────────
 
+    def _set_pg_status(self, text, color):
+        self._pg_status_var.set(text)
+        self._pg_dot.config(fg=color)
+
     def _set_status(self, text, color):
         self._status_var.set(text)
         self._dot.config(fg=color)
@@ -259,45 +302,239 @@ class TechStockLauncher:
         self._btn_web.config(state="disabled")
 
     # ────────────────────────────────────────────────────────
+    #  PostgreSQL management
+    # ────────────────────────────────────────────────────────
+
+    def _pg_exists(self):
+        """Verifica si PostgreSQL portable esta disponible."""
+        return os.path.isfile(_pg_cmd("pg_ctl"))
+
+    def _pg_init_db(self):
+        """Inicializa el cluster de datos si no existe."""
+        if os.path.exists(os.path.join(PG_DATA, "PG_VERSION")):
+            return True
+
+        self._log("Inicializando base de datos PostgreSQL...", "INFO")
+        os.makedirs(PG_DATA, exist_ok=True)
+
+        try:
+            initdb = _pg_cmd("initdb")
+            env = os.environ.copy()
+            env["PGDATA"] = PG_DATA
+            result = subprocess.run(
+                [initdb, "-D", PG_DATA, "-U", "postgres", "-E", "UTF8",
+                 "--locale=C", "--auth=trust"],
+                capture_output=True, text=True, timeout=60, env=env,
+                creationflags=(subprocess.CREATE_NO_WINDOW
+                               if sys.platform == "win32" else 0),
+            )
+            if result.returncode != 0:
+                self._log(f"Error initdb: {result.stderr.strip()}", "ERROR")
+                return False
+            self._log("Cluster PostgreSQL inicializado.", "OK")
+
+            # Configurar puerto en postgresql.conf
+            conf_path = os.path.join(PG_DATA, "postgresql.conf")
+            with open(conf_path, "a") as f:
+                f.write(f"\n# TechStock config\n")
+                f.write(f"port = {PG_PORT}\n")
+                f.write(f"listen_addresses = 'localhost'\n")
+                f.write(f"log_destination = 'stderr'\n")
+                f.write(f"logging_collector = off\n")
+
+            return True
+        except Exception as e:
+            self._log(f"Error al inicializar: {e}", "ERROR")
+            return False
+
+    def _pg_start(self):
+        """Inicia PostgreSQL portable."""
+        if not self._pg_exists():
+            self._log("PostgreSQL portable no encontrado en pgsql/", "ERROR")
+            self._log("Ejecute el instalador para incluir PostgreSQL.", "ERROR")
+            return False
+
+        if not self._pg_init_db():
+            return False
+
+        self._set_pg_status("Iniciando PostgreSQL...", WARNING)
+        self._log("Iniciando PostgreSQL...", "INFO")
+        self.root.update()
+
+        try:
+            pg_ctl = _pg_cmd("pg_ctl")
+            env = os.environ.copy()
+            env["PGDATA"] = PG_DATA
+            result = subprocess.run(
+                [pg_ctl, "start", "-D", PG_DATA, "-l", PG_LOG,
+                 "-w", "-t", "30",
+                 "-o", f"-p {PG_PORT}"],
+                capture_output=True, text=True, timeout=45, env=env,
+                creationflags=(subprocess.CREATE_NO_WINDOW
+                               if sys.platform == "win32" else 0),
+            )
+            if result.returncode != 0:
+                err = result.stderr.strip() or result.stdout.strip()
+                self._log(f"Error al iniciar PG: {err}", "ERROR")
+                self._set_pg_status("Error PostgreSQL", DANGER)
+                return False
+
+        except subprocess.TimeoutExpired:
+            self._log("Timeout al iniciar PostgreSQL", "ERROR")
+            self._set_pg_status("Timeout PostgreSQL", DANGER)
+            return False
+        except Exception as e:
+            self._log(f"Error: {e}", "ERROR")
+            self._set_pg_status("Error PostgreSQL", DANGER)
+            return False
+
+        self.pg_running = True
+        self._set_pg_status("PostgreSQL activo", SUCCESS)
+        self._log(f"PostgreSQL iniciado en puerto {PG_PORT}.", "OK")
+
+        # Crear usuario y base de datos si no existen
+        self._pg_ensure_db()
+        return True
+
+    def _pg_ensure_db(self):
+        """Crea el usuario y la base de datos si no existen."""
+        psql = _pg_cmd("psql")
+        createdb = _pg_cmd("createdb")
+        env = os.environ.copy()
+        env["PGPORT"] = PG_PORT
+
+        # Verificar si el usuario existe
+        try:
+            result = subprocess.run(
+                [psql, "-U", "postgres", "-p", PG_PORT, "-tAc",
+                 f"SELECT 1 FROM pg_roles WHERE rolname='{PG_USER}'"],
+                capture_output=True, text=True, timeout=10, env=env,
+                creationflags=(subprocess.CREATE_NO_WINDOW
+                               if sys.platform == "win32" else 0),
+            )
+            if "1" not in result.stdout:
+                subprocess.run(
+                    [psql, "-U", "postgres", "-p", PG_PORT, "-c",
+                     f"CREATE USER {PG_USER} WITH PASSWORD '{PG_PASSWORD}' CREATEDB"],
+                    capture_output=True, text=True, timeout=10, env=env,
+                    creationflags=(subprocess.CREATE_NO_WINDOW
+                                   if sys.platform == "win32" else 0),
+                )
+                self._log(f"Usuario '{PG_USER}' creado.", "OK")
+        except Exception as e:
+            self._log(f"Aviso creando usuario: {e}", "WARN")
+
+        # Verificar si la BD existe
+        try:
+            result = subprocess.run(
+                [psql, "-U", "postgres", "-p", PG_PORT, "-tAc",
+                 f"SELECT 1 FROM pg_database WHERE datname='{PG_DB}'"],
+                capture_output=True, text=True, timeout=10, env=env,
+                creationflags=(subprocess.CREATE_NO_WINDOW
+                               if sys.platform == "win32" else 0),
+            )
+            if "1" not in result.stdout:
+                subprocess.run(
+                    [createdb, "-U", "postgres", "-p", PG_PORT,
+                     "-O", PG_USER, PG_DB],
+                    capture_output=True, text=True, timeout=10, env=env,
+                    creationflags=(subprocess.CREATE_NO_WINDOW
+                                   if sys.platform == "win32" else 0),
+                )
+                self._log(f"Base de datos '{PG_DB}' creada.", "OK")
+        except Exception as e:
+            self._log(f"Aviso creando BD: {e}", "WARN")
+
+    def _pg_stop(self):
+        """Detiene PostgreSQL portable."""
+        if not self.pg_running:
+            return
+
+        self._log("Deteniendo PostgreSQL...", "WARN")
+        try:
+            pg_ctl = _pg_cmd("pg_ctl")
+            env = os.environ.copy()
+            env["PGDATA"] = PG_DATA
+            subprocess.run(
+                [pg_ctl, "stop", "-D", PG_DATA, "-m", "fast", "-w", "-t", "15"],
+                capture_output=True, text=True, timeout=20, env=env,
+                creationflags=(subprocess.CREATE_NO_WINDOW
+                               if sys.platform == "win32" else 0),
+            )
+        except Exception:
+            pass
+
+        self.pg_running = False
+        self._set_pg_status("PostgreSQL detenido", DANGER)
+        self._log("PostgreSQL detenido.", "INFO")
+
+    # ────────────────────────────────────────────────────────
     #  Server control
     # ────────────────────────────────────────────────────────
 
-    def _start_server(self):
+    def _start_all(self):
+        """Inicia PostgreSQL + servidor web."""
         if self.running:
             return
 
         self._stopping = False
-        self._set_status("Verificando base de datos\u2026", WARNING)
-        self._log("Verificando conexi\u00f3n a base de datos\u2026", "INFO")
+        self._btn_start.config(state="disabled")
         self.root.update()
 
-        # Verificar DB
+        # 1. Iniciar PostgreSQL
+        if self._pg_exists():
+            if not self._pg_start():
+                self._btn_start.config(state="normal")
+                return
+        else:
+            # PostgreSQL externo (no portable) — verificar conexion
+            self._set_pg_status("Verificando PG externo...", WARNING)
+            self._log("PG portable no encontrado, verificando PG externo...", "INFO")
+
+        # 2. Configurar DATABASE_URL para el servidor
+        db_url = os.environ.get("DATABASE_URL", "").strip()
+        if not db_url and self.pg_running:
+            os.environ["DATABASE_URL"] = (
+                f"postgresql://{PG_USER}:{PG_PASSWORD}@localhost:{PG_PORT}/{PG_DB}"
+            )
+
+        # 3. Verificar conexion
+        self._set_status("Verificando conexion...", WARNING)
+        self._log("Verificando conexion a base de datos...", "INFO")
+        self.root.update()
+
         try:
             chk = subprocess.run(
                 [VENV_PYTHON, "-c",
                  "from database import engine; c=engine.connect(); c.close()"],
-                cwd=BASE_DIR, capture_output=True, text=True, timeout=15)
+                cwd=BASE_DIR, capture_output=True, text=True, timeout=15,
+                creationflags=(subprocess.CREATE_NO_WINDOW
+                               if sys.platform == "win32" else 0),
+            )
             if chk.returncode != 0:
                 err = chk.stderr.strip() or chk.stdout.strip() or "Sin detalle"
-                self._set_status("Error de conexi\u00f3n", DANGER)
+                self._set_status("Error de conexion", DANGER)
                 self._log(f"Error DB: {err}", "ERROR")
                 messagebox.showerror(
                     "Error de Base de Datos",
-                    f"No se pudo conectar a PostgreSQL.\n\n{err}\n\n"
-                    "Verifique que PostgreSQL est\u00e1 corriendo.\n"
-                    "(Servicios de Windows \u203a postgresql-x64-16 \u203a Iniciar)")
+                    f"No se pudo conectar a PostgreSQL.\n\n{err}")
+                self._btn_start.config(state="normal")
                 return
         except Exception as e:
             self._set_status("Error", DANGER)
-            self._log(f"Excepci\u00f3n: {e}", "ERROR")
+            self._log(f"Excepcion: {e}", "ERROR")
+            self._btn_start.config(state="normal")
             return
 
-        self._log("Conexi\u00f3n a base de datos OK.", "OK")
-        self._set_status("Iniciando servidor\u2026", WARNING)
-        self._log("Iniciando servidor en puerto 8000\u2026", "INFO")
+        self._log("Conexion a base de datos OK.", "OK")
+        if not self.pg_running:
+            self._set_pg_status("PostgreSQL externo", SUCCESS)
+
+        # 4. Iniciar servidor web
+        self._set_status("Iniciando servidor...", WARNING)
+        self._log("Iniciando servidor en puerto 8000...", "INFO")
         self.root.update()
 
-        # Iniciar proceso
         try:
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
@@ -313,6 +550,7 @@ class TechStockLauncher:
         except Exception as e:
             self._set_status("Error al iniciar", DANGER)
             self._log(f"No se pudo iniciar: {e}", "ERROR")
+            self._btn_start.config(state="normal")
             return
 
         self.running = True
@@ -349,13 +587,12 @@ class TechStockLauncher:
             return "WARN"
         if any(k in low for k in ("started", "[ok]", "listo", "ready")):
             return "OK"
-        if any(m in line for m in ("GET ", "POST ", "PUT ", "DELETE ", "PATCH ", "HEAD ", "OPTIONS ")):
+        if any(m in line for m in ("GET ", "POST ", "PUT ", "DELETE ", "PATCH ")):
             return "HTTP"
         return "INFO"
 
     def _wait_ready(self):
         """Espera hasta que el servidor responda en localhost:8000."""
-        import time
         import urllib.request
         for _ in range(30):
             if not self.running:
@@ -370,7 +607,7 @@ class TechStockLauncher:
             "Iniciado (verificar puerto)", WARNING))
 
     def _server_ready(self):
-        self._set_status("Servidor en ejecuci\u00f3n", SUCCESS)
+        self._set_status("Servidor activo", SUCCESS)
         self._url_var.set("\U0001f517 http://localhost:8000")
         self._log("Servidor listo en http://localhost:8000", "OK")
 
@@ -379,19 +616,29 @@ class TechStockLauncher:
         self._log("El servidor se detuvo inesperadamente.", "ERROR")
         self._enable_stopped_ui()
 
-    def _stop_server(self):
-        if not self.process:
+    def _stop_all(self):
+        """Detiene servidor web + PostgreSQL."""
+        if not self.running and not self.pg_running:
             return
+
         self._stopping = True
-        self._log("Deteniendo servidor\u2026", "WARN")
-        self.process.terminate()
-        try:
-            self.process.wait(timeout=5)
-        except subprocess.TimeoutExpired:
-            self.process.kill()
-        self.process = None
+
+        # 1. Detener servidor web
+        if self.process:
+            self._log("Deteniendo servidor...", "WARN")
+            self.process.terminate()
+            try:
+                self.process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                self.process.kill()
+            self.process = None
         self._set_status("Servidor detenido", DANGER)
         self._log("Servidor detenido.", "INFO")
+
+        # 2. Detener PostgreSQL portable
+        if self.pg_running:
+            self._pg_stop()
+
         self._enable_stopped_ui()
 
     def _open_browser(self):
@@ -400,11 +647,11 @@ class TechStockLauncher:
             self._log("Navegador abierto.", "INFO")
 
     def _on_close(self):
-        if self.running:
+        if self.running or self.pg_running:
             if messagebox.askyesno(
                 "Cerrar TechStock",
-                "El servidor est\u00e1 corriendo.\n\u00bfDetenerlo y salir?"):
-                self._stop_server()
+                "El servidor esta corriendo.\n\u00bfDetenerlo y salir?"):
+                self._stop_all()
             else:
                 return
         self.root.destroy()

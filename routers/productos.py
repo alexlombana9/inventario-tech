@@ -3,6 +3,7 @@ from templates_config import templates
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from database import get_db
+from auth import require_auth, log_audit
 import models
 
 router = APIRouter(prefix="/productos", tags=["productos"])
@@ -26,7 +27,8 @@ def lista_productos(
     if buscar:
         query = query.filter(
             models.Producto.nombre.ilike(f"%{buscar}%") |
-            models.Producto.codigo.ilike(f"%{buscar}%")
+            models.Producto.codigo.ilike(f"%{buscar}%") |
+            models.Producto.referencia.ilike(f"%{buscar}%")
         )
     if cat_id:
         query = query.filter(models.Producto.categoria_id == cat_id)
@@ -63,6 +65,7 @@ def nuevo_producto_form(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/nuevo")
 def crear_producto(
+    request: Request,
     codigo: str = Form(...),
     nombre: str = Form(...),
     referencia: str = Form(""),
@@ -75,7 +78,8 @@ def crear_producto(
     stock_actual: float = Form(0.0),
     stock_minimo: float = Form(0.0),
     unidad_medida: str = Form("UND"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     existe = db.query(models.Producto).filter(models.Producto.codigo == codigo.strip()).first()
     if existe:
@@ -112,6 +116,11 @@ def crear_producto(
         db.add(mov)
 
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "producto", producto.id,
+              f"Producto creado: {codigo.strip().upper()} - {nombre.strip()}", ip)
+
     return RedirectResponse("/productos?msg=Producto+creado+correctamente", status_code=303)
 
 
@@ -134,6 +143,7 @@ def editar_producto_form(prod_id: int, request: Request, db: Session = Depends(g
 @router.post("/{prod_id}/editar")
 def actualizar_producto(
     prod_id: int,
+    request: Request,
     codigo: str = Form(...),
     nombre: str = Form(...),
     referencia: str = Form(""),
@@ -145,7 +155,8 @@ def actualizar_producto(
     precio_venta_minimo: float = Form(0.0),
     stock_minimo: float = Form(0.0),
     unidad_medida: str = Form("UND"),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     producto = db.query(models.Producto).filter(models.Producto.id == prod_id).first()
     if not producto:
@@ -170,14 +181,26 @@ def actualizar_producto(
     producto.stock_minimo = stock_minimo
     producto.unidad_medida = unidad_medida.strip().upper() or "UND"
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "UPDATE", "producto", prod_id,
+              f"Producto actualizado: {codigo.strip().upper()}", ip)
+
     return RedirectResponse("/productos?msg=Producto+actualizado+correctamente", status_code=303)
 
 
 @router.post("/{prod_id}/eliminar")
-def eliminar_producto(prod_id: int, db: Session = Depends(get_db)):
+def eliminar_producto(prod_id: int, request: Request,
+                      db: Session = Depends(get_db),
+                      current_user: models.Usuario = Depends(require_auth)):
     producto = db.query(models.Producto).filter(models.Producto.id == prod_id).first()
     if not producto:
         return RedirectResponse("/productos?error=Producto+no+encontrado", status_code=303)
     producto.activo = False
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "DELETE", "producto", prod_id,
+              f"Producto desactivado: {producto.codigo} - {producto.nombre}", ip)
+
     return RedirectResponse("/productos?msg=Producto+desactivado+correctamente", status_code=303)

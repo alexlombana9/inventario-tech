@@ -13,18 +13,14 @@ import models
 
 router = APIRouter(prefix="/ventas", tags=["ventas"])
 
-METODOS_PAGO = ["EFECTIVO", "TARJETA", "TRANSFERENCIA", "CREDITO"]
+from utils.constants import METODOS_PAGO_VENTAS as METODOS_PAGO
+
+
+from utils.financial import siguiente_numero as _sig_num
 
 
 def _siguiente_numero(db: Session) -> str:
-    ultimo = db.query(models.Venta).order_by(models.Venta.id.desc()).first()
-    if not ultimo:
-        return "VTA-0001"
-    try:
-        num = int(ultimo.numero_venta.split("-")[-1]) + 1
-        return f"VTA-{num:04d}"
-    except (ValueError, IndexError):
-        return f"VTA-{(ultimo.id or 0) + 1:04d}"
+    return _sig_num(db, models.Venta, "numero_venta", "VTA")
 
 
 # ── POS Interface ────────────────────────────────────────────
@@ -75,7 +71,8 @@ def api_buscar_productos(
     if q:
         query = query.filter(
             models.Producto.nombre.ilike(f"%{q}%") |
-            models.Producto.codigo.ilike(f"%{q}%")
+            models.Producto.codigo.ilike(f"%{q}%") |
+            models.Producto.referencia.ilike(f"%{q}%")
         )
     productos = query.limit(20).all()
 
@@ -138,76 +135,90 @@ def procesar_venta(
         models.Caja.estado == "ABIERTA"
     ).first()
 
-    # Create sale
-    numero = _siguiente_numero(db)
-    client_id = int(cliente_id) if cliente_id.strip() else None
+    # Create sale with atomic transaction and pessimistic locking
+    try:
+        numero = _siguiente_numero(db)
+        client_id = int(cliente_id) if cliente_id.strip() else None
 
-    venta = models.Venta(
-        numero_venta=numero,
-        cliente_id=client_id,
-        cliente_nombre=cliente_nombre.strip() or "Consumidor Final",
-        vendedor_id=current_user.id,
-        subtotal=round(subtotal, 2),
-        descuento_total=round(descuento_total, 2),
-        total=round(total, 2),
-        metodo_pago=metodo_pago,
-        monto_recibido=round(monto_recibido, 2),
-        cambio=round(cambio, 2),
-        notas=notas.strip(),
-        caja_id=caja_abierta.id if caja_abierta else None,
-        fecha=datetime.now(),
-    )
-    db.add(venta)
-    db.flush()
-
-    # Create details and update stock
-    for item in items:
-        producto = db.query(models.Producto).filter(models.Producto.id == item["producto_id"]).first()
-        desc_item = item.get("descuento", 0)
-        sub = item["cantidad"] * item["precio_unitario"] - desc_item
-
-        detalle = models.DetalleVenta(
-            venta_id=venta.id,
-            producto_id=producto.id,
-            producto_nombre=producto.nombre,
-            producto_codigo=producto.codigo,
-            cantidad=item["cantidad"],
-            precio_unitario=item["precio_unitario"],
-            precio_costo=producto.precio_costo,
-            descuento_item=desc_item,
-            subtotal=round(sub, 2),
-        )
-        db.add(detalle)
-
-        # Stock movement
-        stock_anterior = producto.stock_actual
-        producto.stock_actual = stock_anterior - item["cantidad"]
-
-        mov = models.MovimientoInventario(
-            producto_id=producto.id,
-            tipo="SALIDA",
-            cantidad=item["cantidad"],
-            stock_anterior=stock_anterior,
-            stock_resultante=producto.stock_actual,
-            precio_unitario=item["precio_unitario"],
-            observaciones=f"Venta {numero}",
+        venta = models.Venta(
+            numero_venta=numero,
+            cliente_id=client_id,
+            cliente_nombre=cliente_nombre.strip() or "Consumidor Final",
+            vendedor_id=current_user.id,
+            subtotal=round(subtotal, 2),
+            descuento_total=round(descuento_total, 2),
+            total=round(total, 2),
+            metodo_pago=metodo_pago,
+            monto_recibido=round(monto_recibido, 2),
+            cambio=round(cambio, 2),
+            notas=notas.strip(),
+            caja_id=caja_abierta.id if caja_abierta else None,
             fecha=datetime.now(),
         )
-        db.add(mov)
+        db.add(venta)
+        db.flush()
 
-    # Cash register movement
-    if caja_abierta and metodo_pago == "EFECTIVO":
-        mov_caja = models.MovimientoCaja(
-            caja_id=caja_abierta.id,
-            tipo="INGRESO",
-            concepto=f"Venta {numero}",
-            monto=round(total, 2),
-            referencia_tipo="VENTA",
-            referencia_id=venta.id,
-        )
-        db.add(mov_caja)
+        # Create details and update stock with row-level locking
+        for item in items:
+            producto = db.query(models.Producto).filter(
+                models.Producto.id == item["producto_id"]
+            ).with_for_update().first()
 
-    db.commit()
+            if not producto or producto.stock_actual < item["cantidad"]:
+                db.rollback()
+                nombre = producto.nombre if producto else item.get("nombre", "")
+                return RedirectResponse(
+                    f"/ventas/pos?error=Stock+insuficiente+para+{nombre}", status_code=303
+                )
+
+            desc_item = item.get("descuento", 0)
+            sub = item["cantidad"] * item["precio_unitario"] - desc_item
+
+            detalle = models.DetalleVenta(
+                venta_id=venta.id,
+                producto_id=producto.id,
+                producto_nombre=producto.nombre,
+                producto_codigo=producto.codigo,
+                cantidad=item["cantidad"],
+                precio_unitario=item["precio_unitario"],
+                precio_costo=producto.precio_costo,
+                descuento_item=desc_item,
+                subtotal=round(sub, 2),
+            )
+            db.add(detalle)
+
+            # Stock movement
+            stock_anterior = producto.stock_actual
+            producto.stock_actual = stock_anterior - item["cantidad"]
+
+            mov = models.MovimientoInventario(
+                producto_id=producto.id,
+                tipo="SALIDA",
+                cantidad=item["cantidad"],
+                stock_anterior=stock_anterior,
+                stock_resultante=producto.stock_actual,
+                precio_unitario=item["precio_unitario"],
+                observaciones=f"Venta {numero}",
+                fecha=datetime.now(),
+            )
+            db.add(mov)
+
+        # Cash register movement
+        if caja_abierta and metodo_pago == "EFECTIVO":
+            mov_caja = models.MovimientoCaja(
+                caja_id=caja_abierta.id,
+                tipo="INGRESO",
+                concepto=f"Venta {numero}",
+                monto=round(total, 2),
+                referencia_tipo="VENTA",
+                referencia_id=venta.id,
+            )
+            db.add(mov_caja)
+
+        db.commit()
+    except Exception:
+        db.rollback()
+        return RedirectResponse("/ventas/pos?error=Error+procesando+la+venta", status_code=303)
 
     ip = request.client.host if request.client else ""
     log_audit(db, current_user, "CREATE", "venta", venta.id,
@@ -264,12 +275,20 @@ def historial_ventas(
             models.Venta.cliente_nombre.ilike(f"%{buscar}%")
         )
 
-    total = query.count()
-    por_pagina = 20
-    ventas = query.order_by(models.Venta.fecha.desc()).offset((pag - 1) * por_pagina).limit(por_pagina).all()
-    total_paginas = (total + por_pagina - 1) // por_pagina
+    from utils.pagination import paginate
+    query = query.order_by(models.Venta.fecha.desc())
+    ventas, total, total_paginas = paginate(query, pag)
 
     total_ventas = db.query(func.sum(models.Venta.total)).filter(
+        models.Venta.fecha >= fd if fecha_desde else True,
+        models.Venta.fecha <= fh if fecha_hasta else True,
+        models.Venta.estado == "COMPLETADA"
+    ).scalar() or 0
+
+    # Ganancia del período: sum(subtotal - costo) de detalles de ventas completadas
+    ganancia_periodo = db.query(
+        func.sum(models.DetalleVenta.subtotal - models.DetalleVenta.precio_costo * models.DetalleVenta.cantidad)
+    ).join(models.Venta).filter(
         models.Venta.fecha >= fd if fecha_desde else True,
         models.Venta.fecha <= fh if fecha_hasta else True,
         models.Venta.estado == "COMPLETADA"
@@ -293,6 +312,7 @@ def historial_ventas(
         "buscar": buscar or "",
         "total": total,
         "total_ventas": total_ventas,
+        "ganancia_periodo": round(ganancia_periodo, 2),
         "pagina": pag,
         "total_paginas": total_paginas,
         "msg": msg,

@@ -10,6 +10,7 @@
 
 <div class="form-card">
   <form method="POST" action="/clientes{% if cliente %}/{{ cliente.id }}/editar{% else %}/nuevo{% endif %}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row g-3">
       <div class="col-md-8">
         <label class="form-label">Nombre <span class="text-danger">*</span></label>

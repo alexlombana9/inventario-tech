@@ -22,6 +22,7 @@
     <div class="form-card">
       <h5 class="mb-3"><i class="bi bi-building me-1"></i> Datos del Negocio</h5>
       <form method="POST" action="/configuracion">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <div class="row g-3">
           <div class="col-md-8">
             <label class="form-label">Nombre del Negocio <span class="text-danger">*</span></label>
@@ -78,6 +79,7 @@
       </div>
       {% endif %}
       <form method="POST" action="/configuracion/logo" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <input type="file" name="logo" class="form-control mb-2" accept="image/png,image/jpeg,image/webp">
         <button type="submit" class="btn btn-outline-primary btn-sm w-100">
           <i class="bi bi-upload me-1"></i>Subir Logo

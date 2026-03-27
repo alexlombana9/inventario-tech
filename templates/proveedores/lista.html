@@ -92,6 +92,7 @@
             </a>
             <form method="post" action="/proveedores/{{ prov.id }}/eliminar"
                   class="d-inline form-delete" data-name="{{ prov.nombre }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
               <button type="submit" class="btn btn-sm btn-outline-danger" title="Desactivar">
                 <i class="bi bi-trash"></i>
               </button>

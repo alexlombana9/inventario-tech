@@ -181,7 +181,8 @@ class TestEliminarDeuda:
             follow_redirects=False,
         )
         assert resp.status_code == 303
-        assert db.query(models.Deuda).filter_by(id=sample_deuda.id).first() is None
+        db.refresh(sample_deuda)
+        assert sample_deuda.estado == "ANULADO"
 
 
 class TestReporteDeudas:

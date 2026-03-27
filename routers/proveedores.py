@@ -3,6 +3,7 @@ from templates_config import templates
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 from database import get_db
+from auth import require_auth, log_audit
 import models
 
 router = APIRouter(prefix="/proveedores", tags=["proveedores"])
@@ -41,13 +42,15 @@ def nuevo_proveedor_form(request: Request):
 
 @router.post("/nuevo")
 def crear_proveedor(
+    request: Request,
     nombre: str = Form(...),
     contacto: str = Form(""),
     telefono: str = Form(""),
     email: str = Form(""),
     direccion: str = Form(""),
     nit_ruc: str = Form(""),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     prov = models.Proveedor(
         nombre=nombre.strip(),
@@ -59,6 +62,11 @@ def crear_proveedor(
     )
     db.add(prov)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "proveedor", prov.id,
+              f"Proveedor creado: {nombre.strip()}", ip)
+
     return RedirectResponse("/proveedores?msg=Proveedor+creado+correctamente", status_code=303)
 
 
@@ -77,13 +85,15 @@ def editar_proveedor_form(prov_id: int, request: Request, db: Session = Depends(
 @router.post("/{prov_id}/editar")
 def actualizar_proveedor(
     prov_id: int,
+    request: Request,
     nombre: str = Form(...),
     contacto: str = Form(""),
     telefono: str = Form(""),
     email: str = Form(""),
     direccion: str = Form(""),
     nit_ruc: str = Form(""),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     prov = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id).first()
     if not prov:
@@ -96,16 +106,28 @@ def actualizar_proveedor(
     prov.direccion = direccion.strip()
     prov.nit_ruc = nit_ruc.strip()
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "UPDATE", "proveedor", prov_id,
+              f"Proveedor actualizado: {nombre.strip()}", ip)
+
     return RedirectResponse("/proveedores?msg=Proveedor+actualizado+correctamente", status_code=303)
 
 
 @router.post("/{prov_id}/eliminar")
-def eliminar_proveedor(prov_id: int, db: Session = Depends(get_db)):
+def eliminar_proveedor(prov_id: int, request: Request,
+                       db: Session = Depends(get_db),
+                       current_user: models.Usuario = Depends(require_auth)):
     prov = db.query(models.Proveedor).filter(models.Proveedor.id == prov_id).first()
     if not prov:
         return RedirectResponse("/proveedores?error=Proveedor+no+encontrado", status_code=303)
     prov.activo = False
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "DELETE", "proveedor", prov_id,
+              f"Proveedor desactivado: {prov.nombre}", ip)
+
     return RedirectResponse("/proveedores?msg=Proveedor+desactivado+correctamente", status_code=303)
 
 

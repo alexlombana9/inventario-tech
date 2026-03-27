@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, date
 from database import get_db
+from auth import require_auth, log_audit
 import models
 
 router = APIRouter(prefix="/inventario", tags=["inventario"])
@@ -24,6 +25,8 @@ def lista_movimientos(
 ):
     prod_id = int(producto_id) if producto_id and producto_id.strip() else None
     pag = int(pagina) if pagina and pagina.strip() else 1
+
+    from utils.pagination import paginate
 
     query = db.query(models.MovimientoInventario)
 
@@ -45,10 +48,8 @@ def lista_movimientos(
         except ValueError:
             pass
 
-    total = query.count()
-    por_pagina = 20
-    movimientos = query.order_by(models.MovimientoInventario.fecha.desc()).offset((pag - 1) * por_pagina).limit(por_pagina).all()
-    total_paginas = (total + por_pagina - 1) // por_pagina
+    query = query.order_by(models.MovimientoInventario.fecha.desc())
+    movimientos, total, total_paginas = paginate(query, pag)
 
     productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre).all()
 
@@ -108,6 +109,7 @@ def ajuste_form(request: Request, db: Session = Depends(get_db), error: str = No
 
 @router.post("/registrar")
 def registrar_movimiento(
+    request: Request,
     producto_id: int = Form(...),
     tipo: str = Form(...),
     cantidad: float = Form(...),
@@ -116,7 +118,8 @@ def registrar_movimiento(
     numero_referencia: str = Form(""),
     observaciones: str = Form(""),
     fecha: str = Form(""),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     producto = db.query(models.Producto).filter(models.Producto.id == producto_id).first()
     if not producto:
@@ -164,15 +167,21 @@ def registrar_movimiento(
     producto.stock_actual = nuevo_stock
     db.commit()
 
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "movimiento_inventario", mov.id,
+              f"{tipo} de {cantidad} {producto.unidad_medida} - {producto.nombre}", ip)
+
     return RedirectResponse("/inventario?msg=Movimiento+registrado+correctamente", status_code=303)
 
 
 @router.post("/ajuste/registrar")
 def registrar_ajuste(
+    request: Request,
     producto_id: int = Form(...),
     nuevo_stock: float = Form(...),
     observaciones: str = Form(""),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
 ):
     producto = db.query(models.Producto).filter(models.Producto.id == producto_id).first()
     if not producto:
@@ -193,5 +202,9 @@ def registrar_ajuste(
     db.add(mov)
     producto.stock_actual = nuevo_stock
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "movimiento_inventario", mov.id,
+              f"Ajuste de stock: {producto.nombre} de {stock_anterior} a {nuevo_stock}", ip)
 
     return RedirectResponse("/inventario?msg=Ajuste+de+stock+registrado+correctamente", status_code=303)

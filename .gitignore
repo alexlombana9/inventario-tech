@@ -61,4 +61,10 @@ build/
 *.egg-info/
 .eggs/
 *.spec
+!techstock.spec
 *.exe
+*.zip
+
+# ===== PostgreSQL portable (descargado por build_installer.bat) =====
+pgsql/
+postgresql-*-binaries.zip

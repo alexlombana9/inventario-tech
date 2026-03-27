@@ -46,6 +46,7 @@ class Categoria(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False, unique=True)
     descripcion = Column(Text, default="")
+    activo = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.now)
 
     productos = relationship("Producto", back_populates="categoria")
@@ -261,6 +262,27 @@ class PagoFactura(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     factura = relationship("Factura", back_populates="cobros")
+
+
+# ─────────────────────────────────────────────
+#  GASTOS DEL NEGOCIO
+# ─────────────────────────────────────────────
+
+class Gasto(Base):
+    __tablename__ = "gastos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    concepto = Column(String(300), nullable=False)
+    tipo = Column(String(20), default="DIRECTO")        # DIRECTO | INDIRECTO
+    categoria_gasto = Column(String(100), default="")   # Arriendo, Servicios, Nomina, etc.
+    monto = Column(Float, nullable=False)
+    fecha = Column(DateTime, default=datetime.now)
+    metodo_pago = Column(String(50), default="EFECTIVO")
+    comprobante = Column(String(100), default="")
+    notas = Column(Text, default="")
+    activo = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.now)
+    updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # ─────────────────────────────────────────────

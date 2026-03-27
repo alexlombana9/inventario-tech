@@ -76,6 +76,7 @@
                 </button>
                 <form method="post" action="/categorias/{{ cat.id }}/eliminar"
                       class="d-inline form-delete" data-name="{{ cat.nombre }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
                   <button type="submit" class="btn btn-sm btn-outline-danger">
                     <i class="bi bi-trash"></i>
                   </button>
@@ -105,6 +106,7 @@
                             'Audio / Video', 'Celulares', 'Accesorios', 'Software / Licencias', 'UPS / Fuentes'] %}
         {% for s in sugeridas %}
         <form method="post" action="/categorias/nueva" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
           <input type="hidden" name="nombre" value="{{ s }}">
           <input type="hidden" name="descripcion" value="">
           <button type="submit" class="btn btn-sm btn-outline-secondary">
@@ -125,6 +127,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <form method="post" action="/categorias/nueva">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <div class="modal-header">
           <h5 class="modal-title fw-bold">Nueva Categoría</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
@@ -155,6 +158,7 @@
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content">
       <form method="post" id="edit-cat-form" action="">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <div class="modal-header">
           <h5 class="modal-title fw-bold">Editar Categoría</h5>
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>

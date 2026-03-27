@@ -24,6 +24,9 @@
   .cart-item .item-info { flex: 1; min-width: 0; }
   .cart-item .item-name { font-size: 0.82rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .cart-item .item-price { font-size: 0.75rem; color: #6c757d; }
+  .cart-item .item-price-edit input.price-input { width: 90px; font-size: 0.78rem; padding: 1px 4px; border: 1px solid #dee2e6; border-radius: 4px; }
+  .cart-item .item-price-edit input.price-input:focus { border-color: #0d6efd; outline: none; box-shadow: 0 0 0 2px rgba(13,110,253,.15); }
+  .cart-item .item-ganancia { font-size: 0.7rem; }
   .cart-item .item-subtotal { font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
   .cart-item .remove-btn { color: #dc3545; cursor: pointer; border: none; background: none; font-size: 0.9rem; }
   .cart-footer { padding: 14px 16px; border-top: 2px solid #e9ecef; }
@@ -53,15 +56,16 @@
   <!-- Products panel -->
   <div class="pos-products">
     <div class="pos-search">
-      <input type="text" id="productSearch" class="form-control" placeholder="Buscar producto por nombre o código... (F1)" autofocus>
+      <input type="text" id="productSearch" class="form-control" placeholder="Buscar por nombre, codigo o referencia... (F1)" autofocus>
     </div>
     <div class="table-card pos-grid" id="productGrid">
       {% for p in productos %}
       <div class="product-item" data-id="{{ p.id }}" data-code="{{ p.codigo }}" data-name="{{ p.nombre }}"
-           data-price="{{ p.precio_venta }}" data-stock="{{ p.stock_actual }}" data-unit="{{ p.unidad_medida }}">
+           data-price="{{ p.precio_venta }}" data-cost="{{ p.precio_costo }}" data-stock="{{ p.stock_actual }}"
+           data-unit="{{ p.unidad_medida }}" data-ref="{{ p.referencia or '' }}">
         <div>
           <div class="name">{{ p.nombre }}</div>
-          <div class="meta">{{ p.codigo }} | Stock: {{ p.stock_actual|numero }} {{ p.unidad_medida }}</div>
+          <div class="meta">{{ p.codigo }}{% if p.referencia %} | Ref: {{ p.referencia }}{% endif %} | Stock: {{ p.stock_actual|numero }} {{ p.unidad_medida }}</div>
         </div>
         <div class="price">{{ p.precio_venta | moneda }}</div>
       </div>
@@ -91,8 +95,13 @@
           <span>TOTAL</span>
           <span class="amount" id="cartTotal">$0</span>
         </div>
+        <div class="d-flex justify-content-between mb-2" style="font-size:0.85rem">
+          <span class="text-muted">Ganancia</span>
+          <span class="amount text-success" id="cartGanancia">$0</span>
+        </div>
 
         <form method="POST" action="/ventas/procesar" id="saleForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
           <input type="hidden" name="items_json" id="itemsJson">
           <div class="mb-2">
             <select name="cliente_id" id="clienteSelect" class="form-select form-select-sm">

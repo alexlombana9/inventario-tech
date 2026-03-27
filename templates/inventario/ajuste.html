@@ -25,6 +25,7 @@
 
 <div class="form-card">
   <form method="post" action="/inventario/ajuste/registrar">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row g-3">
 
       <div class="col-md-8">
