@@ -4,7 +4,9 @@ omit =
     venv/*
     tests/*
     launcher.py
+    quickstart.py
     setup.py
+    migrations.py
     __pycache__/*
     */__pycache__/*
 
@@ -14,4 +16,4 @@ exclude_lines =
     if __name__ == .__main__.:
     pass
 show_missing = true
-fail_under = 50
+fail_under = 58

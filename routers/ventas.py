@@ -2,13 +2,14 @@ import json
 import io
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse, StreamingResponse, JSONResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import datetime, date, timedelta
 
 from database import get_db
 from templates_config import templates
 from auth import require_auth, log_audit
+from utils.queries import productos_con_stock, clientes_activos, vendedores_activos
 import models
 
 router = APIRouter(prefix="/ventas", tags=["ventas"])
@@ -31,14 +32,8 @@ def pos_interface(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    productos = db.query(models.Producto).filter(
-        models.Producto.activo == True,
-        models.Producto.stock_actual > 0
-    ).order_by(models.Producto.nombre).all()
-
-    clientes = db.query(models.Cliente).filter(
-        models.Cliente.activo == True
-    ).order_by(models.Cliente.nombre).all()
+    productos = productos_con_stock(db)
+    clientes = clientes_activos(db)
 
     # Verificar si hay caja abierta
     caja_abierta = db.query(models.Caja).filter(
@@ -251,8 +246,12 @@ def historial_ventas(
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
-    query = db.query(models.Venta)
+    query = db.query(models.Venta).options(
+        joinedload(models.Venta.vendedor)
+    )
 
+    fd = None
+    fh = None
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
@@ -280,8 +279,8 @@ def historial_ventas(
     ventas, total, total_paginas = paginate(query, pag)
 
     total_ventas = db.query(func.sum(models.Venta.total)).filter(
-        models.Venta.fecha >= fd if fecha_desde else True,
-        models.Venta.fecha <= fh if fecha_hasta else True,
+        models.Venta.fecha >= fd if fd else True,
+        models.Venta.fecha <= fh if fh else True,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0
 
@@ -289,15 +288,12 @@ def historial_ventas(
     ganancia_periodo = db.query(
         func.sum(models.DetalleVenta.subtotal - models.DetalleVenta.precio_costo * models.DetalleVenta.cantidad)
     ).join(models.Venta).filter(
-        models.Venta.fecha >= fd if fecha_desde else True,
-        models.Venta.fecha <= fh if fecha_hasta else True,
+        models.Venta.fecha >= fd if fd else True,
+        models.Venta.fecha <= fh if fh else True,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0
 
-    # Obtener vendedores para filtro
-    vendedores = db.query(models.Usuario).filter(
-        models.Usuario.activo == True
-    ).order_by(models.Usuario.nombre_completo).all()
+    vendedores = vendedores_activos(db)
 
     return templates.TemplateResponse("ventas/historial.html", {
         "request": request,
@@ -348,7 +344,7 @@ def ventas_excel(
     if estado:
         query = query.filter(models.Venta.estado == estado)
 
-    ventas = query.order_by(models.Venta.fecha.desc()).all()
+    ventas = query.options(joinedload(models.Venta.vendedor)).order_by(models.Venta.fecha.desc()).all()
 
     headers = ["N° Venta", "Fecha", "Cliente", "Vendedor", "Subtotal", "Descuento", "Total", "Método Pago", "Estado"]
     rows = []
@@ -384,7 +380,10 @@ def detalle_venta(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    venta = db.query(models.Venta).filter(models.Venta.id == venta_id).first()
+    venta = db.query(models.Venta).options(
+        joinedload(models.Venta.detalles),
+        joinedload(models.Venta.vendedor),
+    ).filter(models.Venta.id == venta_id).first()
     if not venta:
         return RedirectResponse("/ventas?error=Venta+no+encontrada", status_code=303)
 
@@ -404,7 +403,10 @@ def recibo_venta(
     current_user: models.Usuario = Depends(require_auth),
     msg: str = None,
 ):
-    venta = db.query(models.Venta).filter(models.Venta.id == venta_id).first()
+    venta = db.query(models.Venta).options(
+        joinedload(models.Venta.detalles),
+        joinedload(models.Venta.vendedor),
+    ).filter(models.Venta.id == venta_id).first()
     if not venta:
         return RedirectResponse("/ventas?error=Venta+no+encontrada", status_code=303)
 

@@ -3,10 +3,14 @@ Autenticación y gestión de sesiones para TechStock.
 Usa cookies firmadas con itsdangerous y hashing bcrypt.
 """
 import os
+import re
 import json
+import time
+import threading
 from datetime import datetime
 from functools import wraps
 from typing import List
+from collections import defaultdict
 
 from fastapi import Request, Depends, HTTPException
 from fastapi.responses import RedirectResponse
@@ -17,7 +21,22 @@ from sqlalchemy.orm import Session
 from database import get_db
 import models
 
-# ── Password hashing ──────────────────────────────────────
+# ── Password hashing & validation ─────────────────────────
+
+PASSWORD_MIN_LENGTH = 8
+
+
+def validate_password(password: str) -> str | None:
+    """Valida fortaleza de contraseña. Retorna mensaje de error o None si es válida."""
+    if len(password) < PASSWORD_MIN_LENGTH:
+        return f"La contraseña debe tener al menos {PASSWORD_MIN_LENGTH} caracteres"
+    if not re.search(r"[A-Z]", password):
+        return "La contraseña debe tener al menos una letra mayúscula"
+    if not re.search(r"[a-z]", password):
+        return "La contraseña debe tener al menos una letra minúscula"
+    if not re.search(r"\d", password):
+        return "La contraseña debe tener al menos un número"
+    return None
 
 
 def hash_password(password: str) -> str:
@@ -26,6 +45,39 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return bcrypt.checkpw(plain.encode("utf-8"), hashed.encode("utf-8"))
+
+
+# ── Rate limiter in-memory (sin dependencias externas) ────
+
+class RateLimiter:
+    """Limita intentos por IP. Thread-safe."""
+
+    def __init__(self, max_attempts: int = 5, window_seconds: int = 60):
+        self.max_attempts = max_attempts
+        self.window = window_seconds
+        self._attempts: dict[str, list[float]] = defaultdict(list)
+        self._lock = threading.Lock()
+
+    def is_limited(self, key: str) -> bool:
+        now = time.time()
+        with self._lock:
+            attempts = self._attempts[key]
+            # Limpiar intentos fuera de la ventana
+            self._attempts[key] = [t for t in attempts if now - t < self.window]
+            return len(self._attempts[key]) >= self.max_attempts
+
+    def record(self, key: str):
+        with self._lock:
+            self._attempts[key].append(time.time())
+
+    def remaining(self, key: str) -> int:
+        now = time.time()
+        with self._lock:
+            valid = [t for t in self._attempts[key] if now - t < self.window]
+            return max(0, self.max_attempts - len(valid))
+
+
+login_limiter = RateLimiter(max_attempts=5, window_seconds=60)
 
 
 # ── Session cookie ────────────────────────────────────────

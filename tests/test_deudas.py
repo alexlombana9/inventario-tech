@@ -210,3 +210,128 @@ class TestModeloDeuda:
         sample_deuda.fecha_vencimiento = datetime.now() - timedelta(days=1)
         db.commit()
         assert sample_deuda.esta_vencida is False
+
+
+class TestEditarDeudaPostNotFound:
+    """Cubre linea 164 — POST editar deuda inexistente."""
+
+    def test_post_editar_inexistente(self, admin_client):
+        """Linea 164: deuda no encontrada en POST editar → redirect con error."""
+        resp = admin_client.post("/deudas/9999/editar", data={
+            "concepto": "Test",
+            "acreedor_nombre": "Nadie",
+            "acreedor_tipo": "OTRO",
+            "proveedor_id": "",
+            "monto_total": "100",
+            "fecha_deuda": "2026-01-01",
+            "fecha_vencimiento": "",
+            "notas": "",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
+
+
+class TestPagoDeudaInexistente:
+    """Cubre linea 220 — pago a deuda inexistente."""
+
+    def test_pago_deuda_no_encontrada(self, admin_client):
+        """Linea 220: deuda no encontrada al registrar pago → redirect con error."""
+        resp = admin_client.post("/deudas/9999/pagar", data={
+            "monto": "1000",
+            "fecha_pago": "2026-03-20",
+            "metodo_pago": "EFECTIVO",
+            "comprobante": "",
+            "notas": "",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
+
+
+class TestEliminarPagoNotFound:
+    """Cubre linea 258 — eliminar pago inexistente."""
+
+    def test_eliminar_pago_inexistente(self, admin_client, sample_deuda):
+        """Linea 258: pago no encontrado → redirect con error."""
+        resp = admin_client.post(
+            f"/deudas/{sample_deuda.id}/pagos/9999/eliminar",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
+
+
+class TestAnularDeudaEdgeCases:
+    """Cubre lineas 294-300 y 402 — anular y eliminar deuda."""
+
+    def test_anular_deuda_inexistente(self, admin_client):
+        """Linea 402: deuda no encontrada en eliminar → redirect con error."""
+        resp = admin_client.post("/deudas/9999/eliminar", follow_redirects=False)
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
+
+
+class TestReporteDeudaFiltros:
+    """Cubre lineas 294-300 y 336-390 — reporte con filtros."""
+
+    def test_reporte_con_estado(self, admin_client, sample_deuda):
+        """Lineas 297-298: reporte filtrado por estado."""
+        resp = admin_client.get("/deudas/reporte?estado=PENDIENTE")
+        assert resp.status_code == 200
+
+    def test_reporte_con_acreedor_tipo(self, admin_client, sample_deuda):
+        """Lineas 299-300: reporte filtrado por tipo de acreedor."""
+        resp = admin_client.get("/deudas/reporte?acreedor_tipo=PROVEEDOR")
+        assert resp.status_code == 200
+
+    def test_reporte_con_fechas(self, admin_client, sample_deuda):
+        """Lineas 290-295: reporte con rango de fechas explicito."""
+        resp = admin_client.get("/deudas/reporte?fecha_desde=2026-01-01&fecha_hasta=2026-12-31")
+        assert resp.status_code == 200
+
+    def test_reporte_con_deuda_vencida(self, admin_client, db, sample_deuda):
+        """Reporte incluye deuda vencida (estado_txt = 'VENCIDA')."""
+        sample_deuda.fecha_vencimiento = datetime.now() - timedelta(days=5)
+        db.commit()
+        resp = admin_client.get("/deudas/reporte")
+        assert resp.status_code == 200
+
+    def test_reporte_pdf(self, admin_client, sample_deuda):
+        """Lineas 328-391: generacion de PDF del reporte de deudas."""
+        resp = admin_client.get("/deudas/reporte/pdf")
+        assert resp.status_code == 200
+        assert "application/pdf" in resp.headers["content-type"]
+
+    def test_reporte_pdf_con_filtros(self, admin_client, sample_deuda):
+        """PDF con filtros de estado y tipo de acreedor."""
+        resp = admin_client.get("/deudas/reporte/pdf?estado=PENDIENTE&acreedor_tipo=PROVEEDOR")
+        assert resp.status_code == 200
+        assert "application/pdf" in resp.headers["content-type"]
+
+    def test_reporte_pdf_con_fechas(self, admin_client, sample_deuda):
+        """PDF con rango de fechas explicito."""
+        resp = admin_client.get("/deudas/reporte/pdf?fecha_desde=2026-01-01&fecha_hasta=2026-12-31")
+        assert resp.status_code == 200
+
+    def test_reporte_pdf_deuda_vencida(self, admin_client, db, sample_deuda):
+        """PDF incluye deudas vencidas con estado_txt VENCIDA."""
+        sample_deuda.fecha_vencimiento = datetime.now() - timedelta(days=3)
+        db.commit()
+        resp = admin_client.get("/deudas/reporte/pdf")
+        assert resp.status_code == 200
+
+    def test_reporte_pdf_sin_datos(self, admin_client):
+        """PDF con tabla vacia."""
+        resp = admin_client.get("/deudas/reporte/pdf?fecha_desde=2000-01-01&fecha_hasta=2000-01-02")
+        assert resp.status_code == 200
+        assert "application/pdf" in resp.headers["content-type"]
+
+    def test_reporte_fecha_invalida(self, admin_client, sample_deuda):
+        """Linea 294: except ValueError en reporte HTML con fechas invalidas."""
+        resp = admin_client.get("/deudas/reporte?fecha_desde=no-date&fecha_hasta=no-date")
+        assert resp.status_code == 200
+
+    def test_reporte_pdf_fecha_invalida(self, admin_client, sample_deuda):
+        """Linea 348: except ValueError en reporte PDF con fechas invalidas."""
+        resp = admin_client.get("/deudas/reporte/pdf?fecha_desde=no-date&fecha_hasta=no-date")
+        assert resp.status_code == 200
+        assert "application/pdf" in resp.headers["content-type"]

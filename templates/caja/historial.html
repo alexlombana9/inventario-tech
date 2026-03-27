@@ -8,6 +8,33 @@
   <a href="/caja" class="btn btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Caja Actual</a>
 </div>
 
+<!-- Filtros -->
+<div class="search-bar">
+  <form method="get" action="/caja/historial" class="row g-2 align-items-end">
+    <div class="col-md-5">
+      <div class="input-group input-group-sm">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" name="buscar" class="form-control" placeholder="Buscar por usuario o notas..." value="{{ buscar }}">
+      </div>
+    </div>
+    <div class="col-md-3">
+      <select name="estado" class="form-select form-select-sm auto-submit">
+        <option value="">Todos los estados</option>
+        <option value="ABIERTA" {% if estado == 'ABIERTA' %}selected{% endif %}>Abierta</option>
+        <option value="CERRADA" {% if estado == 'CERRADA' %}selected{% endif %}>Cerrada</option>
+      </select>
+    </div>
+    <div class="col-md-4 d-flex gap-2">
+      <button type="submit" class="btn btn-primary btn-sm flex-grow-1">
+        <i class="bi bi-filter me-1"></i>Filtrar
+      </button>
+      <a href="/caja/historial" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-x-lg"></i>
+      </a>
+    </div>
+  </form>
+</div>
+
 <div class="table-card">
   <div class="table-responsive">
     <table class="table table-hover">
@@ -58,7 +85,7 @@
   <ul class="pagination pagination-sm justify-content-center">
     {% for p in range(1, total_paginas + 1) %}
     <li class="page-item {% if p == pagina %}active{% endif %}">
-      <a class="page-link" href="?pagina={{ p }}">{{ p }}</a>
+      <a class="page-link" href="?pagina={{ p }}{% if buscar %}&buscar={{ buscar }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}">{{ p }}</a>
     </li>
     {% endfor %}
   </ul>

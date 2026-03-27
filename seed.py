@@ -3,12 +3,25 @@ Inicialización de datos por defecto para TechStock.
 Se ejecuta al iniciar la app. Todas las operaciones son idempotentes.
 """
 import os
+import secrets
+import string
 import logging
 from sqlalchemy.orm import Session
 from auth import hash_password
 import models
 
 logger = logging.getLogger("techstock.seed")
+
+
+def _generate_secure_password(length: int = 12) -> str:
+    """Genera una contraseña segura aleatoria que cumple la política."""
+    alphabet = string.ascii_letters + string.digits
+    while True:
+        pwd = ''.join(secrets.choice(alphabet) for _ in range(length))
+        if (any(c.isupper() for c in pwd) and
+            any(c.islower() for c in pwd) and
+            any(c.isdigit() for c in pwd)):
+            return pwd
 
 
 def run_seed(db: Session):
@@ -22,7 +35,7 @@ def _seed_admin(db: Session):
 
     Lee credenciales desde variables de entorno (usadas por el instalador):
       ADMIN_USERNAME  (default: admin)
-      ADMIN_PASSWORD  (default: admin123)
+      ADMIN_PASSWORD  (si no se define, genera una segura y la muestra en consola)
       ADMIN_NAME      (default: Administrador)
     """
     count = db.query(models.Usuario).count()
@@ -30,8 +43,13 @@ def _seed_admin(db: Session):
         return
 
     username = os.environ.get("ADMIN_USERNAME", "admin")
-    password = os.environ.get("ADMIN_PASSWORD", "admin123")
+    password = os.environ.get("ADMIN_PASSWORD", "")
     fullname = os.environ.get("ADMIN_NAME", "Administrador")
+
+    generated = False
+    if not password:
+        password = _generate_secure_password()
+        generated = True
 
     admin = models.Usuario(
         username=username,
@@ -42,7 +60,15 @@ def _seed_admin(db: Session):
     )
     db.add(admin)
     db.commit()
-    logger.info("Usuario admin '%s' creado", username)
+
+    if generated:
+        logger.warning("=" * 55)
+        logger.warning("  CREDENCIALES ADMIN GENERADAS (cambiar al primer login)")
+        logger.warning("  Usuario:    %s", username)
+        logger.warning("  Contraseña: %s", password)
+        logger.warning("=" * 55)
+    else:
+        logger.info("Usuario admin '%s' creado", username)
 
 
 def _seed_config(db: Session):

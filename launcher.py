@@ -1,16 +1,24 @@
-"""TechStock Launcher — Interfaz para gestionar PostgreSQL + servidor web."""
+"""TechStock Launcher — Interfaz para gestionar PostgreSQL + servidor web.
+
+En modo frozen (PyInstaller), uvicorn se ejecuta in-process (no subprocess).
+En modo desarrollo, se usa subprocess para facilitar recarga.
+"""
 import os
 import sys
 import subprocess
 import threading
 import webbrowser
 import time
+import logging
 import tkinter as tk
 from tkinter import messagebox
 from datetime import datetime
 
+# ── Deteccion de modo ──
+_FROZEN = getattr(sys, "frozen", False)
+
 # ── Ruta base ──
-if getattr(sys, "frozen", False):
+if _FROZEN:
     BASE_DIR = os.path.dirname(sys.executable)
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -26,12 +34,17 @@ if os.path.exists(_env_path):
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
 
-# ── Python del venv o embebido ──
-VENV_PYTHON = os.path.join(BASE_DIR, "venv", "Scripts", "python.exe")
-if not os.path.exists(VENV_PYTHON):
-    VENV_PYTHON = os.path.join(BASE_DIR, "venv", "bin", "python")
-if not os.path.exists(VENV_PYTHON):
-    VENV_PYTHON = sys.executable
+# ── Python del venv (solo en modo desarrollo) ──
+VENV_PYTHON = None
+if not _FROZEN:
+    _venv_win = os.path.join(BASE_DIR, "venv", "Scripts", "python.exe")
+    _venv_unix = os.path.join(BASE_DIR, "venv", "bin", "python")
+    if os.path.exists(_venv_win):
+        VENV_PYTHON = _venv_win
+    elif os.path.exists(_venv_unix):
+        VENV_PYTHON = _venv_unix
+    else:
+        VENV_PYTHON = sys.executable
 
 # ── PostgreSQL portable ──
 PG_DIR = os.path.join(BASE_DIR, "pgsql")
@@ -71,6 +84,8 @@ LOG_HTTP_COLOR = "#8888a0"
 LOG_MSG_COLOR = "#c0c0d0"
 LOG_TIME_COLOR = "#444466"
 
+_SUBPROCESS_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
+
 
 def _pg_cmd(name):
     """Retorna ruta completa al comando PostgreSQL."""
@@ -78,9 +93,26 @@ def _pg_cmd(name):
     return os.path.join(PG_BIN, f"{name}{ext}")
 
 
+class _TkLogHandler(logging.Handler):
+    """Routes Python logging output to the Tkinter log widget."""
+
+    def __init__(self, launcher):
+        super().__init__()
+        self._launcher = launcher
+
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            level = self._launcher._classify(msg)
+            self._launcher.root.after(0, self._launcher._log, msg, level)
+        except Exception:
+            pass
+
+
 class TechStockLauncher:
     def __init__(self):
-        self.process = None
+        self.process = None       # subprocess (modo dev)
+        self._server = None       # uvicorn.Server (modo frozen)
         self.pg_process = None
         self.running = False
         self.pg_running = False
@@ -109,8 +141,12 @@ class TechStockLauncher:
         self._build_ui()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
-        self._log("TechStock v2.0 \u2014 Gestor de servidor listo.", "OK")
-        self._log(f"Python: {VENV_PYTHON}", "INFO")
+        mode = "empaquetado" if _FROZEN else "desarrollo"
+        self._log(f"TechStock v2.0 \u2014 Gestor de servidor ({mode})", "OK")
+        if _FROZEN:
+            self._log(f"Directorio: {BASE_DIR}", "INFO")
+        else:
+            self._log(f"Python: {VENV_PYTHON}", "INFO")
         self._log(f"PostgreSQL: {PG_BIN}", "INFO")
         self._log(f"Datos: {PG_DATA}", "INFO")
 
@@ -301,6 +337,19 @@ class TechStockLauncher:
         self._btn_stop.config(state="disabled", bg="#3a3a55", fg=TEXT_SECONDARY)
         self._btn_web.config(state="disabled")
 
+    def _classify(self, line):
+        """Clasifica una linea de log por nivel."""
+        low = line.lower()
+        if any(k in low for k in ("error", "traceback", "exception", "critical")):
+            return "ERROR"
+        if any(k in low for k in ("warning", "warn", "deprecat")):
+            return "WARN"
+        if any(k in low for k in ("started", "[ok]", "listo", "ready")):
+            return "OK"
+        if any(m in line for m in ("GET ", "POST ", "PUT ", "DELETE ", "PATCH ")):
+            return "HTTP"
+        return "INFO"
+
     # ────────────────────────────────────────────────────────
     #  PostgreSQL management
     # ────────────────────────────────────────────────────────
@@ -325,8 +374,7 @@ class TechStockLauncher:
                 [initdb, "-D", PG_DATA, "-U", "postgres", "-E", "UTF8",
                  "--locale=C", "--auth=trust"],
                 capture_output=True, text=True, timeout=60, env=env,
-                creationflags=(subprocess.CREATE_NO_WINDOW
-                               if sys.platform == "win32" else 0),
+                creationflags=_SUBPROCESS_FLAGS,
             )
             if result.returncode != 0:
                 self._log(f"Error initdb: {result.stderr.strip()}", "ERROR")
@@ -341,6 +389,10 @@ class TechStockLauncher:
                 f.write(f"listen_addresses = 'localhost'\n")
                 f.write(f"log_destination = 'stderr'\n")
                 f.write(f"logging_collector = off\n")
+                # Optimizaciones para inicio rapido
+                f.write(f"shared_buffers = 128MB\n")
+                f.write(f"fsync = on\n")
+                f.write(f"synchronous_commit = off\n")
 
             return True
         except Exception as e:
@@ -370,8 +422,7 @@ class TechStockLauncher:
                  "-w", "-t", "30",
                  "-o", f"-p {PG_PORT}"],
                 capture_output=True, text=True, timeout=45, env=env,
-                creationflags=(subprocess.CREATE_NO_WINDOW
-                               if sys.platform == "win32" else 0),
+                creationflags=_SUBPROCESS_FLAGS,
             )
             if result.returncode != 0:
                 err = result.stderr.strip() or result.stdout.strip()
@@ -409,16 +460,14 @@ class TechStockLauncher:
                 [psql, "-U", "postgres", "-p", PG_PORT, "-tAc",
                  f"SELECT 1 FROM pg_roles WHERE rolname='{PG_USER}'"],
                 capture_output=True, text=True, timeout=10, env=env,
-                creationflags=(subprocess.CREATE_NO_WINDOW
-                               if sys.platform == "win32" else 0),
+                creationflags=_SUBPROCESS_FLAGS,
             )
             if "1" not in result.stdout:
                 subprocess.run(
                     [psql, "-U", "postgres", "-p", PG_PORT, "-c",
                      f"CREATE USER {PG_USER} WITH PASSWORD '{PG_PASSWORD}' CREATEDB"],
                     capture_output=True, text=True, timeout=10, env=env,
-                    creationflags=(subprocess.CREATE_NO_WINDOW
-                                   if sys.platform == "win32" else 0),
+                    creationflags=_SUBPROCESS_FLAGS,
                 )
                 self._log(f"Usuario '{PG_USER}' creado.", "OK")
         except Exception as e:
@@ -430,16 +479,14 @@ class TechStockLauncher:
                 [psql, "-U", "postgres", "-p", PG_PORT, "-tAc",
                  f"SELECT 1 FROM pg_database WHERE datname='{PG_DB}'"],
                 capture_output=True, text=True, timeout=10, env=env,
-                creationflags=(subprocess.CREATE_NO_WINDOW
-                               if sys.platform == "win32" else 0),
+                creationflags=_SUBPROCESS_FLAGS,
             )
             if "1" not in result.stdout:
                 subprocess.run(
                     [createdb, "-U", "postgres", "-p", PG_PORT,
                      "-O", PG_USER, PG_DB],
                     capture_output=True, text=True, timeout=10, env=env,
-                    creationflags=(subprocess.CREATE_NO_WINDOW
-                                   if sys.platform == "win32" else 0),
+                    creationflags=_SUBPROCESS_FLAGS,
                 )
                 self._log(f"Base de datos '{PG_DB}' creada.", "OK")
         except Exception as e:
@@ -458,8 +505,7 @@ class TechStockLauncher:
             subprocess.run(
                 [pg_ctl, "stop", "-D", PG_DATA, "-m", "fast", "-w", "-t", "15"],
                 capture_output=True, text=True, timeout=20, env=env,
-                creationflags=(subprocess.CREATE_NO_WINDOW
-                               if sys.platform == "win32" else 0),
+                creationflags=_SUBPROCESS_FLAGS,
             )
         except Exception:
             pass
@@ -467,6 +513,47 @@ class TechStockLauncher:
         self.pg_running = False
         self._set_pg_status("PostgreSQL detenido", DANGER)
         self._log("PostgreSQL detenido.", "INFO")
+
+    # ────────────────────────────────────────────────────────
+    #  Database connection check
+    # ────────────────────────────────────────────────────────
+
+    def _check_db_connection(self):
+        """Verifica conexion a la base de datos."""
+        if _FROZEN:
+            return self._check_db_inprocess()
+        else:
+            return self._check_db_subprocess()
+
+    def _check_db_inprocess(self):
+        """Verificacion directa con imports (modo frozen)."""
+        try:
+            from sqlalchemy import text as sa_text
+            from database import engine
+            with engine.connect() as conn:
+                conn.execute(sa_text("SELECT 1"))
+            return True
+        except Exception as e:
+            self._log(f"Error DB: {e}", "ERROR")
+            return False
+
+    def _check_db_subprocess(self):
+        """Verificacion via subprocess (modo desarrollo)."""
+        try:
+            chk = subprocess.run(
+                [VENV_PYTHON, "-c",
+                 "from database import engine; c=engine.connect(); c.close()"],
+                cwd=BASE_DIR, capture_output=True, text=True, timeout=15,
+                creationflags=_SUBPROCESS_FLAGS,
+            )
+            if chk.returncode != 0:
+                err = chk.stderr.strip() or chk.stdout.strip() or "Sin detalle"
+                self._log(f"Error DB: {err}", "ERROR")
+                return False
+            return True
+        except Exception as e:
+            self._log(f"Excepcion: {e}", "ERROR")
+            return False
 
     # ────────────────────────────────────────────────────────
     #  Server control
@@ -503,26 +590,12 @@ class TechStockLauncher:
         self._log("Verificando conexion a base de datos...", "INFO")
         self.root.update()
 
-        try:
-            chk = subprocess.run(
-                [VENV_PYTHON, "-c",
-                 "from database import engine; c=engine.connect(); c.close()"],
-                cwd=BASE_DIR, capture_output=True, text=True, timeout=15,
-                creationflags=(subprocess.CREATE_NO_WINDOW
-                               if sys.platform == "win32" else 0),
-            )
-            if chk.returncode != 0:
-                err = chk.stderr.strip() or chk.stdout.strip() or "Sin detalle"
-                self._set_status("Error de conexion", DANGER)
-                self._log(f"Error DB: {err}", "ERROR")
-                messagebox.showerror(
-                    "Error de Base de Datos",
-                    f"No se pudo conectar a PostgreSQL.\n\n{err}")
-                self._btn_start.config(state="normal")
-                return
-        except Exception as e:
-            self._set_status("Error", DANGER)
-            self._log(f"Excepcion: {e}", "ERROR")
+        if not self._check_db_connection():
+            self._set_status("Error de conexion", DANGER)
+            messagebox.showerror(
+                "Error de Base de Datos",
+                "No se pudo conectar a PostgreSQL.\n\n"
+                "Verifique que PostgreSQL este disponible.")
             self._btn_start.config(state="normal")
             return
 
@@ -535,6 +608,58 @@ class TechStockLauncher:
         self._log("Iniciando servidor en puerto 8000...", "INFO")
         self.root.update()
 
+        if _FROZEN:
+            self._start_server_inprocess()
+        else:
+            self._start_server_subprocess()
+
+    def _start_server_inprocess(self):
+        """Inicia uvicorn in-process (modo frozen/empaquetado)."""
+        try:
+            import uvicorn
+
+            # Instalar handler de logging para capturar output de uvicorn
+            handler = _TkLogHandler(self)
+            handler.setFormatter(logging.Formatter("%(message)s"))
+            for logger_name in ("uvicorn", "uvicorn.error", "uvicorn.access", "techstock"):
+                lgr = logging.getLogger(logger_name)
+                lgr.addHandler(handler)
+                lgr.setLevel(logging.INFO)
+
+            config = uvicorn.Config(
+                "main:app",
+                host="0.0.0.0",
+                port=8000,
+                log_level="info",
+                access_log=True,
+            )
+            self._server = uvicorn.Server(config)
+
+            self.running = True
+            self._enable_running_ui()
+
+            # Ejecutar en hilo daemon
+            threading.Thread(target=self._run_server, daemon=True).start()
+            threading.Thread(target=self._wait_ready, daemon=True).start()
+
+        except Exception as e:
+            self._set_status("Error al iniciar", DANGER)
+            self._log(f"No se pudo iniciar: {e}", "ERROR")
+            self._btn_start.config(state="normal")
+
+    def _run_server(self):
+        """Ejecuta uvicorn.Server.run() en hilo separado."""
+        try:
+            self._server.run()
+        except Exception as e:
+            self.root.after(0, self._log, f"Error servidor: {e}", "ERROR")
+
+        # Si llega aqui, el servidor se detuvo
+        if self.running and not self._stopping:
+            self.root.after(0, self._unexpected_stop)
+
+    def _start_server_subprocess(self):
+        """Inicia main.py como subprocess (modo desarrollo)."""
         try:
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
@@ -544,8 +669,7 @@ class TechStockLauncher:
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 env=env,
-                creationflags=(subprocess.CREATE_NO_WINDOW
-                               if sys.platform == "win32" else 0),
+                creationflags=_SUBPROCESS_FLAGS,
             )
         except Exception as e:
             self._set_status("Error al iniciar", DANGER)
@@ -561,7 +685,7 @@ class TechStockLauncher:
         threading.Thread(target=self._wait_ready, daemon=True).start()
 
     def _read_output(self):
-        """Lee stdout del proceso y lo muestra en el log."""
+        """Lee stdout del proceso subprocess y lo muestra en el log."""
         try:
             for raw in iter(self.process.stdout.readline, b""):
                 if not self.running:
@@ -577,19 +701,6 @@ class TechStockLauncher:
         # Proceso terminado
         if self.running and not self._stopping:
             self.root.after(0, self._unexpected_stop)
-
-    def _classify(self, line):
-        """Clasifica una linea de log por nivel."""
-        low = line.lower()
-        if any(k in low for k in ("error", "traceback", "exception", "critical")):
-            return "ERROR"
-        if any(k in low for k in ("warning", "warn", "deprecat")):
-            return "WARN"
-        if any(k in low for k in ("started", "[ok]", "listo", "ready")):
-            return "OK"
-        if any(m in line for m in ("GET ", "POST ", "PUT ", "DELETE ", "PATCH ")):
-            return "HTTP"
-        return "INFO"
 
     def _wait_ready(self):
         """Espera hasta que el servidor responda en localhost:8000."""
@@ -624,7 +735,13 @@ class TechStockLauncher:
         self._stopping = True
 
         # 1. Detener servidor web
-        if self.process:
+        if _FROZEN and self._server:
+            self._log("Deteniendo servidor...", "WARN")
+            self._server.should_exit = True
+            # Esperar un momento a que el servidor termine
+            time.sleep(1)
+            self._server = None
+        elif self.process:
             self._log("Deteniendo servidor...", "WARN")
             self.process.terminate()
             try:
@@ -632,6 +749,7 @@ class TechStockLauncher:
             except subprocess.TimeoutExpired:
                 self.process.kill()
             self.process = None
+
         self._set_status("Servidor detenido", DANGER)
         self._log("Servidor detenido.", "INFO")
 

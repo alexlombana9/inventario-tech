@@ -1,12 +1,11 @@
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date, timedelta
 from database import get_db
 from templates_config import templates
 from auth import require_auth, log_audit
 import models
-import io
 
 router = APIRouter(prefix="/facturas", tags=["facturas"])
 
@@ -225,7 +224,9 @@ def actualizar_factura(
 @router.get("/{factura_id}/detalle")
 def detalle_factura(factura_id: int, request: Request, db: Session = Depends(get_db),
                     msg: str = None, error: str = None):
-    factura = db.query(models.Factura).filter(models.Factura.id == factura_id).first()
+    factura = db.query(models.Factura).options(
+        joinedload(models.Factura.cobros)
+    ).filter(models.Factura.id == factura_id).first()
     if not factura:
         return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
     return templates.TemplateResponse("facturas/detalle.html", {
@@ -362,12 +363,7 @@ def reporte_facturas_pdf(
     fecha_desde: str = None,
     fecha_hasta: str = None,
 ):
-    from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.lib import colors
-    from reportlab.lib.units import cm
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER
+    from utils.pdf import generate_report_pdf
 
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=90)).strftime("%Y-%m-%d")
@@ -386,33 +382,12 @@ def reporte_facturas_pdf(
 
     facturas = query.order_by(models.Factura.fecha_vencimiento.asc().nullsfirst()).all()
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
-                             rightMargin=1.5*cm, leftMargin=1.5*cm,
-                             topMargin=1.5*cm, bottomMargin=1.5*cm)
-    styles = getSampleStyleSheet()
-    elements = []
-
-    title_style = ParagraphStyle('Title', parent=styles['Title'],
-                                  fontSize=15, alignment=TA_CENTER, spaceAfter=0.2*cm)
-    sub_style   = ParagraphStyle('Sub', parent=styles['Normal'],
-                                  fontSize=8, alignment=TA_CENTER, spaceAfter=0.4*cm,
-                                  textColor=colors.grey)
-
-    elements.append(Paragraph("TechStock — Reporte de Facturas / Cuentas por Cobrar", title_style))
-    elements.append(Paragraph(
-        f"Período: {fecha_desde} al {fecha_hasta}  |  Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-        sub_style
-    ))
-    elements.append(Spacer(1, 0.3*cm))
-
-    header = ["N° Factura", "Cliente", "Documento", "Concepto", "Emisión", "Vencimiento",
-              "Total", "Cobrado", "Pendiente", "Estado"]
-    data = [header]
-
+    headers = ["N° Factura", "Cliente", "Documento", "Concepto", "Emisión", "Vencimiento",
+               "Total", "Cobrado", "Pendiente", "Estado"]
+    rows = []
     for f in facturas:
         estado_txt = "VENCIDA" if f.esta_vencida else f.estado
-        data.append([
+        rows.append([
             f.numero_factura,
             f.cliente_nombre[:28],
             f.cliente_documento or "—",
@@ -425,45 +400,21 @@ def reporte_facturas_pdf(
             estado_txt,
         ])
 
-    data.append(["", "", "", "TOTAL", "", "",
+    totals_row = ["", "", "", "TOTAL", "", "",
                   f"${sum(f.monto_total for f in facturas):,.2f}",
                   f"${sum(f.monto_cobrado for f in facturas):,.2f}",
-                  f"${sum(f.monto_pendiente for f in facturas):,.2f}", ""])
+                  f"${sum(f.monto_pendiente for f in facturas):,.2f}", ""]
 
-    col_widths = [2.4*cm, 4.5*cm, 2.5*cm, 4.5*cm, 2.2*cm, 2.2*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.2*cm]
-    table = Table(data, colWidths=col_widths, repeatRows=1)
-
-    ESTADO_COLORS = {
-        "PENDIENTE": colors.HexColor('#fff3cd'),
-        "PARCIAL":   colors.HexColor('#cfe2ff'),
-        "PAGADO":    colors.HexColor('#d1e7dd'),
-        "VENCIDA":   colors.HexColor('#f8d7da'),
-    }
-
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
-        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
-        ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE',   (0, 0), (-1, 0), 8),
-        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
-        ('ALIGN',      (1, 1), (3, -1), 'LEFT'),
-        ('FONTSIZE',   (0, 1), (-1, -1), 7.5),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
-        ('GRID',       (0, 0), (-1, -1), 0.3, colors.lightgrey),
-        ('FONTNAME',   (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
-    ])
-
-    for i, f in enumerate(facturas, start=1):
-        estado_txt = "VENCIDA" if f.esta_vencida else f.estado
-        color = ESTADO_COLORS.get(estado_txt)
-        if color:
-            style.add('BACKGROUND', (9, i), (9, i), color)
-
-    table.setStyle(style)
-    elements.append(table)
-    doc.build(elements)
-    buffer.seek(0)
+    buffer = generate_report_pdf(
+        title="TechStock — Reporte de Facturas / Cuentas por Cobrar",
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
+        headers=headers,
+        rows=rows,
+        totals_row=totals_row,
+        col_widths_cm=[2.4, 4.5, 2.5, 4.5, 2.2, 2.2, 2.5, 2.5, 2.5, 2.2],
+        estado_col_index=9,
+    )
 
     filename = f"reporte_facturas_{date.today().strftime('%Y%m%d')}.pdf"
     return StreamingResponse(buffer, media_type="application/pdf",

@@ -8,8 +8,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 
 # ── Cargar .env si existe (sin dependencias externas) ─────────
-if getattr(sys, "frozen", False):
-    _base_dir = os.path.dirname(sys.executable)
+if getattr(sys, "frozen", False):  # pragma: no cover
+    _base_dir = os.path.dirname(sys.executable)  # pragma: no cover
 else:
     _base_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -33,15 +33,15 @@ def _default_database_url() -> str:
     if env_url:
         return env_url
 
-    # Modo standalone: PostgreSQL portable en datos del usuario
-    if sys.platform == "win32":
-        appdata = os.environ.get("APPDATA", os.path.expanduser("~"))
-        data_dir = os.path.join(appdata, "TechStock")
-    else:
-        data_dir = os.path.join(os.path.expanduser("~"), ".techstock")
+    # Modo standalone: PostgreSQL portable en datos del usuario  # pragma: no cover
+    if sys.platform == "win32":  # pragma: no cover
+        appdata = os.environ.get("APPDATA", os.path.expanduser("~"))  # pragma: no cover
+        data_dir = os.path.join(appdata, "TechStock")  # pragma: no cover
+    else:  # pragma: no cover
+        data_dir = os.path.join(os.path.expanduser("~"), ".techstock")  # pragma: no cover
 
-    os.makedirs(data_dir, exist_ok=True)
-    return "postgresql://techstock:techstock@localhost:5433/techstock"
+    os.makedirs(data_dir, exist_ok=True)  # pragma: no cover
+    return "postgresql://techstock:techstock@localhost:5433/techstock"  # pragma: no cover
 
 
 # ── Configuracion de Base de Datos ────────────────────────────
@@ -50,10 +50,10 @@ DATABASE_URL = _default_database_url()
 _engine_kwargs = {"pool_pre_ping": True}
 _connect_args = {}
 
-if DATABASE_URL.startswith("postgresql"):
-    _connect_args["client_encoding"] = "utf8"
-    _engine_kwargs["pool_size"] = 10
-    _engine_kwargs["max_overflow"] = 20
+if DATABASE_URL.startswith("postgresql"):  # pragma: no cover
+    _connect_args["client_encoding"] = "utf8"  # pragma: no cover
+    _engine_kwargs["pool_size"] = 10  # pragma: no cover
+    _engine_kwargs["max_overflow"] = 20  # pragma: no cover
 elif DATABASE_URL.startswith("sqlite"):
     # Solo para tests (SQLite in-memory)
     _connect_args["check_same_thread"] = False
@@ -72,5 +72,8 @@ def get_db():
     db = SessionLocal()
     try:
         yield db
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

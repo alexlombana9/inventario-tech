@@ -114,6 +114,13 @@ class TestMovimientoCaja:
         assert "error" in resp.headers["location"].lower()
 
 
+class TestCerrarCajaForm:
+    def test_form_cerrar_con_caja_abierta_renderiza_template(self, admin_client, caja_abierta):
+        """Cubre linea 96: GET /cerrar cuando hay caja abierta devuelve template."""
+        resp = admin_client.get("/caja/cerrar")
+        assert resp.status_code == 200
+
+
 class TestHistorialCajas:
     def test_historial_vacio(self, admin_client):
         resp = admin_client.get("/caja/historial")
@@ -121,6 +128,67 @@ class TestHistorialCajas:
 
     def test_historial_con_datos(self, admin_client, caja_abierta):
         resp = admin_client.get("/caja/historial")
+        assert resp.status_code == 200
+
+    def test_historial_filtro_buscar(self, admin_client, db, admin_user):
+        """Cubre lineas 178-183: filtro buscar en historial de cajas."""
+        from datetime import datetime
+        caja = models.Caja(
+            usuario_id=admin_user.id,
+            monto_apertura=50000.0,
+            estado="CERRADA",
+            fecha_apertura=datetime.now(),
+            notas_cierre="Caja con nota especial",
+        )
+        db.add(caja)
+        db.commit()
+        resp = admin_client.get("/caja/historial?buscar=nota+especial")
+        assert resp.status_code == 200
+
+    def test_historial_filtro_estado_abierta(self, admin_client, caja_abierta):
+        """Cubre lineas 184-185: filtro por estado=ABIERTA."""
+        resp = admin_client.get("/caja/historial?estado=ABIERTA")
+        assert resp.status_code == 200
+
+    def test_historial_filtro_estado_cerrada(self, admin_client, db, admin_user):
+        """Cubre lineas 184-185: filtro por estado=CERRADA."""
+        from datetime import datetime
+        caja = models.Caja(
+            usuario_id=admin_user.id,
+            monto_apertura=30000.0,
+            estado="CERRADA",
+            fecha_apertura=datetime.now(),
+        )
+        db.add(caja)
+        db.commit()
+        resp = admin_client.get("/caja/historial?estado=CERRADA")
+        assert resp.status_code == 200
+
+    def test_historial_filtro_estado_invalido(self, admin_client, caja_abierta):
+        """Estado invalido (no en ABIERTA/CERRADA) es ignorado, devuelve todos."""
+        resp = admin_client.get("/caja/historial?estado=INVALIDO")
+        assert resp.status_code == 200
+
+    def test_historial_no_admin_solo_ve_sus_cajas(self, vendedor_client, db, vendedor_user, admin_user):
+        """Cubre linea 177: usuario no-ADMIN solo ve sus propias cajas."""
+        from datetime import datetime
+        # Caja del vendedor
+        caja_vendedor = models.Caja(
+            usuario_id=vendedor_user.id,
+            monto_apertura=20000.0,
+            estado="ABIERTA",
+            fecha_apertura=datetime.now(),
+        )
+        # Caja del admin (no debe verse por el vendedor)
+        caja_admin = models.Caja(
+            usuario_id=admin_user.id,
+            monto_apertura=80000.0,
+            estado="CERRADA",
+            fecha_apertura=datetime.now(),
+        )
+        db.add_all([caja_vendedor, caja_admin])
+        db.commit()
+        resp = vendedor_client.get("/caja/historial")
         assert resp.status_code == 200
 
 

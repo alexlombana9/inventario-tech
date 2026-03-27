@@ -80,7 +80,7 @@ async def subir_logo(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_role("ADMIN")),
 ):
-    if not logo.filename:
+    if not logo.filename:  # pragma: no cover — FastAPI returns 422 before reaching this
         return RedirectResponse("/configuracion?error=No+se+seleccionó+archivo", status_code=303)
 
     ext = os.path.splitext(logo.filename)[1].lower()

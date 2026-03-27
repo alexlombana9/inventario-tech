@@ -39,12 +39,13 @@ def lista_gastos(
 
     query = db.query(models.Gasto).filter(models.Gasto.activo == True)
 
+    fd = fh = None
     try:
         fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
         fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
         query = query.filter(models.Gasto.fecha >= fd, models.Gasto.fecha <= fh)
     except ValueError:
-        pass
+        fd = fh = None
 
     if tipo and tipo.strip():
         query = query.filter(models.Gasto.tipo == tipo)
@@ -62,22 +63,22 @@ def lista_gastos(
 
     total_gastos = db.query(func.sum(models.Gasto.monto)).filter(
         models.Gasto.activo == True,
-        models.Gasto.fecha >= fd if fecha_desde else True,
-        models.Gasto.fecha <= fh if fecha_hasta else True,
+        models.Gasto.fecha >= fd if fd else True,
+        models.Gasto.fecha <= fh if fh else True,
     ).scalar() or 0
 
     total_directos = db.query(func.sum(models.Gasto.monto)).filter(
         models.Gasto.activo == True,
         models.Gasto.tipo == "DIRECTO",
-        models.Gasto.fecha >= fd if fecha_desde else True,
-        models.Gasto.fecha <= fh if fecha_hasta else True,
+        models.Gasto.fecha >= fd if fd else True,
+        models.Gasto.fecha <= fh if fh else True,
     ).scalar() or 0
 
     total_indirectos = db.query(func.sum(models.Gasto.monto)).filter(
         models.Gasto.activo == True,
         models.Gasto.tipo == "INDIRECTO",
-        models.Gasto.fecha >= fd if fecha_desde else True,
-        models.Gasto.fecha <= fh if fecha_hasta else True,
+        models.Gasto.fecha >= fd if fd else True,
+        models.Gasto.fecha <= fh if fh else True,
     ).scalar() or 0
 
     return templates.TemplateResponse("gastos/lista.html", {

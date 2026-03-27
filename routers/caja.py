@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from datetime import datetime, date
 
 from database import get_db
@@ -165,14 +165,24 @@ def historial_cajas(
     request: Request,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
+    buscar: str = None,
+    estado: str = None,
     pagina: str = None,
 ):
     pag = int(pagina) if pagina and pagina.strip() else 1
 
-    query = db.query(models.Caja)
+    query = db.query(models.Caja).options(joinedload(models.Caja.usuario))
 
     if current_user.rol != "ADMIN":
         query = query.filter(models.Caja.usuario_id == current_user.id)
+    if buscar:
+        term = f"%{buscar}%"
+        query = query.filter(
+            models.Caja.notas_cierre.ilike(term)
+            | models.Caja.usuario.has(models.Usuario.nombre_completo.ilike(term))
+        )
+    if estado and estado in ("ABIERTA", "CERRADA"):
+        query = query.filter(models.Caja.estado == estado)
 
     total = query.count()
     por_pagina = 20
@@ -182,6 +192,8 @@ def historial_cajas(
     return templates.TemplateResponse("caja/historial.html", {
         "request": request,
         "cajas": cajas,
+        "buscar": buscar or "",
+        "estado": estado or "",
         "pagina": pag,
         "total_paginas": total_paginas,
         "total": total,
@@ -198,7 +210,10 @@ def detalle_caja(
     current_user: models.Usuario = Depends(require_auth),
     msg: str = None,
 ):
-    caja = db.query(models.Caja).filter(models.Caja.id == caja_id).first()
+    caja = db.query(models.Caja).options(
+        joinedload(models.Caja.movimientos),
+        joinedload(models.Caja.usuario),
+    ).filter(models.Caja.id == caja_id).first()
     if not caja:
         return RedirectResponse("/caja/historial?error=Caja+no+encontrada", status_code=303)
 

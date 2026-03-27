@@ -280,3 +280,20 @@ def caja_abierta(db, admin_user):
     db.commit()
     db.refresh(caja)
     return caja
+
+
+@pytest.fixture
+def sample_acreedor(db):
+    """Acreedor de prueba."""
+    acreedor = models.Acreedor(
+        nombre="Acreedor Test",
+        tipo="PROVEEDOR",
+        documento="900111222",
+        telefono="3001112222",
+        email="acreedor@test.com",
+        activo=True,
+    )
+    db.add(acreedor)
+    db.commit()
+    db.refresh(acreedor)
+    return acreedor

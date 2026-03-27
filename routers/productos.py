@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Request, Depends, Form
 from templates_config import templates
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from database import get_db
 from auth import require_auth, log_audit
+from utils.queries import categorias_activas, proveedores_activos
 import models
 
 router = APIRouter(prefix="/productos", tags=["productos"])
@@ -35,8 +36,11 @@ def lista_productos(
     if es_stock_bajo:
         query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
 
-    productos = query.order_by(models.Producto.nombre).all()
-    categorias = db.query(models.Categoria).order_by(models.Categoria.nombre).all()
+    productos = query.options(
+        joinedload(models.Producto.categoria),
+        joinedload(models.Producto.proveedor_principal),
+    ).order_by(models.Producto.nombre).all()
+    categorias = categorias_activas(db)
 
     return templates.TemplateResponse("productos/lista.html", {
         "request": request,
@@ -52,8 +56,8 @@ def lista_productos(
 
 @router.get("/nuevo")
 def nuevo_producto_form(request: Request, db: Session = Depends(get_db)):
-    categorias = db.query(models.Categoria).order_by(models.Categoria.nombre).all()
-    proveedores = db.query(models.Proveedor).filter(models.Proveedor.activo == True).order_by(models.Proveedor.nombre).all()
+    categorias = categorias_activas(db)
+    proveedores = proveedores_activos(db)
     return templates.TemplateResponse("productos/form.html", {
         "request": request,
         "producto": None,
@@ -129,8 +133,8 @@ def editar_producto_form(prod_id: int, request: Request, db: Session = Depends(g
     producto = db.query(models.Producto).filter(models.Producto.id == prod_id).first()
     if not producto:
         return RedirectResponse("/productos?error=Producto+no+encontrado", status_code=303)
-    categorias = db.query(models.Categoria).order_by(models.Categoria.nombre).all()
-    proveedores = db.query(models.Proveedor).filter(models.Proveedor.activo == True).order_by(models.Proveedor.nombre).all()
+    categorias = categorias_activas(db)
+    proveedores = proveedores_activos(db)
     return templates.TemplateResponse("productos/form.html", {
         "request": request,
         "producto": producto,

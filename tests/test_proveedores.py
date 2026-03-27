@@ -66,6 +66,19 @@ class TestEditarProveedor:
         resp = admin_client.get("/proveedores/9999/editar", follow_redirects=False)
         assert resp.status_code == 303
 
+    def test_post_editar_inexistente(self, admin_client):
+        """Cubre linea 100: POST editar proveedor que no existe."""
+        resp = admin_client.post("/proveedores/9999/editar", data={
+            "nombre": "No Existe",
+            "contacto": "",
+            "telefono": "",
+            "email": "",
+            "direccion": "",
+            "nit_ruc": "",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
+
 
 class TestEliminarProveedor:
     def test_eliminar_soft_delete(self, admin_client, db, sample_proveedor):
@@ -76,6 +89,15 @@ class TestEliminarProveedor:
         assert resp.status_code == 303
         db.refresh(sample_proveedor)
         assert sample_proveedor.activo is False
+
+    def test_eliminar_inexistente(self, admin_client):
+        """Cubre linea 123: POST eliminar proveedor que no existe."""
+        resp = admin_client.post(
+            "/proveedores/9999/eliminar",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
 
 
 class TestDetalleProveedor:

@@ -12,6 +12,17 @@ class TestListaCategorias:
         assert resp.status_code == 200
         assert "Electronicos" in resp.text
 
+    def test_buscar_categoria(self, admin_client, sample_categoria):
+        """Cubre linea 17: filtro buscar en lista de categorias."""
+        resp = admin_client.get("/categorias?buscar=Electro")
+        assert resp.status_code == 200
+        assert "Electronicos" in resp.text
+
+    def test_buscar_sin_resultados(self, admin_client, sample_categoria):
+        """Cubre linea 17: busqueda que no encuentra resultados."""
+        resp = admin_client.get("/categorias?buscar=NoExisteEstaCategoria")
+        assert resp.status_code == 200
+
 
 class TestCrearCategoria:
     def test_crear_ok(self, admin_client, db):

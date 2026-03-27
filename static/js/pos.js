@@ -2,6 +2,7 @@
  * TechStock — Punto de Venta (POS)
  * Cart management, product search, payment handling.
  * Supports manual price editing per item.
+ * Uses event delegation — no inline onclick handlers.
  */
 const cart = [];
 const formatter = new Intl.NumberFormat('es-CO', {
@@ -57,6 +58,12 @@ function setPrice(idx, val) {
 
 function clearCart() { cart.length = 0; renderCart(); }
 
+function _escapeHtml(text) {
+  var div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
 function renderCart() {
   const container = document.getElementById('cartItems');
   const btn = document.getElementById('btnPagar');
@@ -80,20 +87,18 @@ function renderCart() {
     var ganancia = (item.precio_unitario - item.precio_costo) * item.cantidad;
     total += sub;
     gananciaTotal += ganancia;
-    html += '<div class="cart-item">' +
+    html += '<div class="cart-item" data-idx="' + idx + '">' +
       '<div class="qty-control">' +
-        '<button class="btn btn-sm btn-outline-secondary" onclick="updateQty(' + idx + ',-1)">-</button>' +
-        '<input type="number" value="' + item.cantidad + '" min="1" max="' + item.stock + '" step="1" ' +
-               'onchange="setQty(' + idx + ',this.value)">' +
-        '<button class="btn btn-sm btn-outline-secondary" onclick="updateQty(' + idx + ',1)">+</button>' +
+        '<button class="btn btn-sm btn-outline-secondary" data-action="qty-down">-</button>' +
+        '<input type="number" value="' + item.cantidad + '" min="1" max="' + item.stock + '" step="1" data-action="qty-input">' +
+        '<button class="btn btn-sm btn-outline-secondary" data-action="qty-up">+</button>' +
       '</div>' +
       '<div class="item-info">' +
-        '<div class="item-name">' + item.nombre + '</div>' +
+        '<div class="item-name">' + _escapeHtml(item.nombre) + '</div>' +
         '<div class="item-price-edit">' +
           '<input type="number" class="form-control form-control-sm price-input" ' +
                  'value="' + item.precio_unitario + '" min="0" step="100" ' +
-                 'onchange="setPrice(' + idx + ',this.value)" ' +
-                 'onclick="event.stopPropagation()" title="Editar precio">' +
+                 'data-action="price-input" title="Editar precio">' +
         '</div>' +
       '</div>' +
       '<div class="text-end">' +
@@ -102,7 +107,7 @@ function renderCart() {
           (ganancia >= 0 ? '+' : '') + formatMoney(ganancia) +
         '</div>' +
       '</div>' +
-      '<button class="remove-btn" onclick="removeFromCart(' + idx + ')"><i class="bi bi-x-lg"></i></button>' +
+      '<button class="remove-btn" data-action="remove"><i class="bi bi-x-lg"></i></button>' +
     '</div>';
   });
   container.innerHTML = html;
@@ -124,6 +129,40 @@ function updateCambio() {
 
 // ── Event Listeners (initialized on DOMContentLoaded) ──
 document.addEventListener('DOMContentLoaded', function() {
+  // Cart event delegation — handles all cart item interactions
+  var cartContainer = document.getElementById('cartItems');
+  if (cartContainer) {
+    cartContainer.addEventListener('click', function(e) {
+      var target = e.target.closest('[data-action]');
+      if (!target) return;
+      var cartItem = target.closest('[data-idx]');
+      if (!cartItem) return;
+      var idx = parseInt(cartItem.dataset.idx);
+      var action = target.dataset.action;
+
+      if (action === 'qty-down') updateQty(idx, -1);
+      else if (action === 'qty-up') updateQty(idx, 1);
+      else if (action === 'remove') removeFromCart(idx);
+    });
+
+    cartContainer.addEventListener('change', function(e) {
+      var target = e.target;
+      var action = target.dataset.action;
+      if (!action) return;
+      var cartItem = target.closest('[data-idx]');
+      if (!cartItem) return;
+      var idx = parseInt(cartItem.dataset.idx);
+
+      if (action === 'qty-input') setQty(idx, target.value);
+      else if (action === 'price-input') setPrice(idx, target.value);
+    });
+
+    // Stop click propagation on price inputs to prevent cart item selection
+    cartContainer.addEventListener('click', function(e) {
+      if (e.target.dataset.action === 'price-input') e.stopPropagation();
+    });
+  }
+
   // Product search filter (name, code, reference)
   document.getElementById('productSearch').addEventListener('input', function() {
     var q = this.value.toLowerCase();

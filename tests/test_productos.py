@@ -127,6 +127,51 @@ class TestEditarProducto:
         resp = admin_client.get("/productos/9999/editar", follow_redirects=False)
         assert resp.status_code == 303
 
+    def test_post_editar_inexistente(self, admin_client):
+        """Cubre linea 167: POST editar producto que no existe."""
+        resp = admin_client.post("/productos/9999/editar", data={
+            "codigo": "NADA-001",
+            "nombre": "No existe",
+            "descripcion": "",
+            "categoria_id": "",
+            "proveedor_id": "",
+            "precio_costo": "0",
+            "precio_venta": "0",
+            "stock_minimo": "0",
+            "unidad_medida": "UND",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
+
+    def test_post_editar_codigo_duplicado(self, admin_client, db, sample_producto, sample_categoria):
+        """Cubre linea 174: POST editar con codigo que ya usa otro producto."""
+        otro = models.Producto(
+            codigo="OTRO-002",
+            nombre="Otro Producto",
+            precio_costo=50.0,
+            precio_venta=80.0,
+            stock_actual=5.0,
+            stock_minimo=1.0,
+            categoria_id=sample_categoria.id,
+            activo=True,
+        )
+        db.add(otro)
+        db.commit()
+        # Intentar renombrar otro con el codigo de sample_producto
+        resp = admin_client.post(f"/productos/{otro.id}/editar", data={
+            "codigo": "PROD-001",  # codigo que ya usa sample_producto
+            "nombre": "Otro Producto",
+            "descripcion": "",
+            "categoria_id": str(sample_categoria.id),
+            "proveedor_id": "",
+            "precio_costo": "50",
+            "precio_venta": "80",
+            "stock_minimo": "1",
+            "unidad_medida": "UND",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
+
 
 class TestEliminarProducto:
     def test_eliminar_soft_delete(self, admin_client, db, sample_producto):

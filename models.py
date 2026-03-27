@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Index
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
@@ -20,24 +20,33 @@ class Usuario(Base):
     foto = Column(String(255), default="")
     rol = Column(String(20), nullable=False, default="VENDEDOR")  # ADMIN, VENDEDOR, BODEGUERO
     permisos = Column(Text, default="")  # comma-separated module keys (empty = default by role)
-    activo = Column(Boolean, default=True)
+    activo = Column(Boolean, default=True, index=True)
     ultimo_login = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
+    def __repr__(self):
+        return f"<Usuario(id={self.id}, username='{self.username}', rol='{self.rol}')>"
+
 
 class AuditLog(Base):
     __tablename__ = "audit_log"
+    __table_args__ = (
+        Index("ix_audit_log_entidad_created", "entidad", "created_at"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=True, index=True)
     usuario_nombre = Column(String(200), default="")
-    accion = Column(String(50), nullable=False)  # CREATE, UPDATE, DELETE, LOGIN, LOGOUT
+    accion = Column(String(50), nullable=False, index=True)
     entidad = Column(String(50), default="")      # producto, movimiento, venta, etc.
     entidad_id = Column(Integer, nullable=True)
     detalle = Column(Text, default="")
     ip_address = Column(String(45), default="")
-    created_at = Column(DateTime, default=datetime.now)
+    created_at = Column(DateTime, default=datetime.now, index=True)
+
+    def __repr__(self):
+        return f"<AuditLog(id={self.id}, accion='{self.accion}', entidad='{self.entidad}')>"
 
 
 class Categoria(Base):
@@ -46,10 +55,13 @@ class Categoria(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(100), nullable=False, unique=True)
     descripcion = Column(Text, default="")
-    activo = Column(Boolean, default=True)
+    activo = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     productos = relationship("Producto", back_populates="categoria")
+
+    def __repr__(self):
+        return f"<Categoria(id={self.id}, nombre='{self.nombre}')>"
 
 
 class Proveedor(Base):
@@ -62,31 +74,37 @@ class Proveedor(Base):
     email = Column(String(100), default="")
     direccion = Column(Text, default="")
     nit_ruc = Column(String(50), default="")
-    activo = Column(Boolean, default=True)
+    activo = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     productos = relationship("Producto", back_populates="proveedor_principal")
     movimientos = relationship("MovimientoInventario", back_populates="proveedor")
     deudas = relationship("Deuda", back_populates="proveedor")
 
+    def __repr__(self):
+        return f"<Proveedor(id={self.id}, nombre='{self.nombre}')>"
+
 
 class Producto(Base):
     __tablename__ = "productos"
+    __table_args__ = (
+        Index("ix_productos_activo_stock", "activo", "stock_actual"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     codigo = Column(String(50), unique=True, nullable=False, index=True)
     referencia = Column(String(100), default="")
     nombre = Column(String(200), nullable=False)
     descripcion = Column(Text, default="")
-    categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=True)
-    proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True)
+    categoria_id = Column(Integer, ForeignKey("categorias.id"), nullable=True, index=True)
+    proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True, index=True)
     precio_costo = Column(Float, default=0.0)
     precio_venta = Column(Float, default=0.0)
     precio_venta_minimo = Column(Float, default=0.0)
     stock_actual = Column(Float, default=0.0)
     stock_minimo = Column(Float, default=0.0)
     unidad_medida = Column(String(20), default="UND")
-    activo = Column(Boolean, default=True)
+    activo = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
@@ -104,25 +122,34 @@ class Producto(Base):
     def stock_bajo(self):
         return self.stock_actual <= self.stock_minimo
 
+    def __repr__(self):
+        return f"<Producto(id={self.id}, codigo='{self.codigo}', nombre='{self.nombre}')>"
+
 
 class MovimientoInventario(Base):
     __tablename__ = "movimientos_inventario"
+    __table_args__ = (
+        Index("ix_mov_inv_fecha_tipo", "fecha", "tipo"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
     tipo = Column(String(20), nullable=False)  # ENTRADA, SALIDA, AJUSTE
     cantidad = Column(Float, nullable=False)
     stock_anterior = Column(Float, nullable=False)
     stock_resultante = Column(Float, nullable=False)
     precio_unitario = Column(Float, default=0.0)
-    proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True)
+    proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True, index=True)
     numero_referencia = Column(String(100), default="")
     observaciones = Column(Text, default="")
-    fecha = Column(DateTime, default=datetime.now)
+    fecha = Column(DateTime, default=datetime.now, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     producto = relationship("Producto", back_populates="movimientos")
     proveedor = relationship("Proveedor", back_populates="movimientos")
+
+    def __repr__(self):
+        return f"<MovimientoInventario(id={self.id}, tipo='{self.tipo}', producto_id={self.producto_id})>"
 
 
 # ─────────────────────────────────────────────
@@ -140,11 +167,14 @@ class Acreedor(Base):
     email = Column(String(100), default="")
     direccion = Column(Text, default="")
     notas = Column(Text, default="")
-    activo = Column(Boolean, default=True)
+    activo = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     deudas = relationship("Deuda", back_populates="acreedor")
+
+    def __repr__(self):
+        return f"<Acreedor(id={self.id}, nombre='{self.nombre}', tipo='{self.tipo}')>"
 
 
 # ─────────────────────────────────────────────
@@ -153,18 +183,21 @@ class Acreedor(Base):
 
 class Deuda(Base):
     __tablename__ = "deudas"
+    __table_args__ = (
+        Index("ix_deudas_estado_vencimiento", "estado", "fecha_vencimiento"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     concepto = Column(String(300), nullable=False)
     acreedor_nombre = Column(String(200), nullable=False)   # a quién se le debe
     acreedor_tipo = Column(String(20), default="OTRO")      # PROVEEDOR | LOCAL | OTRO
-    acreedor_id = Column(Integer, ForeignKey("acreedores.id"), nullable=True)
-    proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True)
+    acreedor_id = Column(Integer, ForeignKey("acreedores.id"), nullable=True, index=True)
+    proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True, index=True)
     monto_total = Column(Float, nullable=False)
     monto_pagado = Column(Float, default=0.0)
     fecha_deuda = Column(DateTime, default=datetime.now)
     fecha_vencimiento = Column(DateTime, nullable=True)
-    estado = Column(String(20), default="PENDIENTE")        # PENDIENTE | PARCIAL | PAGADO
+    estado = Column(String(20), default="PENDIENTE", index=True)  # PENDIENTE | PARCIAL | PAGADO
     notas = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.now)
 
@@ -190,12 +223,15 @@ class Deuda(Base):
             return datetime.now() > self.fecha_vencimiento
         return False
 
+    def __repr__(self):
+        return f"<Deuda(id={self.id}, concepto='{self.concepto[:30]}', estado='{self.estado}')>"
+
 
 class PagoDeuda(Base):
     __tablename__ = "pagos_deuda"
 
     id = Column(Integer, primary_key=True, index=True)
-    deuda_id = Column(Integer, ForeignKey("deudas.id"), nullable=False)
+    deuda_id = Column(Integer, ForeignKey("deudas.id"), nullable=False, index=True)
     monto = Column(Float, nullable=False)
     fecha_pago = Column(DateTime, default=datetime.now)
     metodo_pago = Column(String(50), default="EFECTIVO")    # EFECTIVO | TRANSFERENCIA | TARJETA | CHEQUE
@@ -205,6 +241,9 @@ class PagoDeuda(Base):
 
     deuda = relationship("Deuda", back_populates="pagos")
 
+    def __repr__(self):
+        return f"<PagoDeuda(id={self.id}, deuda_id={self.deuda_id}, monto={self.monto})>"
+
 
 # ─────────────────────────────────────────────
 #  CUENTAS POR COBRAR — Facturas pendientes
@@ -212,6 +251,9 @@ class PagoDeuda(Base):
 
 class Factura(Base):
     __tablename__ = "facturas"
+    __table_args__ = (
+        Index("ix_facturas_estado_vencimiento", "estado", "fecha_vencimiento"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     numero_factura = Column(String(100), nullable=False, unique=True)
@@ -222,9 +264,9 @@ class Factura(Base):
     concepto = Column(Text, nullable=False)
     monto_total = Column(Float, nullable=False)
     monto_cobrado = Column(Float, default=0.0)
-    fecha_emision = Column(DateTime, default=datetime.now)
+    fecha_emision = Column(DateTime, default=datetime.now, index=True)
     fecha_vencimiento = Column(DateTime, nullable=True)
-    estado = Column(String(20), default="PENDIENTE")        # PENDIENTE | PARCIAL | PAGADO
+    estado = Column(String(20), default="PENDIENTE", index=True)  # PENDIENTE | PARCIAL | PAGADO
     notas = Column(Text, default="")
     created_at = Column(DateTime, default=datetime.now)
 
@@ -248,12 +290,15 @@ class Factura(Base):
             return datetime.now() > self.fecha_vencimiento
         return False
 
+    def __repr__(self):
+        return f"<Factura(id={self.id}, numero='{self.numero_factura}', estado='{self.estado}')>"
+
 
 class PagoFactura(Base):
     __tablename__ = "cobros_factura"
 
     id = Column(Integer, primary_key=True, index=True)
-    factura_id = Column(Integer, ForeignKey("facturas.id"), nullable=False)
+    factura_id = Column(Integer, ForeignKey("facturas.id"), nullable=False, index=True)
     monto = Column(Float, nullable=False)
     fecha_cobro = Column(DateTime, default=datetime.now)
     metodo_pago = Column(String(50), default="EFECTIVO")
@@ -263,6 +308,9 @@ class PagoFactura(Base):
 
     factura = relationship("Factura", back_populates="cobros")
 
+    def __repr__(self):
+        return f"<PagoFactura(id={self.id}, factura_id={self.factura_id}, monto={self.monto})>"
+
 
 # ─────────────────────────────────────────────
 #  GASTOS DEL NEGOCIO
@@ -270,19 +318,25 @@ class PagoFactura(Base):
 
 class Gasto(Base):
     __tablename__ = "gastos"
+    __table_args__ = (
+        Index("ix_gastos_activo_fecha", "activo", "fecha"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     concepto = Column(String(300), nullable=False)
     tipo = Column(String(20), default="DIRECTO")        # DIRECTO | INDIRECTO
     categoria_gasto = Column(String(100), default="")   # Arriendo, Servicios, Nomina, etc.
     monto = Column(Float, nullable=False)
-    fecha = Column(DateTime, default=datetime.now)
+    fecha = Column(DateTime, default=datetime.now, index=True)
     metodo_pago = Column(String(50), default="EFECTIVO")
     comprobante = Column(String(100), default="")
     notas = Column(Text, default="")
-    activo = Column(Boolean, default=True)
+    activo = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+
+    def __repr__(self):
+        return f"<Gasto(id={self.id}, concepto='{self.concepto[:30]}', monto={self.monto})>"
 
 
 # ─────────────────────────────────────────────
@@ -306,6 +360,9 @@ class Configuracion(Base):
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
+    def __repr__(self):
+        return f"<Configuracion(id={self.id}, negocio='{self.nombre_negocio}')>"
+
 
 # ─────────────────────────────────────────────
 #  CLIENTES
@@ -317,17 +374,20 @@ class Cliente(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(200), nullable=False)
     tipo_documento = Column(String(20), default="CC")  # CC, NIT, CE, PASAPORTE
-    documento = Column(String(50), default="")
+    documento = Column(String(50), default="", index=True)
     telefono = Column(String(50), default="")
     email = Column(String(100), default="")
     direccion = Column(Text, default="")
     notas = Column(Text, default="")
     saldo_credito = Column(Float, default=0.0)
-    activo = Column(Boolean, default=True)
+    activo = Column(Boolean, default=True, index=True)
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
 
     ventas = relationship("Venta", back_populates="cliente")
+
+    def __repr__(self):
+        return f"<Cliente(id={self.id}, nombre='{self.nombre}')>"
 
 
 # ─────────────────────────────────────────────
@@ -336,12 +396,15 @@ class Cliente(Base):
 
 class Venta(Base):
     __tablename__ = "ventas"
+    __table_args__ = (
+        Index("ix_ventas_fecha_estado", "fecha", "estado"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     numero_venta = Column(String(50), unique=True, nullable=False, index=True)
-    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True)
+    cliente_id = Column(Integer, ForeignKey("clientes.id"), nullable=True, index=True)
     cliente_nombre = Column(String(200), default="Consumidor Final")
-    vendedor_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    vendedor_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     subtotal = Column(Float, nullable=False)
     descuento_total = Column(Float, default=0.0)
     impuesto_total = Column(Float, default=0.0)
@@ -349,10 +412,10 @@ class Venta(Base):
     metodo_pago = Column(String(50), nullable=False)  # EFECTIVO, TARJETA, TRANSFERENCIA, CREDITO, MIXTO
     monto_recibido = Column(Float, default=0.0)
     cambio = Column(Float, default=0.0)
-    estado = Column(String(20), default="COMPLETADA")  # COMPLETADA, ANULADA
+    estado = Column(String(20), default="COMPLETADA", index=True)  # COMPLETADA, ANULADA
     notas = Column(Text, default="")
-    caja_id = Column(Integer, ForeignKey("cajas.id"), nullable=True)
-    fecha = Column(DateTime, default=datetime.now)
+    caja_id = Column(Integer, ForeignKey("cajas.id"), nullable=True, index=True)
+    fecha = Column(DateTime, default=datetime.now, index=True)
     created_at = Column(DateTime, default=datetime.now)
 
     cliente = relationship("Cliente", back_populates="ventas")
@@ -364,13 +427,16 @@ class Venta(Base):
     def ganancia_total(self):
         return round(sum(d.ganancia for d in self.detalles), 2)
 
+    def __repr__(self):
+        return f"<Venta(id={self.id}, numero='{self.numero_venta}', total={self.total})>"
+
 
 class DetalleVenta(Base):
     __tablename__ = "detalle_venta"
 
     id = Column(Integer, primary_key=True, index=True)
-    venta_id = Column(Integer, ForeignKey("ventas.id"), nullable=False)
-    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False)
+    venta_id = Column(Integer, ForeignKey("ventas.id"), nullable=False, index=True)
+    producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
     producto_nombre = Column(String(200), default="")
     producto_codigo = Column(String(50), default="")
     cantidad = Column(Float, nullable=False)
@@ -387,6 +453,9 @@ class DetalleVenta(Base):
     def ganancia(self):
         return round(self.subtotal - (self.precio_costo * self.cantidad), 2)
 
+    def __repr__(self):
+        return f"<DetalleVenta(id={self.id}, venta_id={self.venta_id}, producto='{self.producto_nombre}')>"
+
 
 # ─────────────────────────────────────────────
 #  CAJA REGISTRADORA
@@ -394,15 +463,18 @@ class DetalleVenta(Base):
 
 class Caja(Base):
     __tablename__ = "cajas"
+    __table_args__ = (
+        Index("ix_cajas_usuario_estado", "usuario_id", "estado"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
-    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
     numero_caja = Column(Integer, default=1)
     monto_apertura = Column(Float, nullable=False)
     monto_cierre_esperado = Column(Float, nullable=True)
     monto_cierre_real = Column(Float, nullable=True)
     diferencia = Column(Float, nullable=True)
-    estado = Column(String(20), default="ABIERTA")  # ABIERTA, CERRADA
+    estado = Column(String(20), default="ABIERTA", index=True)  # ABIERTA, CERRADA
     fecha_apertura = Column(DateTime, nullable=False, default=datetime.now)
     fecha_cierre = Column(DateTime, nullable=True)
     notas_cierre = Column(Text, default="")
@@ -424,12 +496,15 @@ class Caja(Base):
     def saldo_esperado(self):
         return self.monto_apertura + self.total_ingresos - self.total_egresos
 
+    def __repr__(self):
+        return f"<Caja(id={self.id}, usuario_id={self.usuario_id}, estado='{self.estado}')>"
+
 
 class MovimientoCaja(Base):
     __tablename__ = "movimientos_caja"
 
     id = Column(Integer, primary_key=True, index=True)
-    caja_id = Column(Integer, ForeignKey("cajas.id"), nullable=False)
+    caja_id = Column(Integer, ForeignKey("cajas.id"), nullable=False, index=True)
     tipo = Column(String(20), nullable=False)  # INGRESO, EGRESO
     concepto = Column(String(200), nullable=False)
     monto = Column(Float, nullable=False)
@@ -438,3 +513,6 @@ class MovimientoCaja(Base):
     created_at = Column(DateTime, default=datetime.now)
 
     caja = relationship("Caja", back_populates="movimientos")
+
+    def __repr__(self):
+        return f"<MovimientoCaja(id={self.id}, caja_id={self.caja_id}, tipo='{self.tipo}')>"

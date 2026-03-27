@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from templates_config import templates
-from auth import require_auth, hash_password, verify_password, set_flash, log_audit, COOKIE_NAME, get_saved_accounts
+from auth import require_auth, hash_password, verify_password, validate_password, set_flash, log_audit, COOKIE_NAME, get_saved_accounts
 import models
 
 router = APIRouter(prefix="/perfil", tags=["perfil"])
@@ -144,9 +144,10 @@ def cambiar_password(
         resp = RedirectResponse("/perfil", status_code=303)
         return set_flash(resp, "La contrasena actual es incorrecta", "error")
 
-    if len(password_nueva) < 8:
+    password_error = validate_password(password_nueva)
+    if password_error:
         resp = RedirectResponse("/perfil", status_code=303)
-        return set_flash(resp, "La nueva contrasena debe tener al menos 8 caracteres", "error")
+        return set_flash(resp, password_error, "error")
 
     if password_nueva != password_confirmar:
         resp = RedirectResponse("/perfil", status_code=303)

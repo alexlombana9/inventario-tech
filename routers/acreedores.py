@@ -23,7 +23,13 @@ def lista_acreedores(
 ):
     query = db.query(models.Acreedor).filter(models.Acreedor.activo == True)
     if buscar:
-        query = query.filter(models.Acreedor.nombre.ilike(f"%{buscar}%"))
+        term = f"%{buscar}%"
+        query = query.filter(
+            models.Acreedor.nombre.ilike(term)
+            | models.Acreedor.documento.ilike(term)
+            | models.Acreedor.telefono.ilike(term)
+            | models.Acreedor.email.ilike(term)
+        )
     if tipo:
         query = query.filter(models.Acreedor.tipo == tipo)
     acreedores = query.order_by(models.Acreedor.nombre).all()

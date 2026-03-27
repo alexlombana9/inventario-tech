@@ -7,7 +7,7 @@ from database import get_db
 from templates_config import templates
 from auth import (
     verify_password, create_session_cookie, decode_session_cookie,
-    COOKIE_NAME, set_flash, log_audit,
+    COOKIE_NAME, set_flash, log_audit, login_limiter, SESSION_MAX_AGE,
     get_saved_accounts, save_accounts_cookie, remove_accounts_cookie,
 )
 import models
@@ -35,11 +35,22 @@ def login(
     agregar: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    ip = request.client.host if request.client else "unknown"
+
+    # Rate limiting: máximo 5 intentos por minuto por IP
+    if login_limiter.is_limited(ip):
+        return templates.TemplateResponse("auth/login.html", {
+            "request": request,
+            "error": "Demasiados intentos. Espera un momento antes de volver a intentar.",
+            "agregar": agregar,
+        })
+
     user = db.query(models.Usuario).filter(
         models.Usuario.username == username.strip().lower()
     ).first()
 
     if not user or not verify_password(password, user.password_hash):
+        login_limiter.record(ip)
         return templates.TemplateResponse("auth/login.html", {
             "request": request,
             "error": "Usuario o contrasena incorrectos",
@@ -65,7 +76,7 @@ def login(
     response = RedirectResponse("/", status_code=303)
     response.set_cookie(
         COOKIE_NAME, cookie_value,
-        httponly=True, samesite="lax", max_age=8 * 3600,
+        httponly=True, samesite="lax", max_age=SESSION_MAX_AGE,
     )
 
     # Si estamos agregando una cuenta, guardar la sesion anterior en saved_accounts
@@ -168,7 +179,7 @@ def cambiar_cuenta(
     response = RedirectResponse("/", status_code=303)
     response.set_cookie(
         COOKIE_NAME, new_cookie,
-        httponly=True, samesite="lax", max_age=8 * 3600,
+        httponly=True, samesite="lax", max_age=SESSION_MAX_AGE,
     )
     save_accounts_cookie(response, accounts)
     return set_flash(response, f"Cambiaste a la cuenta de {target_user.nombre_completo}")

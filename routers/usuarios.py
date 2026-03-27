@@ -3,9 +3,10 @@ from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
+from urllib.parse import quote_plus
 from database import get_db
 from templates_config import templates
-from auth import require_role, hash_password, set_flash, log_audit, MODULOS_DISPONIBLES, PERMISOS_POR_ROL, get_user_permisos
+from auth import require_role, hash_password, validate_password, set_flash, log_audit, MODULOS_DISPONIBLES, PERMISOS_POR_ROL, get_user_permisos
 import models
 
 router = APIRouter(prefix="/usuarios", tags=["usuarios"])
@@ -96,9 +97,11 @@ def crear_usuario(
             status_code=303
         )
 
-    if len(password) < 8:
+    pwd_error = validate_password(password)
+    if pwd_error:
+
         return RedirectResponse(
-            "/usuarios/nuevo?error=La+contrasena+debe+tener+al+menos+8+caracteres",
+            f"/usuarios/nuevo?error={quote_plus(pwd_error)}",
             status_code=303
         )
 
@@ -176,7 +179,14 @@ def actualizar_usuario(
     usuario.rol = rol
     usuario.activo = (activo == "on")
 
-    if password and len(password) >= 8:
+    if password:
+        pwd_error = validate_password(password)
+        if pwd_error:
+    
+            return RedirectResponse(
+                f"/usuarios/{user_id}/editar?error={quote_plus(pwd_error)}",
+                status_code=303
+            )
         usuario.password_hash = hash_password(password)
 
     # Guardar permisos personalizados (vacio = usar default del rol)

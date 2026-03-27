@@ -1,13 +1,13 @@
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import datetime, date, timedelta
 from database import get_db
 from templates_config import templates
 from auth import require_auth, log_audit
+from utils.queries import proveedores_activos, acreedores_activos
 import models
-import io
 
 router = APIRouter(prefix="/deudas", tags=["deudas"])
 
@@ -40,7 +40,11 @@ def lista_deudas(
     if acreedor_tipo:
         query = query.filter(models.Deuda.acreedor_tipo == acreedor_tipo)
     if buscar:
-        query = query.filter(models.Deuda.acreedor_nombre.ilike(f"%{buscar}%"))
+        term = f"%{buscar}%"
+        query = query.filter(
+            models.Deuda.acreedor_nombre.ilike(term)
+            | models.Deuda.concepto.ilike(term)
+        )
     deudas = query.order_by(models.Deuda.fecha_vencimiento.asc().nullsfirst(),
                             models.Deuda.created_at.desc()).all()
 
@@ -65,8 +69,8 @@ def lista_deudas(
 
 @router.get("/nueva")
 def nueva_deuda_form(request: Request, db: Session = Depends(get_db)):
-    proveedores = db.query(models.Proveedor).filter(models.Proveedor.activo == True).order_by(models.Proveedor.nombre).all()
-    acreedores = db.query(models.Acreedor).filter(models.Acreedor.activo == True).order_by(models.Acreedor.nombre).all()
+    proveedores = proveedores_activos(db)
+    acreedores = acreedores_activos(db)
     return templates.TemplateResponse("deudas/form.html", {
         "request": request,
         "deuda": None,
@@ -126,8 +130,8 @@ def editar_deuda_form(deuda_id: int, request: Request, db: Session = Depends(get
     deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
-    proveedores = db.query(models.Proveedor).filter(models.Proveedor.activo == True).order_by(models.Proveedor.nombre).all()
-    acreedores = db.query(models.Acreedor).filter(models.Acreedor.activo == True).order_by(models.Acreedor.nombre).all()
+    proveedores = proveedores_activos(db)
+    acreedores = acreedores_activos(db)
     return templates.TemplateResponse("deudas/form.html", {
         "request": request,
         "deuda": deuda,
@@ -183,7 +187,9 @@ def actualizar_deuda(
 @router.get("/{deuda_id}/detalle")
 def detalle_deuda(deuda_id: int, request: Request, db: Session = Depends(get_db),
                   msg: str = None, error: str = None):
-    deuda = db.query(models.Deuda).filter(models.Deuda.id == deuda_id).first()
+    deuda = db.query(models.Deuda).options(
+        joinedload(models.Deuda.pagos)
+    ).filter(models.Deuda.id == deuda_id).first()
     if not deuda:
         return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
     return templates.TemplateResponse("deudas/detalle.html", {
@@ -327,12 +333,7 @@ def reporte_deudas_pdf(
     fecha_desde: str = None,
     fecha_hasta: str = None,
 ):
-    from reportlab.lib.pagesizes import A4, landscape
-    from reportlab.lib import colors
-    from reportlab.lib.units import cm
-    from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.lib.enums import TA_CENTER, TA_RIGHT
+    from utils.pdf import generate_report_pdf
 
     if not fecha_desde:
         fecha_desde = (date.today() - timedelta(days=90)).strftime("%Y-%m-%d")
@@ -353,32 +354,11 @@ def reporte_deudas_pdf(
 
     deudas = query.order_by(models.Deuda.fecha_vencimiento.asc().nullsfirst()).all()
 
-    buffer = io.BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=landscape(A4),
-                             rightMargin=1.5*cm, leftMargin=1.5*cm,
-                             topMargin=1.5*cm, bottomMargin=1.5*cm)
-    styles = getSampleStyleSheet()
-    elements = []
-
-    title_style = ParagraphStyle('Title', parent=styles['Title'],
-                                  fontSize=15, alignment=TA_CENTER, spaceAfter=0.2*cm)
-    sub_style   = ParagraphStyle('Sub', parent=styles['Normal'],
-                                  fontSize=8, alignment=TA_CENTER, spaceAfter=0.4*cm,
-                                  textColor=colors.grey)
-
-    elements.append(Paragraph("TechStock — Reporte de Deudas / Cuentas por Pagar", title_style))
-    elements.append(Paragraph(
-        f"Período: {fecha_desde} al {fecha_hasta}  |  Generado: {datetime.now().strftime('%d/%m/%Y %H:%M')}",
-        sub_style
-    ))
-    elements.append(Spacer(1, 0.3*cm))
-
-    header = ["Acreedor", "Tipo", "Concepto", "Fecha", "Vencimiento", "Total", "Pagado", "Pendiente", "Estado"]
-    data = [header]
-
+    headers = ["Acreedor", "Tipo", "Concepto", "Fecha", "Vencimiento", "Total", "Pagado", "Pendiente", "Estado"]
+    rows = []
     for d in deudas:
         estado_txt = "VENCIDA" if d.esta_vencida else d.estado
-        data.append([
+        rows.append([
             d.acreedor_nombre[:30],
             d.acreedor_tipo,
             d.concepto[:35],
@@ -390,44 +370,21 @@ def reporte_deudas_pdf(
             estado_txt,
         ])
 
-    total_pend = sum(d.monto_pendiente for d in deudas)
-    data.append(["", "", "TOTAL", "", "", f"${sum(d.monto_total for d in deudas):,.2f}",
-                  f"${sum(d.monto_pagado for d in deudas):,.2f}", f"${total_pend:,.2f}", ""])
+    totals_row = ["", "", "TOTAL", "", "",
+                  f"${sum(d.monto_total for d in deudas):,.2f}",
+                  f"${sum(d.monto_pagado for d in deudas):,.2f}",
+                  f"${sum(d.monto_pendiente for d in deudas):,.2f}", ""]
 
-    col_widths = [4.5*cm, 2*cm, 5.5*cm, 2.3*cm, 2.3*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.2*cm]
-    table = Table(data, colWidths=col_widths, repeatRows=1)
-
-    ESTADO_COLORS = {
-        "PENDIENTE": colors.HexColor('#fff3cd'),
-        "PARCIAL":   colors.HexColor('#cfe2ff'),
-        "PAGADO":    colors.HexColor('#d1e7dd'),
-        "VENCIDA":   colors.HexColor('#f8d7da'),
-    }
-
-    style = TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1a1a2e')),
-        ('TEXTCOLOR',  (0, 0), (-1, 0), colors.white),
-        ('FONTNAME',   (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE',   (0, 0), (-1, 0), 8),
-        ('ALIGN',      (0, 0), (-1, -1), 'CENTER'),
-        ('ALIGN',      (0, 1), (2, -1), 'LEFT'),
-        ('FONTSIZE',   (0, 1), (-1, -1), 7.5),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
-        ('GRID',       (0, 0), (-1, -1), 0.3, colors.lightgrey),
-        ('FONTNAME',   (0, -1), (-1, -1), 'Helvetica-Bold'),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#e8f4f8')),
-    ])
-
-    for i, d in enumerate(deudas, start=1):
-        estado_txt = "VENCIDA" if d.esta_vencida else d.estado
-        color = ESTADO_COLORS.get(estado_txt)
-        if color:
-            style.add('BACKGROUND', (8, i), (8, i), color)
-
-    table.setStyle(style)
-    elements.append(table)
-    doc.build(elements)
-    buffer.seek(0)
+    buffer = generate_report_pdf(
+        title="TechStock — Reporte de Deudas / Cuentas por Pagar",
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
+        headers=headers,
+        rows=rows,
+        totals_row=totals_row,
+        col_widths_cm=[4.5, 2, 5.5, 2.3, 2.3, 2.5, 2.5, 2.5, 2.2],
+        estado_col_index=8,
+    )
 
     filename = f"reporte_deudas_{date.today().strftime('%Y%m%d')}.pdf"
     return StreamingResponse(buffer, media_type="application/pdf",

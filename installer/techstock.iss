@@ -2,6 +2,7 @@
 ; TechStock v2.0 — Inno Setup Installer Script
 ; Instalar / Reparar / Desinstalar desde un solo .exe
 ; Incluye PostgreSQL portable + servidor web completo
+; NO requiere software adicional en la maquina destino
 ; ============================================================
 
 #define MyAppName "TechStock"
@@ -25,9 +26,12 @@ DefaultGroupName={#MyAppName}
 AllowNoIcons=yes
 OutputDir=..\dist\installer
 OutputBaseFilename=TechStock_Setup_v{#MyAppVersion}
-Compression=lzma2/ultra64
+; Compresion optimizada para instalacion rapida
+; lzma2/fast ofrece buen ratio con descompresion rapida
+Compression=lzma2/fast
 SolidCompression=yes
 LZMANumBlockThreads=4
+LZMAUseSeparateProcess=yes
 ; SetupIconFile=..\static\favicon.ico
 WizardStyle=modern
 WizardSizePercent=110
@@ -43,8 +47,12 @@ VersionInfoProductName={#MyAppName}
 UsePreviousAppDir=yes
 CloseApplications=yes
 RestartApplications=no
-; Disk space: ~350MB (app ~100MB + PostgreSQL ~250MB)
+; Espacio extra para datos de PostgreSQL
 ExtraDiskSpaceRequired=52428800
+; Optimizaciones de velocidad
+DisableDirPage=auto
+DisableProgramGroupPage=auto
+SetupLogging=no
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
@@ -65,9 +73,9 @@ Name: "startmenu"; Description: "Crear acceso en el &Menu Inicio"; GroupDescript
 Name: "autostart"; Description: "Iniciar TechStock con &Windows"; GroupDescription: "Opciones adicionales:"; Flags: unchecked
 
 [Files]
-; Application files (PyInstaller dist)
-Source: "..\dist\TechStock\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: main
-; PostgreSQL portable
+; Application files (PyInstaller dist) — todo excepto pgsql
+Source: "..\dist\TechStock\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: main; Excludes: "pgsql"
+; PostgreSQL portable (ya optimizado, sin docs/pgAdmin/headers)
 Source: "..\dist\TechStock\pgsql\*"; DestDir: "{app}\pgsql"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: pgsql
 
 [Icons]
@@ -96,7 +104,7 @@ Type: files; Name: "{app}\.secret_key"
 [Messages]
 spanish.BeveledLabel=TechStock - Sistema de Inventario
 spanish.WelcomeLabel1=Bienvenido al asistente de {#MyAppName}
-spanish.WelcomeLabel2=Este asistente le permitira instalar, reparar o desinstalar {#MyAppName} v{#MyAppVersion}.%n%nIncluye todo lo necesario:%n  - Servidor web (FastAPI + Uvicorn)%n  - Base de datos PostgreSQL 16%n  - Interfaz completa del sistema%n%nNo requiere software adicional.
+spanish.WelcomeLabel2=Este asistente le permitira instalar, reparar o desinstalar {#MyAppName} v{#MyAppVersion}.%n%nIncluye todo lo necesario:%n  - Servidor web (FastAPI + Uvicorn)%n  - Base de datos PostgreSQL 16%n  - Interfaz completa del sistema%n%nNo requiere software adicional.%nFunciona en cualquier PC con Windows 10 o superior.
 spanish.FinishedHeadingLabel=Operacion completada
 spanish.FinishedLabel={#MyAppName} se ha instalado/reparado correctamente.%n%nLa base de datos se inicializara automaticamente la primera vez que inicie la aplicacion.%n%nSus datos existentes no fueron modificados.
 

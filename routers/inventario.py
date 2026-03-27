@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Request, Depends, Form
 from templates_config import templates
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import datetime, date
 from database import get_db
 from auth import require_auth, log_audit
+from utils.queries import productos_activos, proveedores_activos
 import models
 
 router = APIRouter(prefix="/inventario", tags=["inventario"])
@@ -17,6 +18,7 @@ def lista_movimientos(
     db: Session = Depends(get_db),
     producto_id: str = None,
     tipo: str = None,
+    buscar: str = None,
     fecha_desde: str = None,
     fecha_hasta: str = None,
     msg: str = None,
@@ -28,8 +30,16 @@ def lista_movimientos(
 
     from utils.pagination import paginate
 
-    query = db.query(models.MovimientoInventario)
+    query = db.query(models.MovimientoInventario).options(
+        joinedload(models.MovimientoInventario.producto)
+    )
 
+    if buscar:
+        term = f"%{buscar}%"
+        query = query.filter(
+            models.MovimientoInventario.observaciones.ilike(term)
+            | models.MovimientoInventario.numero_referencia.ilike(term)
+        )
     if prod_id:
         query = query.filter(models.MovimientoInventario.producto_id == prod_id)
     if tipo and tipo in ("ENTRADA", "SALIDA", "AJUSTE"):
@@ -51,13 +61,14 @@ def lista_movimientos(
     query = query.order_by(models.MovimientoInventario.fecha.desc())
     movimientos, total, total_paginas = paginate(query, pag)
 
-    productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre).all()
+    productos = productos_activos(db)
 
     return templates.TemplateResponse("inventario/movimientos.html", {
         "request": request,
         "movimientos": movimientos,
         "productos": productos,
         "producto_id": prod_id,
+        "buscar": buscar or "",
         "tipo": tipo or "",
         "fecha_desde": fecha_desde or "",
         "fecha_hasta": fecha_hasta or "",
@@ -71,8 +82,8 @@ def lista_movimientos(
 
 @router.get("/entrada")
 def entrada_form(request: Request, db: Session = Depends(get_db), error: str = None):
-    productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre).all()
-    proveedores = db.query(models.Proveedor).filter(models.Proveedor.activo == True).order_by(models.Proveedor.nombre).all()
+    productos = productos_activos(db)
+    proveedores = proveedores_activos(db)
     return templates.TemplateResponse("inventario/entrada.html", {
         "request": request,
         "productos": productos,
@@ -85,8 +96,8 @@ def entrada_form(request: Request, db: Session = Depends(get_db), error: str = N
 
 @router.get("/salida")
 def salida_form(request: Request, db: Session = Depends(get_db), error: str = None):
-    productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre).all()
-    proveedores = db.query(models.Proveedor).filter(models.Proveedor.activo == True).order_by(models.Proveedor.nombre).all()
+    productos = productos_activos(db)
+    proveedores = proveedores_activos(db)
     return templates.TemplateResponse("inventario/entrada.html", {
         "request": request,
         "productos": productos,
@@ -99,7 +110,7 @@ def salida_form(request: Request, db: Session = Depends(get_db), error: str = No
 
 @router.get("/ajuste")
 def ajuste_form(request: Request, db: Session = Depends(get_db), error: str = None):
-    productos = db.query(models.Producto).filter(models.Producto.activo == True).order_by(models.Producto.nombre).all()
+    productos = productos_activos(db)
     return templates.TemplateResponse("inventario/ajuste.html", {
         "request": request,
         "productos": productos,

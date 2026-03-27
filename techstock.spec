@@ -2,21 +2,23 @@
 """
 PyInstaller spec file for TechStock v2.0.
 Bundles the FastAPI app + launcher into a distributable directory.
+Entry point: launcher.py (tkinter GUI that manages PG + uvicorn).
+In frozen mode, uvicorn runs in-process (no subprocess Python needed).
 """
 import os
-import sys
 from PyInstaller.utils.hooks import collect_submodules, collect_data_files
 
 block_cipher = None
 BASE = os.path.abspath(".")
 
 # ── Hidden imports ────────────────────────────────────────────────
-# FastAPI/Starlette internals + all app modules
+# Everything the app imports at runtime must be listed here because
+# PyInstaller can't trace dynamic imports or deferred local imports.
 hidden = [
-    # App modules
+    # App core
     "main", "database", "models", "auth", "middleware",
     "templates_config", "seed", "migrations",
-    # Routers
+    # Routers (imported dynamically in main.py)
     "routers", "routers.auth_router", "routers.usuarios",
     "routers.productos", "routers.categorias", "routers.proveedores",
     "routers.inventario", "routers.reportes", "routers.deudas",
@@ -25,33 +27,43 @@ hidden = [
     "routers.caja", "routers.backup", "routers.importar",
     "routers.perfil", "routers.auditoria",
     # Utils
-    "utils", "utils.excel", "utils.search",
-    "utils.financial", "utils.pagination",
-    # Dependencies
-    "uvicorn", "uvicorn.logging", "uvicorn.loops",
-    "uvicorn.loops.auto", "uvicorn.protocols",
-    "uvicorn.protocols.http", "uvicorn.protocols.http.auto",
-    "uvicorn.protocols.websockets",
-    "uvicorn.protocols.websockets.auto",
-    "uvicorn.lifespan", "uvicorn.lifespan.on",
-    "fastapi", "starlette", "starlette.routing",
-    "starlette.middleware", "starlette.responses",
-    "sqlalchemy", "sqlalchemy.dialects.sqlite",
+    "utils", "utils.constants", "utils.financial", "utils.pagination",
+    "utils.excel", "utils.queries", "utils.dashboard", "utils.pdf",
+    # Database drivers (PostgreSQL is the production DB)
+    "psycopg2", "psycopg2._psycopg", "psycopg2.extensions",
+    "psycopg2.extras", "psycopg2.tz",
+    # SQLAlchemy dialects
     "sqlalchemy.dialects.postgresql",
+    "sqlalchemy.dialects.postgresql.psycopg2",
+    "sqlalchemy.dialects.sqlite",
+    # Jinja2
     "jinja2", "jinja2.ext",
+    # Multipart (form parsing)
     "multipart", "multipart.multipart",
-    "bcrypt", "itsdangerous",
-    "openpyxl", "aiofiles",
-    "reportlab", "reportlab.lib", "reportlab.platypus",
+    # Auth / crypto
+    "bcrypt", "bcrypt._bcrypt", "itsdangerous",
+    # Excel
+    "openpyxl",
+    # Async files
+    "aiofiles", "aiofiles.os",
+    # PDF generation
+    "reportlab", "reportlab.lib", "reportlab.lib.pagesizes",
+    "reportlab.lib.colors", "reportlab.lib.units", "reportlab.lib.enums",
+    "reportlab.lib.styles", "reportlab.platypus",
+    "reportlab.pdfbase", "reportlab.pdfbase.pdfmetrics",
+    "reportlab.pdfbase._fontdata",
+    # Email (used by some stdlib imports)
     "email.mime.text",
+    # Encodings (needed for PG and HTTP)
     "encodings", "encodings.utf_8", "encodings.latin_1",
-    "encodings.cp1252", "encodings.ascii",
+    "encodings.cp1252", "encodings.ascii", "encodings.idna",
 ]
 
-# Collect all uvicorn/starlette submodules (they do dynamic imports)
+# Collect ALL submodules for frameworks that do heavy dynamic imports
 hidden += collect_submodules("uvicorn")
 hidden += collect_submodules("starlette")
 hidden += collect_submodules("fastapi")
+hidden += collect_submodules("reportlab")
 
 # ── Data files ────────────────────────────────────────────────────
 datas = [
@@ -61,6 +73,9 @@ datas = [
     (os.path.join(BASE, "static", "vendor"), os.path.join("static", "vendor")),
     (os.path.join(BASE, "static", "uploads"), os.path.join("static", "uploads")),
 ]
+
+# Collect psycopg2 data files (bundled DLLs: libpq, libssl, etc.)
+datas += collect_data_files("psycopg2")
 
 # PostgreSQL portable is copied by build_installer.bat (too large for datas)
 
@@ -75,13 +90,21 @@ a = Analysis(
     hooksconfig={},
     runtime_hooks=[],
     excludes=[
-        # Not needed for standalone SQLite mode
-        "psycopg2", "psycopg2._psycopg",
-        # Dev/test tools
-        "pytest", "httpx", "coverage", "pip", "setuptools",
-        # Unnecessary for production
-        "tkinter.test", "unittest", "doctest",
+        # Dev/test tools (never needed in production)
+        "pytest", "httpx", "coverage", "pip", "setuptools", "wheel",
+        "pkg_resources", "_pytest",
+        # Test frameworks
+        "tkinter.test", "unittest", "doctest", "pydoc",
+        # Scientific computing (not used)
         "matplotlib", "numpy", "pandas", "scipy",
+        # Notebook/IDE tools
+        "IPython", "jupyter", "notebook",
+        # Network protocols not used
+        "ftplib", "imaplib", "poplib", "nntplib", "telnetlib",
+        # CGI (not used, we use ASGI)
+        "cgi", "cgitb",
+        # Unused stdlib
+        "curses", "lib2to3", "pdb", "profile", "pstats",
     ],
     win_no_prefer_redirects=False,
     win_private_assemblies=False,

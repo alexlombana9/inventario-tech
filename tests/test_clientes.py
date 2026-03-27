@@ -22,6 +22,17 @@ class TestListaClientes:
         assert resp.status_code == 200
         assert "Cliente Test" in resp.text
 
+    def test_filtro_tipo_documento(self, admin_client, sample_cliente):
+        """Cubre linea 34: filtro por tipo_documento en lista clientes."""
+        resp = admin_client.get("/clientes?tipo_documento=CC")
+        assert resp.status_code == 200
+        assert "Cliente Test" in resp.text
+
+    def test_filtro_tipo_documento_sin_resultados(self, admin_client, sample_cliente):
+        """Cubre linea 34: tipo_documento que no tiene clientes."""
+        resp = admin_client.get("/clientes?tipo_documento=PASAPORTE")
+        assert resp.status_code == 200
+
 
 class TestCrearCliente:
     def test_form_nuevo(self, admin_client):
@@ -84,6 +95,20 @@ class TestEditarCliente:
         resp = admin_client.get("/clientes/9999/editar", follow_redirects=False)
         assert resp.status_code == 303
 
+    def test_post_editar_inexistente(self, admin_client):
+        """Cubre linea 127: POST editar cliente que no existe."""
+        resp = admin_client.post("/clientes/9999/editar", data={
+            "nombre": "No Existe",
+            "tipo_documento": "CC",
+            "documento": "",
+            "telefono": "",
+            "email": "",
+            "direccion": "",
+            "notas": "",
+        }, follow_redirects=False)
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()
+
 
 class TestDetalleCliente:
     def test_detalle_ok(self, admin_client, sample_cliente):
@@ -105,3 +130,12 @@ class TestEliminarCliente:
         assert resp.status_code == 303
         db.refresh(sample_cliente)
         assert sample_cliente.activo is False
+
+    def test_eliminar_inexistente(self, admin_client):
+        """Cubre linea 176: POST eliminar cliente que no existe."""
+        resp = admin_client.post(
+            "/clientes/9999/eliminar",
+            follow_redirects=False,
+        )
+        assert resp.status_code == 303
+        assert "error" in resp.headers["location"].lower()

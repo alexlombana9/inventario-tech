@@ -151,6 +151,51 @@ def run_migrations(engine):
                 migrations_applied += 1
                 print("  [Migration] categorias: agregada columna activo")
 
+        # ── Crear índices de rendimiento ──
+        _perf_indexes = [
+            ("ix_productos_categoria_id", "productos", "categoria_id"),
+            ("ix_productos_proveedor_id", "productos", "proveedor_id"),
+            ("ix_productos_activo", "productos", "activo"),
+            ("ix_mov_inv_producto_id", "movimientos_inventario", "producto_id"),
+            ("ix_mov_inv_fecha", "movimientos_inventario", "fecha"),
+            ("ix_mov_inv_proveedor_id", "movimientos_inventario", "proveedor_id"),
+            ("ix_ventas_fecha", "ventas", "fecha"),
+            ("ix_ventas_estado", "ventas", "estado"),
+            ("ix_ventas_vendedor_id", "ventas", "vendedor_id"),
+            ("ix_ventas_caja_id", "ventas", "caja_id"),
+            ("ix_ventas_cliente_id", "ventas", "cliente_id"),
+            ("ix_detalle_venta_venta_id", "detalle_venta", "venta_id"),
+            ("ix_detalle_venta_producto_id", "detalle_venta", "producto_id"),
+            ("ix_deudas_estado", "deudas", "estado"),
+            ("ix_deudas_acreedor_id", "deudas", "acreedor_id"),
+            ("ix_deudas_proveedor_id", "deudas", "proveedor_id"),
+            ("ix_facturas_estado", "facturas", "estado"),
+            ("ix_facturas_fecha_emision", "facturas", "fecha_emision"),
+            ("ix_gastos_activo", "gastos", "activo"),
+            ("ix_gastos_fecha", "gastos", "fecha"),
+            ("ix_cajas_usuario_id", "cajas", "usuario_id"),
+            ("ix_cajas_estado", "cajas", "estado"),
+            ("ix_mov_caja_caja_id", "movimientos_caja", "caja_id"),
+            ("ix_pagos_deuda_deuda_id", "pagos_deuda", "deuda_id"),
+            ("ix_cobros_factura_factura_id", "cobros_factura", "factura_id"),
+            ("ix_clientes_activo", "clientes", "activo"),
+            ("ix_clientes_documento", "clientes", "documento"),
+            ("ix_usuarios_activo", "usuarios", "activo"),
+            ("ix_audit_log_created_at", "audit_log", "created_at"),
+            ("ix_audit_log_accion", "audit_log", "accion"),
+        ]
+        for idx_name, tbl, col in _perf_indexes:
+            if table_exists(conn, tbl):
+                exists = conn.execute(text(
+                    "SELECT 1 FROM pg_indexes WHERE indexname = :name"
+                ), {"name": idx_name}).first()
+                if not exists:
+                    conn.execute(text(f"CREATE INDEX {idx_name} ON {tbl} ({col})"))
+                    migrations_applied += 1
+        if migrations_applied > 0:
+            conn.commit()
+            print(f"  [Migration] Índices de rendimiento creados")
+
     if migrations_applied > 0:
         print(f"  [Migration] {migrations_applied} migración(es) aplicada(s)")
     return migrations_applied
