@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 
 # Resolve paths correctly for both dev and PyInstaller frozen mode
 if getattr(sys, "frozen", False):  # pragma: no cover
-    _BASE_DIR = os.path.dirname(sys.executable)  # pragma: no cover
+    _BASE_DIR = getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))  # pragma: no cover
 else:
     _BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 

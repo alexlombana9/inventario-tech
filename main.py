@@ -81,11 +81,12 @@ async def lifespan(app_instance):  # pragma: no cover
 # ── App ──
 app = FastAPI(title="TechStock v4.0 - Sistema de Inventario", lifespan=lifespan)
 app.add_middleware(AuthMiddleware)
-_static_dir = os.path.join(
-    os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
-    else os.path.dirname(os.path.abspath(__file__)),
-    "static"
+_base_dir = (
+    getattr(sys, "_MEIPASS", os.path.dirname(sys.executable))
+    if getattr(sys, "frozen", False)
+    else os.path.dirname(os.path.abspath(__file__))
 )
+_static_dir = os.path.join(_base_dir, "static")
 app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 
