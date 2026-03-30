@@ -88,6 +88,7 @@
       <thead>
         <tr>
           <th>Código</th>
+          <th>Ref.</th>
           <th>Producto</th>
           <th>Categoría</th>
           <th>Stock Actual</th>
@@ -104,6 +105,7 @@
         {% for p in productos %}
         <tr class="{{ 'table-danger' if p.stock_actual == 0 else 'table-warning' if p.stock_bajo else '' }}">
           <td><code>{{ p.codigo }}</code></td>
+          <td class="text-muted">{{ p.referencia or '—' }}</td>
           <td class="fw-medium">{{ p.nombre }}</td>
           <td>
             {% if p.categoria %}
@@ -135,7 +137,7 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="11" class="text-center text-muted py-5">
+          <td colspan="12" class="text-center text-muted py-5">
             <i class="bi bi-inbox fs-2 d-block mb-2"></i>No hay productos para mostrar
           </td>
         </tr>
@@ -144,7 +146,7 @@
       {% if productos %}
       <tfoot>
         <tr class="fw-bold" style="background:var(--bg-table-header)">
-          <td colspan="9" class="text-end">TOTALES:</td>
+          <td colspan="10" class="text-end">TOTALES:</td>
           <td>{{ valor_total | moneda }}</td>
           <td></td>
         </tr>

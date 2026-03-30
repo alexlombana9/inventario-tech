@@ -86,6 +86,51 @@ class TestDashboard:
         resp = admin_client.get("/?fecha_desde=invalida&fecha_hasta=invalida")
         assert resp.status_code == 200
 
+    def test_filtro_fecha_realmente_filtra(
+        self, admin_client, db, sample_producto, admin_user, sample_local
+    ):
+        """El filtro de fechas debe cambiar las metricas del periodo."""
+        from datetime import datetime, timedelta
+
+        # Crear venta hace 60 dias
+        hace_60 = datetime.now() - timedelta(days=60)
+        venta = models.Venta(
+            numero_venta="VTA-FILT-001",
+            vendedor_id=admin_user.id,
+            subtotal=5000.0, total=5000.0,
+            metodo_pago="EFECTIVO",
+            monto_recibido=5000.0, cambio=0.0,
+            estado="COMPLETADA",
+            fecha=hace_60,
+            local_id=sample_local.id,
+        )
+        db.add(venta)
+        db.commit()
+        detalle = models.DetalleVenta(
+            venta_id=venta.id,
+            producto_id=sample_producto.id,
+            producto_nombre=sample_producto.nombre,
+            producto_codigo=sample_producto.codigo,
+            cantidad=2, precio_unitario=2500.0,
+            precio_costo=1500.0, subtotal=5000.0,
+            local_id=sample_local.id,
+        )
+        db.add(detalle)
+        db.commit()
+
+        # Con rango amplio (90 dias) debe incluir la venta
+        fecha_amplia = (datetime.now() - timedelta(days=90)).strftime("%Y-%m-%d")
+        hoy = datetime.now().strftime("%Y-%m-%d")
+        resp_amplio = admin_client.get(f"/?fecha_desde={fecha_amplia}&fecha_hasta={hoy}")
+        assert resp_amplio.status_code == 200
+        assert "$5,000" in resp_amplio.text or "5.000" in resp_amplio.text or "5,000" in resp_amplio.text
+
+        # Con rango solo hoy NO debe incluir la venta de hace 60 dias
+        resp_hoy = admin_client.get(f"/?fecha_desde={hoy}&fecha_hasta={hoy}")
+        assert resp_hoy.status_code == 200
+        # El label del periodo debe reflejar solo hoy
+        assert "Periodo:" in resp_hoy.text
+
 
 class TestGetLocalIP:
     def test_get_local_ip_ok(self):

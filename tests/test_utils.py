@@ -301,6 +301,11 @@ class TestGetGeneralMetrics:
         from utils.dashboard import get_general_metrics
         result = get_general_metrics(db)
         assert result["total_productos"] == 0
+        assert result["total_clientes"] == 0
+        assert result["total_proveedores"] == 0
+        assert result["total_categorias"] == 0
+        assert result["productos_vendidos"] == 0
+        assert result["clientes_periodo"] == 0
         assert result["valor_inventario"] == 0.0
 
 
@@ -404,7 +409,10 @@ class TestGetChartData:
         fh_dt = datetime.combine(hoy, datetime.max.time())
         result = get_chart_data(db, fd_dt, fh_dt, hoy)
         assert "chart_ventas_7d" in result
-        assert json.loads(result["chart_ventas_7d"]) == [0.0] * 7
+        ventas = json.loads(result["chart_ventas_7d"])
+        assert all(v == 0.0 for v in ventas)
+        # El numero de buckets depende del rango (31 dias = 31 buckets diarios)
+        assert len(ventas) == 31
 
     def test_con_venta(self, db, sample_producto, admin_user):
         """Venta completada es procesada por get_chart_data sin errores."""
@@ -428,9 +436,7 @@ class TestGetChartData:
         fh_dt = datetime.combine(hoy, datetime.max.time())
         result = get_chart_data(db, fd_dt, fh_dt, hoy)
         ventas = json.loads(result["chart_ventas_7d"])
-        # 7 elementos — la suma puede ser 0 en SQLite por conversión de tipos
-        # pero la función debe ejecutarse sin errores y retornar la estructura correcta
-        assert len(ventas) == 7
+        assert len(ventas) == 31
         assert isinstance(ventas, list)
 
     def test_estados_deuda_y_factura(self, db, sample_deuda, sample_factura):

@@ -604,7 +604,7 @@ def anular_venta(
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
 ):
-    if current_user.rol != "ADMIN":
+    if current_user.rol not in ("ADMIN", "SUPERADMIN"):
         return RedirectResponse("/ventas?error=Solo+el+administrador+puede+anular+ventas", status_code=303)
 
     local_id = get_local_id(request)

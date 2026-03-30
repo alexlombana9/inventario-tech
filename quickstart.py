@@ -34,7 +34,7 @@ PG_DB = "techstock"
 PG_PASSWORD = "techstock"
 WEB_PORT = 8000
 
-VERSION = "3.1"
+VERSION = "4.0"
 
 # ── Colores para terminal ──
 GREEN = "\033[92m"
@@ -320,12 +320,13 @@ PG_URL = f"https://get.enterprisedb.com/postgresql/{PG_ZIP}"
 
 # Herramientas PG que NO se necesitan en produccion
 PG_UNNECESSARY_BINS = [
-    "pgbench", "pg_basebackup", "pg_dump", "pg_dumpall",
+    "pgbench", "pg_basebackup", "pg_dumpall",
     "pg_receivewal", "pg_recvlogical", "pg_restore",
     "pg_test_fsync", "pg_test_timing", "pg_upgrade",
     "pg_verifybackup", "pg_waldump", "pg_rewind",
     "pg_amcheck", "pg_checksums", "pg_archivecleanup",
     "vacuumdb", "reindexdb", "clusterdb", "dropuser", "ecpg",
+    # NOTA: pg_dump y psql se mantienen (usados por backup/restore)
 ]
 
 # Carpetas PG que NO se necesitan

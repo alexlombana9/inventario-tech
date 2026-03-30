@@ -1,6 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
 """
-PyInstaller spec file for TechStock v3.0.
+PyInstaller spec file for TechStock v4.0.
 Bundles the FastAPI app + launcher into a distributable directory.
 Entry point: launcher.py (tkinter GUI that manages PG + uvicorn).
 In frozen mode, uvicorn runs in-process (no subprocess Python needed).
@@ -16,7 +16,7 @@ BASE = os.path.abspath(".")
 # PyInstaller can't trace dynamic imports or deferred local imports.
 hidden = [
     # App core
-    "main", "database", "models", "auth", "middleware",
+    "main", "config", "database", "models", "auth", "middleware",
     "templates_config", "seed", "migrations",
     # Routers (imported dynamically in main.py)
     "routers", "routers.auth_router", "routers.usuarios",
@@ -27,9 +27,13 @@ hidden = [
     "routers.caja", "routers.backup", "routers.importar",
     "routers.perfil", "routers.auditoria",
     "routers.locales", "routers.super_dashboard",
+    "routers.chatbot",
+    # Services
+    "services", "services.chatbot_service",
     # Utils
     "utils", "utils.constants", "utils.financial", "utils.pagination",
     "utils.excel", "utils.queries", "utils.dashboard", "utils.pdf",
+    "utils.upload_validation",
     # Database drivers (PostgreSQL is the production DB)
     "psycopg2", "psycopg2._psycopg", "psycopg2.extensions",
     "psycopg2.extras", "psycopg2.tz",
@@ -41,6 +45,10 @@ hidden = [
     "jinja2", "jinja2.ext",
     # Multipart (form parsing)
     "multipart", "multipart.multipart",
+    # Config validation
+    "pydantic", "pydantic_settings",
+    # HTTP client (chatbot)
+    "httpx", "httpx._transports", "httpcore",
     # Auth / crypto
     "bcrypt", "bcrypt._bcrypt", "itsdangerous",
     # Excel
@@ -65,6 +73,11 @@ hidden += collect_submodules("uvicorn")
 hidden += collect_submodules("starlette")
 hidden += collect_submodules("fastapi")
 hidden += collect_submodules("reportlab")
+hidden += collect_submodules("pydantic")
+hidden += collect_submodules("httpx")
+hidden += collect_submodules("httpcore")
+hidden += collect_submodules("anyio")
+hidden += collect_submodules("h11")
 
 # ── Data files ────────────────────────────────────────────────────
 datas = [
@@ -73,10 +86,19 @@ datas = [
     (os.path.join(BASE, "static", "js"), os.path.join("static", "js")),
     (os.path.join(BASE, "static", "vendor"), os.path.join("static", "vendor")),
     (os.path.join(BASE, "static", "uploads"), os.path.join("static", "uploads")),
+    (os.path.join(BASE, "static", "icons"), os.path.join("static", "icons")),
+    (os.path.join(BASE, "static", "manifest.json"), "static"),
+    (os.path.join(BASE, "static", "sw.js"), "static"),
 ]
 
 # Collect psycopg2 data files (bundled DLLs: libpq, libssl, etc.)
 datas += collect_data_files("psycopg2")
+
+# Collect httpx and dependencies (chatbot service)
+datas += collect_data_files("httpx")
+datas += collect_data_files("httpcore")
+datas += collect_data_files("pydantic")
+datas += collect_data_files("pydantic_settings")
 
 # PostgreSQL portable is copied by build_installer.bat (too large for datas)
 
@@ -92,7 +114,7 @@ a = Analysis(
     runtime_hooks=[],
     excludes=[
         # Dev/test tools (never needed in production)
-        "pytest", "httpx", "coverage", "pip", "setuptools", "wheel",
+        "pytest", "coverage", "pip", "setuptools", "wheel",
         "pkg_resources", "_pytest",
         # Test frameworks
         "tkinter.test", "unittest", "doctest", "pydoc",

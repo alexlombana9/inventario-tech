@@ -240,12 +240,13 @@ def index(
     fd, fh, fd_dt, fh_dt = get_date_range(fecha_desde, fecha_hasta, hoy)
 
     ctx.update({"fecha_desde": fd.strftime("%Y-%m-%d"), "fecha_hasta": fh.strftime("%Y-%m-%d")})
-    ctx.update(get_general_metrics(db, local_id=lid))
+    ctx.update(get_general_metrics(db, fd_dt, fh_dt, local_id=lid))
     ctx.update(get_period_metrics(db, fd_dt, fh_dt, local_id=lid))
-    ctx.update(get_financial_metrics(db, local_id=lid))
-    ctx.update(get_tables_data(db, local_id=lid))
+    ctx.update(get_financial_metrics(db, fd_dt, fh_dt, local_id=lid))
+    ctx.update(get_tables_data(db, fd_dt, fh_dt, local_id=lid))
     ctx.update(get_chart_data(db, fd_dt, fh_dt, fh, local_id=lid))
     ctx["fecha_hoy"] = hoy.strftime("%d de %B de %Y")
+    ctx["periodo_label"] = f"{fd.strftime('%d/%m/%Y')} — {fh.strftime('%d/%m/%Y')}"
 
     return templates.TemplateResponse("index.html", ctx)
 

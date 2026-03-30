@@ -36,36 +36,58 @@ def _apply_local_filter(query, model, local_id):
     return query
 
 
-def get_general_metrics(db: Session, local_id: int = None):
-    """Métricas generales que no dependen del rango de fechas."""
+def get_general_metrics(db: Session, fd_dt: datetime = None, fh_dt: datetime = None, local_id: int = None):
+    """Métricas generales. Cuando se pasan fechas, muestra datos del período."""
     P = models.Producto
-    q_prod = db.query(func.count(P.id)).filter(P.activo == True)
-    q_prov = db.query(func.count(models.Proveedor.id)).filter(models.Proveedor.activo == True)
-    q_cat = db.query(func.count(models.Categoria.id)).filter(models.Categoria.activo == True)
-    q_cli = db.query(func.count(models.Cliente.id)).filter(models.Cliente.activo == True)
+    V = models.Venta
+    DV = models.DetalleVenta
+
+    # Estas métricas son siempre estado actual
     q_stock = db.query(func.count(P.id)).filter(P.activo == True, P.stock_actual <= P.stock_minimo)
     q_valor = db.query(func.sum(P.stock_actual * P.precio_costo)).filter(P.activo == True)
 
     if local_id is not None:
-        q_prod = q_prod.filter(P.local_id == local_id)
-        q_prov = q_prov.filter(models.Proveedor.local_id == local_id)
-        q_cat = q_cat.filter(models.Categoria.local_id == local_id)
-        q_cli = q_cli.filter(models.Cliente.local_id == local_id)
         q_stock = q_stock.filter(P.local_id == local_id)
         q_valor = q_valor.filter(P.local_id == local_id)
 
-    total_productos = q_prod.scalar() or 0
-    total_proveedores = q_prov.scalar() or 0
-    total_categorias = q_cat.scalar() or 0
-    total_clientes = q_cli.scalar() or 0
     stock_bajo = q_stock.scalar() or 0
     valor_inventario = q_valor.scalar() or 0.0
 
+    # Productos vendidos en el período
+    productos_vendidos = 0
+    clientes_periodo = 0
+    if fd_dt and fh_dt:
+        q_pv = db.query(func.count(func.distinct(DV.producto_id))).join(V).filter(
+            V.fecha >= fd_dt, V.fecha <= fh_dt, V.estado == "COMPLETADA"
+        )
+        q_cli = db.query(func.count(func.distinct(V.cliente_id))).filter(
+            V.fecha >= fd_dt, V.fecha <= fh_dt, V.estado == "COMPLETADA",
+            V.cliente_id != None,
+        )
+        if local_id is not None:
+            q_pv = q_pv.filter(V.local_id == local_id)
+            q_cli = q_cli.filter(V.local_id == local_id)
+        productos_vendidos = q_pv.scalar() or 0
+        clientes_periodo = q_cli.scalar() or 0
+
+    # Totales activos (siempre estado actual)
+    q_total_prod = db.query(func.count(P.id)).filter(P.activo == True)
+    q_total_cli = db.query(func.count(models.Cliente.id)).filter(models.Cliente.activo == True)
+    q_total_prov = db.query(func.count(models.Proveedor.id)).filter(models.Proveedor.activo == True)
+    q_total_cat = db.query(func.count(models.Categoria.id)).filter(models.Categoria.activo == True)
+    if local_id is not None:
+        q_total_prod = q_total_prod.filter(P.local_id == local_id)
+        q_total_cli = q_total_cli.filter(models.Cliente.local_id == local_id)
+        q_total_prov = q_total_prov.filter(models.Proveedor.local_id == local_id)
+        q_total_cat = q_total_cat.filter(models.Categoria.local_id == local_id)
+
     return {
-        "total_productos": total_productos,
-        "total_proveedores": total_proveedores,
-        "total_categorias": total_categorias,
-        "total_clientes": total_clientes,
+        "total_productos": q_total_prod.scalar() or 0,
+        "total_clientes": q_total_cli.scalar() or 0,
+        "total_proveedores": q_total_prov.scalar() or 0,
+        "total_categorias": q_total_cat.scalar() or 0,
+        "productos_vendidos": productos_vendidos,
+        "clientes_periodo": clientes_periodo,
         "stock_bajo": stock_bajo,
         "valor_inventario": valor_inventario,
     }
@@ -110,10 +132,9 @@ def get_period_metrics(db: Session, fd_dt: datetime, fh_dt: datetime, local_id: 
     }
 
 
-def get_financial_metrics(db: Session, local_id: int = None):
-    """Métricas financieras: deudas y facturas pendientes/vencidas."""
-    ahora = datetime.now()
-
+def get_financial_metrics(db: Session, fd_dt: datetime = None, fh_dt: datetime = None, local_id: int = None):
+    """Métricas financieras filtradas por período."""
+    # Deudas creadas en el período
     q_deudas = db.query(
         func.sum(models.Deuda.monto_total - models.Deuda.monto_pagado)
     ).filter(models.Deuda.estado.in_(["PENDIENTE", "PARCIAL"]))
@@ -121,7 +142,7 @@ def get_financial_metrics(db: Session, local_id: int = None):
     q_dv = db.query(func.count(models.Deuda.id)).filter(
         models.Deuda.estado.in_(["PENDIENTE", "PARCIAL"]),
         models.Deuda.fecha_vencimiento != None,
-        models.Deuda.fecha_vencimiento < ahora
+        models.Deuda.fecha_vencimiento < datetime.now()
     )
 
     q_fact = db.query(
@@ -131,8 +152,15 @@ def get_financial_metrics(db: Session, local_id: int = None):
     q_fv = db.query(func.count(models.Factura.id)).filter(
         models.Factura.estado.in_(["PENDIENTE", "PARCIAL"]),
         models.Factura.fecha_vencimiento != None,
-        models.Factura.fecha_vencimiento < ahora
+        models.Factura.fecha_vencimiento < datetime.now()
     )
+
+    # Filtrar por período
+    if fd_dt and fh_dt:
+        q_deudas = q_deudas.filter(models.Deuda.fecha_deuda >= fd_dt, models.Deuda.fecha_deuda <= fh_dt)
+        q_dv = q_dv.filter(models.Deuda.fecha_deuda >= fd_dt, models.Deuda.fecha_deuda <= fh_dt)
+        q_fact = q_fact.filter(models.Factura.fecha_emision >= fd_dt, models.Factura.fecha_emision <= fh_dt)
+        q_fv = q_fv.filter(models.Factura.fecha_emision >= fd_dt, models.Factura.fecha_emision <= fh_dt)
 
     if local_id is not None:
         q_deudas = q_deudas.filter(models.Deuda.local_id == local_id)
@@ -153,11 +181,16 @@ def get_financial_metrics(db: Session, local_id: int = None):
     }
 
 
-def get_tables_data(db: Session, local_id: int = None):
-    """Datos para tablas: últimos movimientos y productos con stock bajo."""
+def get_tables_data(db: Session, fd_dt: datetime = None, fh_dt: datetime = None, local_id: int = None):
+    """Datos para tablas: movimientos del período y productos con stock bajo."""
     q_mov = db.query(models.MovimientoInventario).options(
         joinedload(models.MovimientoInventario.producto)
     )
+    if fd_dt is not None and fh_dt is not None:
+        q_mov = q_mov.filter(
+            models.MovimientoInventario.fecha >= fd_dt,
+            models.MovimientoInventario.fecha <= fh_dt,
+        )
     q_stock = db.query(models.Producto).options(
         joinedload(models.Producto.categoria)
     ).filter(
@@ -171,7 +204,7 @@ def get_tables_data(db: Session, local_id: int = None):
 
     ultimos_movimientos = q_mov.order_by(
         models.MovimientoInventario.fecha.desc()
-    ).limit(8).all()
+    ).limit(10).all()
 
     productos_stock_bajo = q_stock.order_by(
         models.Producto.stock_actual.asc()
@@ -183,15 +216,59 @@ def get_tables_data(db: Session, local_id: int = None):
     }
 
 
+def _build_period_buckets(fd: date, fh: date):
+    """Genera buckets de fechas para las graficas segun el rango seleccionado.
+
+    <= 31 dias: diario (dd/mm)
+    <= 90 dias: semanal (dd/mm)
+    > 90 dias: mensual (mmm yy)
+    """
+    total_days = (fh - fd).days + 1
+
+    if total_days <= 31:
+        # Diario
+        buckets = []
+        for i in range(total_days):
+            d = fd + timedelta(days=i)
+            buckets.append((d, d, d.strftime("%d/%m")))
+        return buckets
+
+    if total_days <= 90:
+        # Semanal (lunes a domingo)
+        buckets = []
+        current = fd
+        while current <= fh:
+            week_end = min(current + timedelta(days=6), fh)
+            label = f"{current.strftime('%d/%m')}"
+            buckets.append((current, week_end, label))
+            current = week_end + timedelta(days=1)
+        return buckets
+
+    # Mensual
+    buckets = []
+    meses_es = ["Ene", "Feb", "Mar", "Abr", "May", "Jun",
+                "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"]
+    current = fd.replace(day=1)
+    while current <= fh:
+        month_end = (current + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        bucket_start = max(current, fd)
+        bucket_end = min(month_end, fh)
+        label = f"{meses_es[current.month - 1]} {current.strftime('%y')}"
+        buckets.append((bucket_start, bucket_end, label))
+        current = (current + timedelta(days=32)).replace(day=1)
+    return buckets
+
+
 def get_chart_data(db: Session, fd_dt: datetime, fh_dt: datetime, fh: date, local_id: int = None):
-    """Datos para todas las gráficas Chart.js del dashboard."""
+    """Datos para todas las graficas Chart.js del dashboard."""
     V = models.Venta
     DV = models.DetalleVenta
     MI = models.MovimientoInventario
+    fd = fd_dt.date()
 
-    inicio_7d = fh - timedelta(days=6)
+    buckets = _build_period_buckets(fd, fh)
 
-    # Top 5 productos más vendidos
+    # Top 5 productos mas vendidos (rango completo)
     q_top = db.query(
         DV.producto_nombre,
         func.sum(DV.cantidad).label("total_qty"),
@@ -205,43 +282,53 @@ def get_chart_data(db: Session, fd_dt: datetime, fh_dt: datetime, fh: date, loca
         func.sum(DV.cantidad).desc()
     ).limit(5).all()
 
-    # Ventas últimos 7 días
-    q_v7 = db.query(cast(V.fecha, Date), func.sum(V.total)).filter(
-        cast(V.fecha, Date) >= inicio_7d,
+    # Ventas por dia en el rango completo
+    q_ventas = db.query(cast(V.fecha, Date), func.sum(V.total)).filter(
+        cast(V.fecha, Date) >= fd,
         cast(V.fecha, Date) <= fh,
         V.estado == "COMPLETADA",
     )
     if local_id is not None:
-        q_v7 = q_v7.filter(V.local_id == local_id)
-    ventas_7d_raw = dict(q_v7.group_by(cast(V.fecha, Date)).all())
-    ventas_7d = [
-        round(float(ventas_7d_raw.get(fh - timedelta(days=i), 0)), 2)
-        for i in range(6, -1, -1)
-    ]
+        q_ventas = q_ventas.filter(V.local_id == local_id)
+    ventas_raw = dict(q_ventas.group_by(cast(V.fecha, Date)).all())
 
-    # Movimientos últimos 7 días
-    q_m7 = db.query(
+    # Movimientos por dia en el rango completo
+    q_mov = db.query(
         cast(MI.fecha, Date), MI.tipo, func.count(MI.id),
     ).filter(
-        cast(MI.fecha, Date) >= inicio_7d,
+        cast(MI.fecha, Date) >= fd,
         cast(MI.fecha, Date) <= fh,
     )
     if local_id is not None:
-        q_m7 = q_m7.filter(MI.local_id == local_id)
-    mov_7d_raw = q_m7.group_by(cast(MI.fecha, Date), MI.tipo).all()
+        q_mov = q_mov.filter(MI.local_id == local_id)
+    mov_raw = q_mov.group_by(cast(MI.fecha, Date), MI.tipo).all()
 
     mov_dict = {}
-    for fecha_mov, tipo_mov, cnt in mov_7d_raw:
+    for fecha_mov, tipo_mov, cnt in mov_raw:
         mov_dict[(fecha_mov, tipo_mov)] = cnt  # pragma: no cover — SQLite cast(Date) returns empty
 
-    labels_7d, entradas_7d, salidas_7d = [], [], []
-    for i in range(6, -1, -1):
-        dia = fh - timedelta(days=i)
-        labels_7d.append(dia.strftime("%d/%m"))
-        entradas_7d.append(mov_dict.get((dia, "ENTRADA"), 0))
-        salidas_7d.append(mov_dict.get((dia, "SALIDA"), 0))
+    # Agregar datos por bucket
+    labels_period = []
+    ventas_period = []
+    entradas_period = []
+    salidas_period = []
 
-    # Valor inventario por categoría
+    for bucket_start, bucket_end, label in buckets:
+        labels_period.append(label)
+        v_sum = 0.0
+        e_sum = 0
+        s_sum = 0
+        d = bucket_start
+        while d <= bucket_end:
+            v_sum += float(ventas_raw.get(d, 0) or 0)
+            e_sum += mov_dict.get((d, "ENTRADA"), 0)
+            s_sum += mov_dict.get((d, "SALIDA"), 0)
+            d += timedelta(days=1)
+        ventas_period.append(round(v_sum, 2))
+        entradas_period.append(e_sum)
+        salidas_period.append(s_sum)
+
+    # Valor inventario por categoria (estado actual, no filtra por fecha)
     q_cats = db.query(
         models.Categoria.nombre,
         func.sum(models.Producto.stock_actual * models.Producto.precio_costo)
@@ -263,10 +350,10 @@ def get_chart_data(db: Session, fd_dt: datetime, fh_dt: datetime, fh: date, loca
     cat_labels = [c[0] for c in cats_raw]
     cat_valores = [round(float(c[1] or 0), 2) for c in cats_raw]
     if sin_cat > 0:
-        cat_labels.append("Sin categoría")
+        cat_labels.append("Sin categoria")
         cat_valores.append(round(float(sin_cat), 2))
 
-    # Estado deudas y facturas (doughnut)
+    # Estado deudas y facturas (estado actual)
     q_ed = db.query(models.Deuda.estado, func.count(models.Deuda.id))
     q_ef = db.query(models.Factura.estado, func.count(models.Factura.id))
     if local_id is not None:
@@ -285,10 +372,10 @@ def get_chart_data(db: Session, fd_dt: datetime, fh_dt: datetime, fh: date, loca
 
     return {
         "top_productos": top_productos,
-        "chart_ventas_7d": json.dumps(ventas_7d),
-        "chart_labels_7d": json.dumps(labels_7d),
-        "chart_entradas_7d": json.dumps(entradas_7d),
-        "chart_salidas_7d": json.dumps(salidas_7d),
+        "chart_ventas_7d": json.dumps(ventas_period),
+        "chart_labels_7d": json.dumps(labels_period),
+        "chart_entradas_7d": json.dumps(entradas_period),
+        "chart_salidas_7d": json.dumps(salidas_period),
         "chart_cat_labels": json.dumps(cat_labels),
         "chart_cat_valores": json.dumps(cat_valores),
         "chart_deudas": json.dumps(list(estados_deuda.values())),

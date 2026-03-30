@@ -15,81 +15,38 @@
 </div>
 
 <div class="search-bar mb-3">
-  <form method="GET" class="row g-2 align-items-end">
+  <form method="GET" action="/" id="filterForm" class="row g-2 align-items-end">
+    <div class="col-12 col-md-auto mb-1">
+      <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="hoy">Hoy</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="semana">Semana</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="mes">Mes</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="mes_ant">Mes Ant.</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="trimestre">Trimestre</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="anio">Anual</button>
+      </div>
+    </div>
     <div class="col-auto">
       <label class="form-label small mb-0">Desde</label>
-      <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+      <input type="date" name="fecha_desde" id="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
     </div>
     <div class="col-auto">
       <label class="form-label small mb-0">Hasta</label>
-      <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+      <input type="date" name="fecha_hasta" id="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
     </div>
     <div class="col-auto">
-      <button class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrar</button>
     </div>
     <div class="col-auto">
       <a href="/" class="btn btn-outline-secondary btn-sm">Limpiar</a>
     </div>
   </form>
+  <small class="text-muted mt-1 d-block">
+    <i class="bi bi-calendar-range me-1"></i>Periodo: {{ periodo_label }}
+  </small>
 </div>
 
-<!-- ════════════════════════ STAT CARDS — FILA 1 ════════════════════════ -->
-<div class="row g-3 mb-3">
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#e8f4fd">
-          <i class="bi bi-box-seam text-primary"></i>
-        </div>
-        <div>
-          <div class="stat-value" data-count-to="{{ total_productos }}">{{ total_productos }}</div>
-          <div class="stat-label">Productos</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#fde8e8">
-          <i class="bi bi-exclamation-triangle text-danger"></i>
-        </div>
-        <div>
-          <div class="stat-value text-{{ 'danger' if stock_bajo > 0 else 'success' }}" data-count-to="{{ stock_bajo }}">{{ stock_bajo }}</div>
-          <div class="stat-label">Stock Bajo</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#e8f5e9">
-          <i class="bi bi-currency-dollar text-success"></i>
-        </div>
-        <div>
-          <div class="stat-value" style="font-size:1.2rem">{{ valor_inventario | moneda }}</div>
-          <div class="stat-label">Valor Inventario</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-6 col-md-3">
-    <div class="stat-card">
-      <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon" style="background:#fff3e0">
-          <i class="bi bi-arrow-left-right text-warning"></i>
-        </div>
-        <div>
-          <div class="stat-value" data-count-to="{{ movimientos_periodo }}">{{ movimientos_periodo }}</div>
-          <div class="stat-label">Movimientos</div>
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ════════════════════════ STAT CARDS — FILA 2 (ventas) ════════════════════════ -->
+<!-- ════════════════════════ METRICAS DEL PERIODO ════════════════════════ -->
 <div class="row g-3 mb-3">
   <div class="col-6 col-md-3">
     <a href="/ventas" class="text-decoration-none">
@@ -122,21 +79,6 @@
     </a>
   </div>
   <div class="col-6 col-md-3">
-    <a href="/clientes" class="text-decoration-none">
-      <div class="stat-card">
-        <div class="d-flex align-items-center gap-3">
-          <div class="stat-icon" style="background:#fef3c7">
-            <i class="bi bi-person-vcard text-warning"></i>
-          </div>
-          <div>
-            <div class="stat-value" data-count-to="{{ total_clientes }}">{{ total_clientes }}</div>
-            <div class="stat-label">Clientes</div>
-          </div>
-        </div>
-      </div>
-    </a>
-  </div>
-  <div class="col-6 col-md-3">
     <a href="/gastos" class="text-decoration-none">
       <div class="stat-card">
         <div class="d-flex align-items-center gap-3">
@@ -151,10 +93,23 @@
       </div>
     </a>
   </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#fff3e0">
+          <i class="bi bi-arrow-left-right text-warning"></i>
+        </div>
+        <div>
+          <div class="stat-value" data-count-to="{{ movimientos_periodo }}">{{ movimientos_periodo }}</div>
+          <div class="stat-label">Movimientos</div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
-<!-- ════════════════════════ STAT CARDS — FILA 3 (finanzas) ════════════════════════ -->
-<div class="row g-3 mb-4">
+<!-- ════════════════════════ METRICAS FINANCIERAS (PERIODO) ════════════════════════ -->
+<div class="row g-3 mb-3">
   <div class="col-6 col-md-3">
     <a href="/deudas?estado=PENDIENTE" class="text-decoration-none">
       <div class="stat-card">
@@ -196,30 +151,111 @@
     </a>
   </div>
   <div class="col-6 col-md-3">
-    <a href="/proveedores" class="text-decoration-none">
+    <a href="/clientes" class="text-decoration-none">
       <div class="stat-card">
         <div class="d-flex align-items-center gap-3">
-          <div class="stat-icon" style="background:#f3e8ff">
-            <i class="bi bi-truck text-purple"></i>
+          <div class="stat-icon" style="background:#fef3c7">
+            <i class="bi bi-person-vcard text-warning"></i>
           </div>
           <div>
-            <div class="stat-value">{{ total_proveedores }}</div>
-            <div class="stat-label">Proveedores</div>
+            <div class="stat-value" data-count-to="{{ clientes_periodo }}">{{ clientes_periodo }}</div>
+            <div class="stat-label">Clientes Activos</div>
           </div>
         </div>
       </div>
     </a>
   </div>
   <div class="col-6 col-md-3">
-    <a href="/categorias" class="text-decoration-none">
-      <div class="stat-card">
-        <div class="d-flex align-items-center gap-3">
-          <div class="stat-icon" style="background:#e8f5e9">
-            <i class="bi bi-tags text-success"></i>
-          </div>
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#e0f2fe">
+          <i class="bi bi-bag-check text-info"></i>
+        </div>
+        <div>
+          <div class="stat-value" data-count-to="{{ productos_vendidos }}">{{ productos_vendidos }}</div>
+          <div class="stat-label">Productos Vendidos</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ ESTADO ACTUAL (inventario) ════════════════════════ -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <small class="text-muted text-uppercase fw-bold"><i class="bi bi-box-seam me-1"></i>Estado actual del inventario</small>
+  </div>
+  <div class="col-6 col-md-3 col-lg">
+    <a href="/productos" class="text-decoration-none">
+      <div class="stat-card py-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-box-seam text-primary"></i>
           <div>
-            <div class="stat-value">{{ total_categorias }}</div>
-            <div class="stat-label">Categorías</div>
+            <div class="stat-value" style="font-size:1.1rem" data-count-to="{{ total_productos }}">{{ total_productos }}</div>
+            <div class="stat-label" style="font-size:.7rem">Productos</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3 col-lg">
+    <a href="/reportes/stock?solo_bajo=true" class="text-decoration-none">
+      <div class="stat-card py-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-exclamation-triangle text-{{ 'danger' if stock_bajo > 0 else 'success' }}"></i>
+          <div>
+            <div class="stat-value text-{{ 'danger' if stock_bajo > 0 else 'success' }}" style="font-size:1.1rem" data-count-to="{{ stock_bajo }}">{{ stock_bajo }}</div>
+            <div class="stat-label" style="font-size:.7rem">Stock Bajo</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3 col-lg">
+    <div class="stat-card py-2">
+      <div class="d-flex align-items-center gap-2">
+        <i class="bi bi-currency-dollar text-success"></i>
+        <div>
+          <div class="stat-value" style="font-size:1rem">{{ valor_inventario | moneda }}</div>
+          <div class="stat-label" style="font-size:.7rem">Valor Inventario</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3 col-lg">
+    <a href="/proveedores" class="text-decoration-none">
+      <div class="stat-card py-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-truck text-purple"></i>
+          <div>
+            <div class="stat-value" style="font-size:1.1rem">{{ total_proveedores }}</div>
+            <div class="stat-label" style="font-size:.7rem">Proveedores</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3 col-lg">
+    <a href="/categorias" class="text-decoration-none">
+      <div class="stat-card py-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-tags text-success"></i>
+          <div>
+            <div class="stat-value" style="font-size:1.1rem">{{ total_categorias }}</div>
+            <div class="stat-label" style="font-size:.7rem">Categorías</div>
+          </div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-6 col-md-3 col-lg">
+    <a href="/clientes" class="text-decoration-none">
+      <div class="stat-card py-2">
+        <div class="d-flex align-items-center gap-2">
+          <i class="bi bi-people text-info"></i>
+          <div>
+            <div class="stat-value" style="font-size:1.1rem">{{ total_clientes }}</div>
+            <div class="stat-label" style="font-size:.7rem">Clientes</div>
           </div>
         </div>
       </div>
@@ -258,7 +294,7 @@
   <div class="col-lg-8">
     <div class="chart-card h-100">
       <div class="chart-title">
-        <i class="bi bi-graph-up me-1 text-primary"></i>Movimientos — Últimos 7 días
+        <i class="bi bi-graph-up me-1 text-primary"></i>Movimientos — Periodo seleccionado
       </div>
       <div class="chart-container">
         <canvas id="chartMovimientos"></canvas>
@@ -291,7 +327,7 @@
   <div class="col-lg-8">
     <div class="chart-card h-100">
       <div class="chart-title d-flex justify-content-between align-items-center">
-        <span><i class="bi bi-cash-coin me-1 text-success"></i>Ventas — Últimos 7 días</span>
+        <span><i class="bi bi-cash-coin me-1 text-success"></i>Ventas — Periodo seleccionado</span>
         <a href="/ventas" class="btn btn-sm btn-outline-success" style="font-size:.72rem">Historial</a>
       </div>
       <div class="chart-container">
@@ -302,7 +338,7 @@
   <div class="col-lg-4">
     <div class="chart-card h-100">
       <div class="chart-title">
-        <i class="bi bi-trophy me-1 text-warning"></i>Top 5 Productos del Mes
+        <i class="bi bi-trophy me-1 text-warning"></i>Top 5 Productos del Periodo
       </div>
       {% if top_productos %}
       <div class="list-group list-group-flush">
@@ -321,7 +357,7 @@
       </div>
       {% else %}
       <div class="text-center text-muted py-5">
-        <i class="bi bi-trophy fs-2 opacity-25 d-block mb-2"></i>Sin ventas este mes
+        <i class="bi bi-trophy fs-2 opacity-25 d-block mb-2"></i>Sin ventas en este periodo
       </div>
       {% endif %}
     </div>
@@ -367,7 +403,7 @@
     <div class="table-card">
       <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
         <h6 class="mb-0 fw-bold">
-          <i class="bi bi-clock-history me-2 text-primary"></i>Últimos Movimientos
+          <i class="bi bi-clock-history me-2 text-primary"></i>Movimientos del Periodo
         </h6>
         <a href="/inventario" class="btn btn-sm btn-outline-primary">Ver todos</a>
       </div>
@@ -461,4 +497,39 @@
   };
 </script>
 <script src="/static/js/dashboard.js"></script>
+<script>
+(function(){
+  const form = document.getElementById('filterForm');
+  const fd = document.getElementById('fecha_desde');
+  const fh = document.getElementById('fecha_hasta');
+
+  function pad(n){ return n.toString().padStart(2,'0'); }
+  function fmt(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+
+  document.querySelectorAll('.btn-periodo').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      const hoy = new Date();
+      let desde, hasta = hoy;
+      switch(this.dataset.periodo){
+        case 'hoy':
+          desde = hoy; break;
+        case 'semana':
+          desde = new Date(hoy); desde.setDate(hoy.getDate() - hoy.getDay() + 1); break;
+        case 'mes':
+          desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1); break;
+        case 'mes_ant':
+          desde = new Date(hoy.getFullYear(), hoy.getMonth()-1, 1);
+          hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0); break;
+        case 'trimestre':
+          desde = new Date(hoy); desde.setDate(hoy.getDate()-90); break;
+        case 'anio':
+          desde = new Date(hoy.getFullYear(), 0, 1); break;
+      }
+      fd.value = fmt(desde);
+      fh.value = fmt(hasta);
+      form.submit();
+    });
+  });
+})();
+</script>
 {% endblock %}

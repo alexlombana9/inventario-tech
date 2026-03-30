@@ -10,7 +10,30 @@
   </h1>
 </div>
 
-<!-- Métricas globales -->
+<!-- Filtro de fechas -->
+<div class="search-bar mb-3">
+  <form method="GET" action="/super" class="row g-2 align-items-end">
+    <div class="col-auto">
+      <label class="form-label small mb-0">Desde</label>
+      <input type="date" name="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+    </div>
+    <div class="col-auto">
+      <label class="form-label small mb-0">Hasta</label>
+      <input type="date" name="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+    </div>
+    <div class="col-auto">
+      <a href="/super" class="btn btn-outline-secondary btn-sm">Limpiar</a>
+    </div>
+  </form>
+  <small class="text-muted mt-1 d-block">
+    <i class="bi bi-calendar-range me-1"></i>Periodo: {{ periodo_label }}
+  </small>
+</div>
+
+<!-- Metricas globales -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card text-center">
@@ -54,8 +77,8 @@
   <div class="col-md-6">
     <div class="card">
       <div class="card-body text-center py-3">
-        <small class="text-muted d-block">Ventas del Mes</small>
-        <h3 class="text-success mb-0">{{ ventas_mes_total | moneda }}</h3>
+        <small class="text-muted d-block">Ventas del Periodo</small>
+        <h3 class="text-success mb-0">{{ ventas_periodo_total | moneda }}</h3>
       </div>
     </div>
   </div>
@@ -69,7 +92,7 @@
   </div>
 </div>
 
-<!-- Tabla de locales con métricas -->
+<!-- Tabla de locales con metricas -->
 <div class="card">
   <div class="card-header d-flex justify-content-between align-items-center">
     <h6 class="mb-0"><i class="bi bi-building me-1"></i>Rendimiento por Local</h6>
@@ -87,7 +110,7 @@
             <th class="text-center">Usuarios</th>
             <th class="text-center">Productos</th>
             <th class="text-end">Ventas Hoy</th>
-            <th class="text-end">Ventas Mes</th>
+            <th class="text-end">Ventas Periodo</th>
             <th class="text-center">Stock Bajo</th>
             <th class="text-end">Deudas Pend.</th>
             <th class="text-center">Acciones</th>
@@ -108,7 +131,7 @@
             <td class="text-center">{{ s.usuarios }}</td>
             <td class="text-center">{{ s.productos }}</td>
             <td class="text-end">{{ s.ventas_hoy | moneda }}</td>
-            <td class="text-end">{{ s.ventas_mes | moneda }}</td>
+            <td class="text-end">{{ s.ventas_periodo | moneda }}</td>
             <td class="text-center">
               {% if s.stock_bajo > 0 %}
               <span class="badge bg-warning text-dark">{{ s.stock_bajo }}</span>

@@ -87,6 +87,10 @@ LOG_TIME_COLOR = "#444466"
 
 _SUBPROCESS_FLAGS = subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0
 
+# Track if DATABASE_URL was provided externally (.env or system env)
+# If so, we respect it and don't override with config tab values
+_DB_URL_FROM_ENV = bool(os.environ.get("DATABASE_URL"))
+
 
 def _pg_cmd(name):
     """Retorna ruta completa al comando PostgreSQL."""
@@ -152,7 +156,7 @@ class TechStockLauncher:
         self._flush_pending = False
 
         self.root = tk.Tk()
-        self.root.title("TechStock v3.0")
+        self.root.title("TechStock v4.0")
         self.root.geometry("900x780")
         self.root.minsize(720, 580)
         self.root.configure(bg=BG_DARK)
@@ -175,7 +179,7 @@ class TechStockLauncher:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
         mode = "empaquetado" if _FROZEN else "desarrollo"
-        self._log(f"TechStock v3.0 \u2014 Gestor de servidor ({mode})", "OK")
+        self._log(f"TechStock v4.0 \u2014 Gestor de servidor ({mode})", "OK")
         if _FROZEN:
             self._log(f"Directorio: {BASE_DIR}", "INFO")
         else:
@@ -205,7 +209,7 @@ class TechStockLauncher:
         titles.pack(side="left")
         tk.Label(titles, text="TechStock", font=("Segoe UI", 18, "bold"),
                  fg=TEXT_PRIMARY, bg=BG_DARK).pack(anchor="w")
-        tk.Label(titles, text="Sistema de Inventario v3.0",
+        tk.Label(titles, text="Sistema de Inventario v4.0",
                  font=("Segoe UI", 9), fg=TEXT_SECONDARY,
                  bg=BG_DARK).pack(anchor="w")
 
@@ -862,8 +866,9 @@ class TechStockLauncher:
         env["PGPORT"] = PG_PORT
         env["PGCTLTIMEOUT"] = "120"
         # Agregar bin/ y lib/ de PG al PATH para que encuentre DLLs
-        pg_paths = PG_BIN + ";" + os.path.join(PG_DIR, "lib")
-        env["PATH"] = pg_paths + ";" + env.get("PATH", "")
+        sep = os.pathsep
+        pg_paths = PG_BIN + sep + os.path.join(PG_DIR, "lib")
+        env["PATH"] = pg_paths + sep + env.get("PATH", "")
         return env
 
     def _pg_exists(self):
@@ -893,7 +898,6 @@ class TechStockLauncher:
                 pid = int(first_line)
 
             # Verificar si el proceso sigue vivo
-            import signal
             try:
                 os.kill(pid, 0)  # signal 0 = check if alive
                 # Proceso existe — PG podria estar corriendo
@@ -1131,30 +1135,27 @@ class TechStockLauncher:
             env = self._pg_env()
 
             # Iniciar PG sin -w (no esperar) para evitar que pg_ctl se cuelgue
+            # IMPORTANTE: NO usar stdout=PIPE porque postgres.exe hereda el
+            # pipe y stdout.read() se bloquea indefinidamente. Usar DEVNULL
+            # y leer pg.log para diagnostico de errores.
             proc = subprocess.Popen(
                 [pg_ctl, "start", "-D", PG_DATA, "-l", PG_LOG,
                  "-o", f"-p {PG_PORT}"],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, env=env, creationflags=_SUBPROCESS_FLAGS,
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                env=env, creationflags=_SUBPROCESS_FLAGS,
             )
 
-            # Esperar a que pg_ctl termine (solo lanza el proceso, no espera)
             try:
-                proc.wait(timeout=10)
+                proc.wait(timeout=15)
             except subprocess.TimeoutExpired:
                 proc.kill()
-                self.root.after(0, self._log, "pg_ctl no respondio en 10s", "ERROR")
+                self.root.after(0, self._log, "pg_ctl no respondio en 15s", "ERROR")
 
             rc = proc.returncode
-            stdout = ""
-            try:
-                stdout = proc.stdout.read()
-            except Exception:
-                pass
 
             if rc is not None and rc != 0:
-                err = stdout.strip() if stdout else f"Codigo de salida: {rc}"
-                self.root.after(0, self._log, f"Error al iniciar PG: {err}", "ERROR")
+                self.root.after(0, self._log,
+                    f"Error al iniciar PG (codigo de salida: {rc})", "ERROR")
 
                 log_tail = self._pg_read_log_tail()
                 if log_tail:
@@ -1482,17 +1483,20 @@ class TechStockLauncher:
         try:
             # 1. Construir DATABASE_URL desde la config SIEMPRE
             #    (antes de cualquier check, para que todo use los valores correctos)
-            existing_url = os.environ.get("DATABASE_URL", "").strip()
             constructed_url = (
                 f"postgresql://{PG_USER}:{PG_PASSWORD}@127.0.0.1:{PG_PORT}/{PG_DB}"
             )
-            if not existing_url:
+            if _DB_URL_FROM_ENV:
+                # DATABASE_URL fue proporcionada externamente (.env o sistema)
+                # — respetarla sin sobreescribir
+                self.root.after(0, self._log,
+                    "DATABASE_URL externa detectada (de .env o sistema)", "INFO")
+            else:
+                # Siempre reconstruir desde los valores de la config tab
+                # (soporta cambios de puerto/usuario/DB entre reinicios)
                 os.environ["DATABASE_URL"] = constructed_url
                 self.root.after(0, self._log,
-                    f"DATABASE_URL configurada: ...@localhost:{PG_PORT}/{PG_DB}", "INFO")
-            else:
-                self.root.after(0, self._log,
-                    f"DATABASE_URL existente detectada en entorno", "INFO")
+                    f"DATABASE_URL: ...@127.0.0.1:{PG_PORT}/{PG_DB}", "INFO")
 
             # 2. Iniciar PostgreSQL portable (si existe)
             if self._pg_exists():
@@ -1682,7 +1686,7 @@ class TechStockLauncher:
             self.root.after(0, self._unexpected_stop)
             return
 
-        # Fase 2: Esperar respuesta HTTP real
+        # Fase 2: Esperar respuesta HTTP real (usa /health que no requiere auth)
         import urllib.request
         for i in range(30):
             if not self.running:
@@ -1693,7 +1697,8 @@ class TechStockLauncher:
                 self.root.after(0, self._unexpected_stop)
                 return
             try:
-                urllib.request.urlopen(f"http://localhost:{WEB_PORT}", timeout=3)
+                urllib.request.urlopen(
+                    f"http://localhost:{WEB_PORT}/health", timeout=3)
                 self.root.after(0, self._server_ready)
                 return
             except Exception:
@@ -1779,8 +1784,12 @@ class TechStockLauncher:
                 "El servidor esta corriendo.\n\u00bfDetenerlo y salir?"):
                 self._stopping = True
                 def _close_after_stop():
-                    self._stop_all_bg()
-                    self.root.after(0, self.root.destroy)
+                    try:
+                        self._stop_all_bg()
+                    except Exception:
+                        pass
+                    finally:
+                        self.root.after(0, self.root.destroy)
                 threading.Thread(target=_close_after_stop, daemon=True).start()
             else:
                 return

@@ -158,11 +158,12 @@ def reporte_stock_excel(
         query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
     productos = query.order_by(models.Producto.nombre).all()
 
-    headers = ["Código", "Producto", "Categoría", "Stock", "Mín.", "U.M.", "P. Costo", "P. Venta", "Valor Total", "Estado"]
+    headers = ["Código", "Referencia", "Producto", "Categoría", "Stock", "Mín.", "U.M.", "P. Costo", "P. Venta", "Valor Total", "Estado"]
     rows = []
     for p in productos:
         rows.append([
-            p.codigo, p.nombre,
+            p.codigo, p.referencia or "",
+            p.nombre,
             p.categoria.nombre if p.categoria else "-",
             p.stock_actual, p.stock_minimo, p.unidad_medida,
             p.precio_costo, p.precio_venta,
@@ -172,8 +173,8 @@ def reporte_stock_excel(
 
     output = generate_excel(
         "Reporte de Stock", headers, rows,
-        col_widths=[14, 30, 16, 10, 10, 10, 14, 14, 16, 10],
-        money_cols=[6, 7, 8],
+        col_widths=[14, 14, 30, 16, 10, 10, 10, 14, 14, 16, 10],
+        money_cols=[7, 8, 9],
     )
     filename = f"stock_{date.today().strftime('%Y%m%d')}.xlsx"
     return StreamingResponse(
@@ -290,14 +291,15 @@ def reporte_stock_pdf(
     elements.append(Spacer(1, 0.3*cm))
 
     # Tabla
-    header = ["Código", "Producto", "Categoría", "Stock", "Mín.", "U.M.", "P. Costo", "P. Venta", "Valor Total", "Estado"]
+    header = ["Código", "Ref.", "Producto", "Categoría", "Stock", "Mín.", "U.M.", "P. Costo", "P. Venta", "Valor Total", "Estado"]
     data = [header]
 
     for p in productos:
         estado = "BAJO" if p.stock_bajo else "OK"
         data.append([
             p.codigo,
-            p.nombre[:35],
+            p.referencia or "-",
+            p.nombre[:30],
             p.categoria.nombre if p.categoria else "-",
             f"{p.stock_actual:,.1f}",
             f"{p.stock_minimo:,.1f}",
@@ -309,9 +311,9 @@ def reporte_stock_pdf(
         ])
 
     valor_total = sum(p.stock_actual * p.precio_costo for p in productos)
-    data.append(["", "TOTAL", "", "", "", "", "", "", f"${valor_total:,.2f}", ""])
+    data.append(["", "", "TOTAL", "", "", "", "", "", "", f"${valor_total:,.2f}", ""])
 
-    col_widths = [2.5*cm, 6.5*cm, 3*cm, 2*cm, 2*cm, 1.5*cm, 2.5*cm, 2.5*cm, 3*cm, 1.8*cm]
+    col_widths = [2.2*cm, 2.2*cm, 5.5*cm, 2.8*cm, 1.8*cm, 1.8*cm, 1.3*cm, 2.3*cm, 2.3*cm, 2.8*cm, 1.5*cm]
     table = Table(data, colWidths=col_widths, repeatRows=1)
 
     style = TableStyle([
@@ -320,7 +322,7 @@ def reporte_stock_pdf(
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 8),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('ALIGN', (1, 1), (1, -1), 'LEFT'),
+        ('ALIGN', (2, 1), (2, -1), 'LEFT'),
         ('FONTSIZE', (0, 1), (-1, -1), 7.5),
         ('ROWBACKGROUNDS', (0, 1), (-1, -2), [colors.white, colors.HexColor('#f8f9fa')]),
         ('GRID', (0, 0), (-1, -1), 0.3, colors.lightgrey),
@@ -331,8 +333,8 @@ def reporte_stock_pdf(
     # Resaltar filas con stock bajo
     for i, p in enumerate(productos, start=1):
         if p.stock_bajo:
-            style.add('TEXTCOLOR', (9, i), (9, i), colors.red)
-            style.add('FONTNAME', (9, i), (9, i), 'Helvetica-Bold')
+            style.add('TEXTCOLOR', (10, i), (10, i), colors.red)
+            style.add('FONTNAME', (10, i), (10, i), 'Helvetica-Bold')
 
     table.setStyle(style)
     elements.append(table)

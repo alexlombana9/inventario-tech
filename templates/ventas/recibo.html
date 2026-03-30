@@ -55,7 +55,8 @@
       <tr>
         <td>
           {{ d.producto_nombre }}
-          {% if d.producto_referencia %}<br><small style="color:#666">Ref: {{ d.producto_referencia }}</small>{% endif %}
+          {% if d.producto_referencia %}<br><small style="color:#666"><strong>Ref:</strong> {{ d.producto_referencia }}</small>{% endif %}
+          {% if d.producto_codigo %}<small style="color:#999"> | {{ d.producto_codigo }}</small>{% endif %}
         </td>
         <td class="text-center">{{ d.cantidad|numero }}</td>
         <td class="text-end">{{ d.subtotal | moneda }}</td>

@@ -1,5 +1,5 @@
 ; ============================================================
-; TechStock v3.1 — Inno Setup Installer Script
+; TechStock v4.0 — Inno Setup Installer Script
 ; Instalar / Actualizar / Reparar / Desinstalar
 ; Incluye PostgreSQL portable + servidor web completo
 ; NO requiere software adicional en la maquina destino
@@ -7,7 +7,7 @@
 ; ============================================================
 
 #define MyAppName "TechStock"
-#define MyAppVersion "3.1"
+#define MyAppVersion "4.0"
 #define MyAppPublisher "Orionics"
 #define MyAppURL "https://orionics.com"
 #define MyAppExeName "TechStock.exe"

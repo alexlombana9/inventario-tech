@@ -17,10 +17,31 @@ def super_dashboard(
     request: Request,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_superadmin),
+    fecha_desde: str = None,
+    fecha_hasta: str = None,
 ):
     locales = db.query(models.Local).order_by(models.Local.activo.desc(), models.Local.nombre).all()
     hoy = date.today()
-    inicio_mes = datetime(hoy.year, hoy.month, 1)
+
+    # Parsear rango de fechas (default: primer dia del mes hasta hoy)
+    if fecha_desde:
+        try:
+            fd = datetime.strptime(fecha_desde, "%Y-%m-%d").date()
+        except ValueError:
+            fd = date(hoy.year, hoy.month, 1)
+    else:
+        fd = date(hoy.year, hoy.month, 1)
+
+    if fecha_hasta:
+        try:
+            fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").date()
+        except ValueError:
+            fh = hoy
+    else:
+        fh = hoy
+
+    inicio_periodo = datetime.combine(fd, datetime.min.time())
+    fin_periodo = datetime.combine(fh, datetime.max.time())
     inicio_hoy = datetime.combine(hoy, datetime.min.time())
     fin_hoy = datetime.combine(hoy, datetime.max.time())
 
@@ -30,8 +51,8 @@ def super_dashboard(
     total_usuarios = db.query(func.count(models.Usuario.id)).filter(models.Usuario.activo == True).scalar() or 0
     total_productos = db.query(func.count(models.Producto.id)).filter(models.Producto.activo == True).scalar() or 0
 
-    ventas_mes_total = db.query(func.sum(models.Venta.total)).filter(
-        models.Venta.fecha >= inicio_mes, models.Venta.fecha <= fin_hoy,
+    ventas_periodo_total = db.query(func.sum(models.Venta.total)).filter(
+        models.Venta.fecha >= inicio_periodo, models.Venta.fecha <= fin_periodo,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0.0
 
@@ -52,10 +73,10 @@ def super_dashboard(
         .filter(models.Producto.activo == True)
         .group_by(models.Producto.local_id).all()
     )
-    ventas_mes_por_local = dict(
+    ventas_periodo_por_local = dict(
         db.query(models.Venta.local_id, func.sum(models.Venta.total))
         .filter(
-            models.Venta.fecha >= inicio_mes, models.Venta.fecha <= fin_hoy,
+            models.Venta.fecha >= inicio_periodo, models.Venta.fecha <= fin_periodo,
             models.Venta.estado == "COMPLETADA"
         ).group_by(models.Venta.local_id).all()
     )
@@ -89,7 +110,7 @@ def super_dashboard(
             "local": local,
             "usuarios": usuarios_por_local.get(lid, 0),
             "productos": productos_por_local.get(lid, 0),
-            "ventas_mes": ventas_mes_por_local.get(lid, 0) or 0.0,
+            "ventas_periodo": ventas_periodo_por_local.get(lid, 0) or 0.0,
             "ventas_hoy": ventas_hoy_por_local.get(lid, 0) or 0.0,
             "stock_bajo": stock_bajo_por_local.get(lid, 0),
             "deudas_pendientes": deudas_por_local.get(lid, 0) or 0.0,
@@ -102,8 +123,11 @@ def super_dashboard(
         "locales_activos": locales_activos,
         "total_usuarios": total_usuarios,
         "total_productos": total_productos,
-        "ventas_mes_total": ventas_mes_total,
+        "ventas_periodo_total": ventas_periodo_total,
         "ventas_hoy_total": ventas_hoy_total,
         "local_stats": local_stats,
         "fecha_hoy": hoy.strftime("%d de %B de %Y"),
+        "fecha_desde": fd.strftime("%Y-%m-%d"),
+        "fecha_hasta": fh.strftime("%Y-%m-%d"),
+        "periodo_label": f"{fd.strftime('%d/%m/%Y')} — {fh.strftime('%d/%m/%Y')}",
     })
