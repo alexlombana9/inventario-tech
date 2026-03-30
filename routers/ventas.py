@@ -2,13 +2,13 @@ import json
 import io
 from fastapi import APIRouter, Request, Depends, Form
 from fastapi.responses import RedirectResponse, StreamingResponse, JSONResponse
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, subqueryload
 from sqlalchemy import func
 from datetime import datetime, date, timedelta
 
 from database import get_db
 from templates_config import templates
-from auth import require_auth, log_audit, get_local_id
+from auth import require_auth, require_role, log_audit, get_local_id
 from utils.queries import productos_con_stock, clientes_activos, vendedores_activos
 import models
 
@@ -83,7 +83,9 @@ def api_buscar_productos(
         "id": p.id,
         "codigo": p.codigo,
         "nombre": p.nombre,
+        "referencia": p.referencia or "",
         "precio_venta": p.precio_venta,
+        "precio_costo": p.precio_costo,
         "stock_actual": p.stock_actual,
         "unidad_medida": p.unidad_medida,
     } for p in productos])
@@ -187,6 +189,7 @@ def procesar_venta(
                 producto_id=producto.id,
                 producto_nombre=producto.nombre,
                 producto_codigo=producto.codigo,
+                producto_referencia=producto.referencia or "",
                 cantidad=item["cantidad"],
                 precio_unitario=item["precio_unitario"],
                 precio_costo=producto.precio_costo,
@@ -264,7 +267,8 @@ def historial_ventas(
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
     query = db.query(models.Venta).options(
-        joinedload(models.Venta.vendedor)
+        joinedload(models.Venta.vendedor),
+        subqueryload(models.Venta.detalles),
     )
     if local_id is not None:
         query = query.filter(models.Venta.local_id == local_id)
@@ -306,6 +310,18 @@ def historial_ventas(
         total_ventas_q = total_ventas_q.filter(models.Venta.local_id == local_id)
     total_ventas = total_ventas_q.scalar() or 0
 
+    # Costo del período: sum(precio_costo * cantidad) de detalles de ventas completadas
+    costo_q = db.query(
+        func.sum(models.DetalleVenta.precio_costo * models.DetalleVenta.cantidad)
+    ).join(models.Venta).filter(
+        models.Venta.fecha >= fd if fd else True,
+        models.Venta.fecha <= fh if fh else True,
+        models.Venta.estado == "COMPLETADA"
+    )
+    if local_id is not None:
+        costo_q = costo_q.filter(models.Venta.local_id == local_id)
+    costo_periodo = costo_q.scalar() or 0
+
     # Ganancia del período: sum(subtotal - costo) de detalles de ventas completadas
     ganancia_q = db.query(
         func.sum(models.DetalleVenta.subtotal - models.DetalleVenta.precio_costo * models.DetalleVenta.cantidad)
@@ -333,6 +349,7 @@ def historial_ventas(
         "buscar": buscar or "",
         "total": total,
         "total_ventas": total_ventas,
+        "costo_periodo": round(costo_periodo, 2),
         "ganancia_periodo": round(ganancia_periodo, 2),
         "pagina": pag,
         "total_paginas": total_paginas,
@@ -408,6 +425,8 @@ def detalle_venta(
     request: Request,
     db: Session = Depends(get_db),
     current_user: models.Usuario = Depends(require_auth),
+    msg: str = None,
+    error: str = None,
 ):
     local_id = get_local_id(request)
     query = db.query(models.Venta).options(
@@ -423,6 +442,8 @@ def detalle_venta(
     return templates.TemplateResponse("ventas/detalle.html", {
         "request": request,
         "venta": venta,
+        "msg": msg,
+        "error": error,
     })
 
 
@@ -447,7 +468,10 @@ def recibo_venta(
     if not venta:
         return RedirectResponse("/ventas?error=Venta+no+encontrada", status_code=303)
 
-    config = db.query(models.Configuracion).first()
+    config_query = db.query(models.Configuracion)
+    if local_id is not None:
+        config_query = config_query.filter(models.Configuracion.local_id == local_id)
+    config = config_query.first()
 
     return templates.TemplateResponse("ventas/recibo.html", {
         "request": request,
@@ -455,6 +479,120 @@ def recibo_venta(
         "config": config,
         "msg": msg,
     })
+
+
+# ── Edit Sale (ADMIN only) ──────────────────────────────────
+
+@router.get("/{venta_id}/editar")
+def editar_venta_form(
+    venta_id: int,
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_role("ADMIN")),
+    error: str = None,
+):
+    local_id = get_local_id(request)
+    query = db.query(models.Venta).options(
+        joinedload(models.Venta.detalles),
+        joinedload(models.Venta.vendedor),
+    ).filter(models.Venta.id == venta_id)
+    if local_id is not None:
+        query = query.filter(models.Venta.local_id == local_id)
+    venta = query.first()
+    if not venta:
+        return RedirectResponse("/ventas?error=Venta+no+encontrada", status_code=303)
+    if venta.estado == "ANULADA":
+        return RedirectResponse("/ventas?error=No+se+puede+editar+una+venta+anulada", status_code=303)
+
+    clientes = clientes_activos(db, local_id=local_id)
+
+    return templates.TemplateResponse("ventas/editar.html", {
+        "request": request,
+        "venta": venta,
+        "clientes": clientes,
+        "metodos_pago": METODOS_PAGO,
+        "error": error,
+    })
+
+
+@router.post("/{venta_id}/editar")
+def editar_venta(
+    venta_id: int,
+    request: Request,
+    cliente_nombre: str = Form("Consumidor Final"),
+    cliente_id: str = Form(""),
+    metodo_pago: str = Form("EFECTIVO"),
+    descuento_total: float = Form(0.0),
+    notas: str = Form(""),
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_role("ADMIN")),
+):
+    local_id = get_local_id(request)
+    query = db.query(models.Venta).options(
+        joinedload(models.Venta.detalles),
+    ).filter(models.Venta.id == venta_id)
+    if local_id is not None:
+        query = query.filter(models.Venta.local_id == local_id)
+    venta = query.first()
+    if not venta:
+        return RedirectResponse("/ventas?error=Venta+no+encontrada", status_code=303)
+    if venta.estado == "ANULADA":
+        return RedirectResponse("/ventas?error=No+se+puede+editar+una+venta+anulada", status_code=303)
+
+    # Validar descuento
+    if descuento_total < 0:
+        return RedirectResponse(
+            f"/ventas/{venta_id}/editar?error=El+descuento+no+puede+ser+negativo",
+            status_code=303,
+        )
+
+    # Registrar cambios para audit
+    cambios = []
+    if venta.cliente_nombre != cliente_nombre.strip():
+        cambios.append(f"cliente: '{venta.cliente_nombre}' → '{cliente_nombre.strip()}'")
+    if venta.metodo_pago != metodo_pago:
+        cambios.append(f"metodo_pago: '{venta.metodo_pago}' → '{metodo_pago}'")
+    if venta.descuento_total != round(descuento_total, 2):
+        cambios.append(f"descuento: {venta.descuento_total} → {round(descuento_total, 2)}")
+    if (venta.notas or "") != notas.strip():
+        cambios.append("notas actualizado")
+
+    # Aplicar cambios
+    venta.cliente_nombre = cliente_nombre.strip() or "Consumidor Final"
+    try:
+        venta.cliente_id = int(cliente_id) if cliente_id.strip() else None
+    except ValueError:
+        venta.cliente_id = None
+    venta.metodo_pago = metodo_pago
+    venta.descuento_total = round(descuento_total, 2)
+    venta.notas = notas.strip()
+
+    # Recalcular total: subtotal - descuento_total
+    nuevo_total = venta.subtotal - venta.descuento_total
+    if nuevo_total < 0:
+        nuevo_total = 0
+    if venta.total != round(nuevo_total, 2):
+        cambios.append(f"total: {venta.total} → {round(nuevo_total, 2)}")
+    venta.total = round(nuevo_total, 2)
+
+    # Recalcular cambio si es efectivo
+    if metodo_pago == "EFECTIVO":
+        venta.cambio = round(max(0, venta.monto_recibido - venta.total), 2)
+    else:
+        venta.cambio = 0
+
+    db.commit()
+
+    ip = request.client.host if request.client else ""
+    detalle_audit = f"Venta {venta.numero_venta} editada"
+    if cambios:
+        detalle_audit += f": {', '.join(cambios)}"
+    log_audit(db, current_user, "UPDATE", "venta", venta.id, detalle_audit, ip)
+
+    return RedirectResponse(
+        f"/ventas/{venta.id}/detalle?msg=Venta+editada+correctamente",
+        status_code=303,
+    )
 
 
 # ── Void Sale ────────────────────────────────────────────────
@@ -470,7 +608,9 @@ def anular_venta(
         return RedirectResponse("/ventas?error=Solo+el+administrador+puede+anular+ventas", status_code=303)
 
     local_id = get_local_id(request)
-    query = db.query(models.Venta).filter(models.Venta.id == venta_id)
+    query = db.query(models.Venta).options(
+        joinedload(models.Venta.detalles)
+    ).filter(models.Venta.id == venta_id)
     if local_id is not None:
         query = query.filter(models.Venta.local_id == local_id)
     venta = query.first()

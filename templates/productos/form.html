@@ -18,7 +18,7 @@
 </div>
 
 <div class="form-card">
-  <form method="post" action="/productos/{{ producto.id ~ '/editar' if producto else 'nuevo' }}">
+  <form method="post" action="/productos/{{ producto.id ~ '/editar' if producto else 'nuevo' }}" data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row g-3">
 
@@ -107,7 +107,7 @@
             <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" id="precio_costo" name="precio_costo" class="form-control"
-                     min="0" step="0.01" value="{{ '%.2f' | format(producto.precio_costo) if producto else '0.00' }}">
+                     min="0" step="any" value="{{ '%.2f' | format(producto.precio_costo) if producto else '0.00' }}">
             </div>
           </div>
           <div class="col-md-3">
@@ -115,7 +115,7 @@
             <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" id="precio_venta" name="precio_venta" class="form-control"
-                     min="0" step="0.01" value="{{ '%.2f' | format(producto.precio_venta) if producto else '0.00' }}">
+                     min="0" step="any" value="{{ '%.2f' | format(producto.precio_venta) if producto else '0.00' }}">
             </div>
           </div>
           <div class="col-md-3">
@@ -123,7 +123,7 @@
             <div class="input-group">
               <span class="input-group-text">$</span>
               <input type="number" id="precio_venta_minimo" name="precio_venta_minimo" class="form-control"
-                     min="0" step="0.01" value="{{ '%.2f' | format(producto.precio_venta_minimo) if producto else '0.00' }}">
+                     min="0" step="any" value="{{ '%.2f' | format(producto.precio_venta_minimo) if producto else '0.00' }}">
             </div>
             <small class="text-muted">Precio mínimo permitido en ventas</small>
           </div>
@@ -140,7 +140,7 @@
           <div class="col-md-3">
             <label class="form-label" for="stock_actual">Stock Inicial</label>
             <input type="number" id="stock_actual" name="stock_actual" class="form-control"
-                   min="0" step="0.01" value="0">
+                   min="0" step="any" value="0">
             <small class="text-muted">Para cambiar el stock después, use Movimientos</small>
           </div>
           {% else %}
@@ -155,7 +155,7 @@
           <div class="col-md-3">
             <label class="form-label" for="stock_minimo">Stock Mínimo (alerta)</label>
             <input type="number" id="stock_minimo" name="stock_minimo" class="form-control"
-                   min="0" step="0.01" value="{{ '%.2f' | format(producto.stock_minimo) if producto else '0.00' }}">
+                   min="0" step="any" value="{{ '%.2f' | format(producto.stock_minimo) if producto else '0.00' }}">
           </div>
         </div>
       </div>

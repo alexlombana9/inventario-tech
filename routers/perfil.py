@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from templates_config import templates
 from auth import require_auth, hash_password, verify_password, validate_password, set_flash, log_audit, COOKIE_NAME, get_saved_accounts
+from utils.upload_validation import validate_file_content
 import models
 
 router = APIRouter(prefix="/perfil", tags=["perfil"])
@@ -77,6 +78,11 @@ async def subir_foto(
     if len(content) > MAX_FILE_SIZE:
         resp = RedirectResponse("/perfil", status_code=303)
         return set_flash(resp, "La imagen no puede superar 2 MB.", "error")
+
+    # Validar magic bytes del archivo
+    if not validate_file_content(content, ["jpg", "jpeg", "png", "gif", "webp"]):
+        resp = RedirectResponse("/perfil", status_code=303)
+        return set_flash(resp, "El archivo no es una imagen valida. Verifica el formato.", "error")
 
     # Crear directorio si no existe
     os.makedirs(UPLOAD_DIR, exist_ok=True)

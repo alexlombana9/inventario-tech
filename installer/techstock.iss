@@ -1,12 +1,13 @@
 ; ============================================================
-; TechStock v3.0 — Inno Setup Installer Script
-; Instalar / Reparar / Desinstalar desde un solo .exe
+; TechStock v3.1 — Inno Setup Installer Script
+; Instalar / Actualizar / Reparar / Desinstalar
 ; Incluye PostgreSQL portable + servidor web completo
 ; NO requiere software adicional en la maquina destino
+; DATOS en %APPDATA%\TechStock NUNCA se tocan en update/repair
 ; ============================================================
 
 #define MyAppName "TechStock"
-#define MyAppVersion "3.0"
+#define MyAppVersion "3.1"
 #define MyAppPublisher "Orionics"
 #define MyAppURL "https://orionics.com"
 #define MyAppExeName "TechStock.exe"
@@ -27,7 +28,6 @@ AllowNoIcons=yes
 OutputDir=..\dist\installer
 OutputBaseFilename=TechStock_Setup_v{#MyAppVersion}
 ; Compresion optimizada para instalacion rapida
-; lzma2/fast ofrece buen ratio con descompresion rapida
 Compression=lzma2/fast
 SolidCompression=yes
 LZMANumBlockThreads=4
@@ -44,7 +44,10 @@ VersionInfoVersion={#MyAppVersion}.0.0
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription={#MyAppDescription}
 VersionInfoProductName={#MyAppName}
+; ── Actualizacion: reutilizar carpeta anterior ──
 UsePreviousAppDir=yes
+UsePreviousGroup=yes
+UsePreviousTasks=yes
 CloseApplications=yes
 RestartApplications=no
 ; Espacio extra para datos de PostgreSQL
@@ -52,7 +55,7 @@ ExtraDiskSpaceRequired=52428800
 ; Optimizaciones de velocidad
 DisableDirPage=auto
 DisableProgramGroupPage=auto
-SetupLogging=no
+SetupLogging=yes
 
 [Languages]
 Name: "spanish"; MessagesFile: "compiler:Languages\Spanish.isl"
@@ -77,6 +80,8 @@ Name: "autostart"; Description: "Iniciar TechStock con &Windows"; GroupDescripti
 Source: "..\dist\TechStock\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: main; Excludes: "pgsql"
 ; PostgreSQL portable (ya optimizado, sin docs/pgAdmin/headers)
 Source: "..\dist\TechStock\pgsql\*"; DestDir: "{app}\pgsql"; Flags: ignoreversion recursesubdirs createallsubdirs; Components: pgsql
+; Preservar clave secreta existente — nunca sobreescribir
+; (no se incluye .secret_key en los archivos fuente, se genera al ejecutar)
 
 [Icons]
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; \
@@ -104,21 +109,23 @@ Type: files; Name: "{app}\.secret_key"
 [Messages]
 spanish.BeveledLabel=TechStock - Sistema de Inventario
 spanish.WelcomeLabel1=Bienvenido al asistente de {#MyAppName}
-spanish.WelcomeLabel2=Este asistente le permitira instalar, reparar o desinstalar {#MyAppName} v{#MyAppVersion}.%n%nIncluye todo lo necesario:%n  - Servidor web (FastAPI + Uvicorn)%n  - Base de datos PostgreSQL 16%n  - Interfaz completa del sistema%n%nNo requiere software adicional.%nFunciona en cualquier PC con Windows 10 o superior.
+spanish.WelcomeLabel2=Este asistente le permitira instalar, actualizar, reparar o desinstalar {#MyAppName} v{#MyAppVersion}.%n%nIncluye todo lo necesario:%n  - Servidor web (FastAPI + Uvicorn)%n  - Base de datos PostgreSQL 16%n  - Interfaz completa del sistema%n%nNo requiere software adicional.%nFunciona en cualquier PC con Windows 10 o superior.
 spanish.FinishedHeadingLabel=Operacion completada
-spanish.FinishedLabel={#MyAppName} se ha instalado/reparado correctamente.%n%nLa base de datos se inicializara automaticamente la primera vez que inicie la aplicacion.%n%nSus datos existentes no fueron modificados.
+spanish.FinishedLabel={#MyAppName} se ha instalado correctamente.%n%nLa base de datos se inicializara automaticamente la primera vez que inicie la aplicacion.%n%nSus datos existentes no fueron modificados.
 
 [Code]
 
 var
   MaintenancePage: TInputOptionWizardPage;
   IsMaintenanceMode: Boolean;
-  UninstallPath: String;
+  InstalledVersion: String;
+  IsUpgrade: Boolean;
 
 procedure CreateDataDir();
 begin
   ForceDirectories(ExpandConstant('{userappdata}\TechStock'));
   ForceDirectories(ExpandConstant('{userappdata}\TechStock\pgdata'));
+  ForceDirectories(ExpandConstant('{userappdata}\TechStock\backups'));
 end;
 
 function IsAlreadyInstalled(): Boolean;
@@ -126,6 +133,19 @@ begin
   Result := RegValueExists(HKEY_CURRENT_USER,
     'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8F4B3C2E-1A5D-4E7F-9B0C-6D8E2F1A3B5C}_is1',
     'UninstallString');
+end;
+
+function GetInstalledVersion(): String;
+var
+  S: String;
+begin
+  Result := '';
+  if RegQueryStringValue(HKEY_CURRENT_USER,
+    'Software\Microsoft\Windows\CurrentVersion\Uninstall\{8F4B3C2E-1A5D-4E7F-9B0C-6D8E2F1A3B5C}_is1',
+    'DisplayVersion', S) then
+  begin
+    Result := S;
+  end;
 end;
 
 function GetUninstallString(): String;
@@ -142,20 +162,40 @@ begin
 end;
 
 procedure InitializeWizard();
+var
+  OptionLabel: String;
 begin
   IsMaintenanceMode := IsAlreadyInstalled();
+  InstalledVersion := GetInstalledVersion();
+  IsUpgrade := IsMaintenanceMode and (InstalledVersion <> '{#MyAppVersion}');
 
   if IsMaintenanceMode then
   begin
-    // Create maintenance page with 3 options
-    MaintenancePage := CreateInputOptionPage(wpWelcome,
-      'TechStock ya esta instalado',
-      'Seleccione la operacion que desea realizar:',
-      'Elija una opcion y presione Siguiente para continuar.',
-      True, False);
-    MaintenancePage.Add('Reparar — Reinstala todos los archivos del programa sin afectar sus datos');
-    MaintenancePage.Add('Desinstalar — Elimina TechStock completamente de este equipo');
-    MaintenancePage.Values[0] := True;  // Default: Repair
+    if IsUpgrade then
+    begin
+      // Show update + repair + uninstall options
+      MaintenancePage := CreateInputOptionPage(wpWelcome,
+        'TechStock v' + InstalledVersion + ' esta instalado',
+        'Se detecta una nueva version disponible (v{#MyAppVersion}):',
+        'Elija una opcion y presione Siguiente para continuar.',
+        True, False);
+      MaintenancePage.Add('Actualizar a v{#MyAppVersion} — Instala la nueva version conservando todos sus datos');
+      MaintenancePage.Add('Reparar — Reinstala los archivos del programa sin afectar sus datos');
+      MaintenancePage.Add('Desinstalar — Elimina TechStock completamente de este equipo');
+      MaintenancePage.Values[0] := True;  // Default: Update
+    end
+    else
+    begin
+      // Same version — repair or uninstall
+      MaintenancePage := CreateInputOptionPage(wpWelcome,
+        'TechStock v{#MyAppVersion} ya esta instalado',
+        'Seleccione la operacion que desea realizar:',
+        'Elija una opcion y presione Siguiente para continuar.',
+        True, False);
+      MaintenancePage.Add('Reparar — Reinstala todos los archivos del programa sin afectar sus datos');
+      MaintenancePage.Add('Desinstalar — Elimina TechStock completamente de este equipo');
+      MaintenancePage.Values[0] := True;  // Default: Repair
+    end;
   end;
 end;
 
@@ -163,12 +203,29 @@ function ShouldSkipPage(PageID: Integer): Boolean;
 begin
   Result := False;
 
-  // In maintenance mode, skip component/task selection (repair reinstalls everything)
-  if IsMaintenanceMode and (MaintenancePage.Values[0]) then
+  if IsMaintenanceMode then
   begin
-    if (PageID = wpSelectComponents) or (PageID = wpSelectTasks) or
-       (PageID = wpSelectDir) or (PageID = wpSelectProgramGroup) then
-      Result := True;
+    // In maintenance mode (repair/update), skip component/task/dir selection
+    if IsUpgrade then
+    begin
+      // Update or Repair selected (options 0 or 1)
+      if MaintenancePage.Values[0] or MaintenancePage.Values[1] then
+      begin
+        if (PageID = wpSelectComponents) or (PageID = wpSelectTasks) or
+           (PageID = wpSelectDir) or (PageID = wpSelectProgramGroup) then
+          Result := True;
+      end;
+    end
+    else
+    begin
+      // Same version — Repair selected (option 0)
+      if MaintenancePage.Values[0] then
+      begin
+        if (PageID = wpSelectComponents) or (PageID = wpSelectTasks) or
+           (PageID = wpSelectDir) or (PageID = wpSelectProgramGroup) then
+          Result := True;
+      end;
+    end;
   end;
 end;
 
@@ -176,13 +233,19 @@ function NextButtonClick(CurPageID: Integer): Boolean;
 var
   UninstallExe: String;
   ResultCode: Integer;
+  UninstallIdx: Integer;
 begin
   Result := True;
 
-  // Handle maintenance page selection
   if IsMaintenanceMode and (CurPageID = MaintenancePage.ID) then
   begin
-    if MaintenancePage.Values[1] then
+    // Determine uninstall option index based on mode
+    if IsUpgrade then
+      UninstallIdx := 2   // 3rd option in upgrade mode
+    else
+      UninstallIdx := 1;  // 2nd option in same-version mode
+
+    if MaintenancePage.Values[UninstallIdx] then
     begin
       // User chose UNINSTALL
       UninstallExe := GetUninstallString();
@@ -190,17 +253,18 @@ begin
       begin
         if MsgBox(
           'Se procedera a desinstalar TechStock.' + #13#10 + #13#10 +
+          'Importante: Sus datos de la base de datos se pueden conservar.' + #13#10 +
+          'Se le preguntara durante la desinstalacion.' + #13#10 + #13#10 +
           'Desea continuar?',
           mbConfirmation, MB_YESNO) = IDYES then
         begin
           Exec(UninstallExe, '/SILENT', '', SW_SHOW, ewWaitUntilTerminated, ResultCode);
         end;
       end;
-      // Exit the installer after uninstall (whether completed or cancelled)
       Result := False;
       WizardForm.Close();
     end;
-    // If Repair selected, continue normally
+    // If Update or Repair selected, continue normally (install files)
   end;
 end;
 
@@ -209,22 +273,53 @@ begin
   Result := True;
 end;
 
+procedure BackupSecretKey();
+var
+  Src, Dst: String;
+begin
+  Src := ExpandConstant('{app}\.secret_key');
+  Dst := ExpandConstant('{userappdata}\TechStock\.secret_key.bak');
+  if FileExists(Src) then
+    FileCopy(Src, Dst, False);
+end;
+
+procedure RestoreSecretKey();
+var
+  Src, Dst: String;
+begin
+  Src := ExpandConstant('{userappdata}\TechStock\.secret_key.bak');
+  Dst := ExpandConstant('{app}\.secret_key');
+  if FileExists(Src) then
+  begin
+    FileCopy(Src, Dst, False);
+    DeleteFile(Src);
+  end;
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 var
   KillResult: Integer;
 begin
   if CurStep = ssInstall then
   begin
+    // Backup the secret key so sessions survive the update
+    BackupSecretKey();
+
     // Stop PostgreSQL if running
     Exec(ExpandConstant('{app}\pgsql\bin\pg_ctl.exe'),
          'stop -D "' + ExpandConstant('{userappdata}\TechStock\pgdata') + '" -m fast',
          '', SW_HIDE, ewWaitUntilTerminated, KillResult);
     // Kill TechStock
     Exec('taskkill', '/F /IM TechStock.exe', '', SW_HIDE, ewWaitUntilTerminated, KillResult);
+    // Brief pause to ensure file handles are released
+    Sleep(1000);
   end;
 
   if CurStep = ssPostInstall then
   begin
+    // Restore secret key after file replacement
+    RestoreSecretKey();
+    // Ensure data directories exist
     CreateDataDir();
   end;
 end;
@@ -245,7 +340,7 @@ begin
   KeepData := MsgBox(
     'Desea conservar la base de datos y sus datos?' + #13#10 +
     '(Se encuentran en ' + ExpandConstant('{userappdata}\TechStock') + ')' + #13#10 + #13#10 +
-    'SI — Conservar datos (recomendado si va a reinstalar)' + #13#10 +
+    'SI — Conservar datos (recomendado si va a reinstalar o actualizar)' + #13#10 +
     'NO — Eliminar todo permanentemente (IRREVERSIBLE)',
     mbConfirmation, MB_YESNO);
   if KeepData = IDNO then

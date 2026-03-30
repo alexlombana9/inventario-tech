@@ -5,6 +5,11 @@ import models
 from datetime import datetime
 
 
+def _is_pg_binary(cmd_path, name):
+    """Verifica si un comando es un binario PG especifico (psql, pg_dump, etc)."""
+    return name in os.path.basename(str(cmd_path)).lower()
+
+
 class TestBackupPage:
     def test_page_vendedor_no_puede(self, vendedor_client):
         resp = vendedor_client.get("/backup", follow_redirects=False)
@@ -219,18 +224,19 @@ class TestRestaurarBackup:
 
     def test_restaurar_fallback_sqlalchemy(self, superadmin_client, db, tmp_path, monkeypatch):
         """Cuando psql no esta disponible, usa fallback SQLAlchemy."""
-        import routers.backup as backup_router
         import subprocess
+        import routers.backup as backup_router
 
         original_dir = backup_router.BACKUP_DIR
         monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
 
-        # Hacer que subprocess.run lance FileNotFoundError para simular que psql no existe
         original_run = subprocess.run
 
         def mock_run(cmd, *args, **kwargs):
-            if cmd[0] == "psql":
+            if _is_pg_binary(cmd[0], "psql"):
                 raise FileNotFoundError("psql not found")
+            if _is_pg_binary(cmd[0], "pg_dump"):
+                raise FileNotFoundError("pg_dump not found")
             return original_run(cmd, *args, **kwargs)
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -267,8 +273,10 @@ class TestRestaurarBackup:
             stderr = b""
 
         def mock_run(cmd, *args, **kwargs):
-            if cmd[0] == "psql":
+            if _is_pg_binary(cmd[0], "psql"):
                 return FakeResult()
+            if _is_pg_binary(cmd[0], "pg_dump"):
+                raise FileNotFoundError("pg_dump not found")
             return original_run(cmd, *args, **kwargs)
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -299,8 +307,10 @@ class TestRestaurarBackup:
             stderr = b"ERROR: relation does not exist"
 
         def mock_run(cmd, *args, **kwargs):
-            if cmd[0] == "psql":
+            if _is_pg_binary(cmd[0], "psql"):
                 return FakeResult()
+            if _is_pg_binary(cmd[0], "pg_dump"):
+                raise FileNotFoundError("pg_dump not found")
             return original_run(cmd, *args, **kwargs)
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -325,8 +335,10 @@ class TestRestaurarBackup:
         original_run = subprocess.run
 
         def mock_run(cmd, *args, **kwargs):
-            if cmd[0] == "psql":
+            if _is_pg_binary(cmd[0], "psql"):
                 raise subprocess.TimeoutExpired(cmd, 300)
+            if _is_pg_binary(cmd[0], "pg_dump"):
+                raise FileNotFoundError("pg_dump not found")
             return original_run(cmd, *args, **kwargs)
 
         monkeypatch.setattr(subprocess, "run", mock_run)
@@ -341,7 +353,7 @@ class TestRestaurarBackup:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
     def test_restaurar_fallback_con_stmt_con_error(self, superadmin_client, db, tmp_path, monkeypatch):
-        """Fallback SQLAlchemy: sentencia con error incrementa contador errors."""
+        """Fallback SQLAlchemy: sentencia con error hace rollback atomico."""
         import subprocess
         import routers.backup as backup_router
 
@@ -351,14 +363,16 @@ class TestRestaurarBackup:
         original_run = subprocess.run
 
         def mock_run(cmd, *args, **kwargs):
-            if cmd[0] == "psql":
+            if _is_pg_binary(cmd[0], "psql"):
                 raise FileNotFoundError("no psql")
+            if _is_pg_binary(cmd[0], "pg_dump"):
+                raise FileNotFoundError("no pg_dump")
             return original_run(cmd, *args, **kwargs)
 
         monkeypatch.setattr(subprocess, "run", mock_run)
 
         try:
-            # SQL con sentencias que causaran error en SQLite
+            # SQL con sentencia que causa error (tabla inexistente) → rollback atomico
             sql_file = tmp_path / "restore_errors.sql"
             sql_file.write_text(
                 "-- TechStock Backup\n"
@@ -374,7 +388,7 @@ class TestRestaurarBackup:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
 
     def test_restaurar_fallback_excepcion_inesperada(self, superadmin_client, db, tmp_path, monkeypatch):
-        """Fallback: excepcion al abrir/leer archivo entra al except final."""
+        """Fallback: excepcion inesperada en _restore_with_sqlalchemy entra al except final."""
         import subprocess
         import routers.backup as backup_router
 
@@ -384,20 +398,91 @@ class TestRestaurarBackup:
         original_run = subprocess.run
 
         def mock_run(cmd, *args, **kwargs):
-            if cmd[0] == "psql":
+            if _is_pg_binary(cmd[0], "psql"):
                 raise FileNotFoundError("no psql")
+            if _is_pg_binary(cmd[0], "pg_dump"):
+                raise FileNotFoundError("no pg_dump")
             return original_run(cmd, *args, **kwargs)
 
         monkeypatch.setattr(subprocess, "run", mock_run)
 
-        # Crear archivo con encoding que cause error al leer como utf-8
+        # Mock _restore_with_sqlalchemy para que lance excepcion inesperada
+        def mock_restore_sa(filepath, db_session):
+            raise RuntimeError("Error inesperado de prueba")
+
+        monkeypatch.setattr(backup_router, "_restore_with_sqlalchemy", mock_restore_sa)
+
         try:
-            sql_file = tmp_path / "encoding_error.sql"
-            sql_file.write_bytes(b"\xff\xfe-- contenido invalido utf8\n")
+            sql_file = tmp_path / "will_fail.sql"
+            sql_file.write_text("-- TechStock Backup\nINSERT INTO x (id) VALUES (1);\n", encoding="utf-8")
             resp = superadmin_client.post(
-                "/backup/restaurar/encoding_error.sql", follow_redirects=False
+                "/backup/restaurar/will_fail.sql", follow_redirects=False
             )
-            # La respuesta puede ser 303 con mensaje de exito o error
+            assert resp.status_code == 303
+        finally:
+            monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
+
+    def test_restaurar_backup_con_copy_sin_psql(self, superadmin_client, db, tmp_path, monkeypatch):
+        """Backup con formato COPY no puede restaurarse sin psql."""
+        import subprocess
+        import routers.backup as backup_router
+
+        original_dir = backup_router.BACKUP_DIR
+        monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
+
+        original_run = subprocess.run
+
+        def mock_run(cmd, *args, **kwargs):
+            if _is_pg_binary(cmd[0], "psql"):
+                raise FileNotFoundError("no psql")
+            if _is_pg_binary(cmd[0], "pg_dump"):
+                raise FileNotFoundError("no pg_dump")
+            return original_run(cmd, *args, **kwargs)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        try:
+            # Backup en formato COPY (pg_dump default)
+            sql_file = tmp_path / "copy_backup.sql"
+            sql_file.write_text(
+                "-- pg_dump backup\n"
+                "COPY categorias (id, nombre) FROM stdin;\n"
+                "1\tTest\n"
+                "\\.\n",
+                encoding="utf-8",
+            )
+            resp = superadmin_client.post(
+                "/backup/restaurar/copy_backup.sql", follow_redirects=False
+            )
+            assert resp.status_code == 303
+        finally:
+            monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
+
+    def test_restaurar_backup_vacio_sin_datos(self, superadmin_client, db, tmp_path, monkeypatch):
+        """Backup sin INSERT ni COPY muestra error."""
+        import subprocess
+        import routers.backup as backup_router
+
+        original_dir = backup_router.BACKUP_DIR
+        monkeypatch.setattr(backup_router, "BACKUP_DIR", str(tmp_path))
+
+        original_run = subprocess.run
+
+        def mock_run(cmd, *args, **kwargs):
+            if _is_pg_binary(cmd[0], "psql"):
+                raise FileNotFoundError("no psql")
+            if _is_pg_binary(cmd[0], "pg_dump"):
+                raise FileNotFoundError("no pg_dump")
+            return original_run(cmd, *args, **kwargs)
+
+        monkeypatch.setattr(subprocess, "run", mock_run)
+
+        try:
+            sql_file = tmp_path / "empty_backup.sql"
+            sql_file.write_text("-- Solo comentarios\n-- Nada mas\n", encoding="utf-8")
+            resp = superadmin_client.post(
+                "/backup/restaurar/empty_backup.sql", follow_redirects=False
+            )
             assert resp.status_code == 303
         finally:
             monkeypatch.setattr(backup_router, "BACKUP_DIR", original_dir)
@@ -467,7 +552,7 @@ class TestFallbackDump:
         original_run = subprocess.run
 
         def mock_run(cmd, *args, **kwargs):
-            if "pg_dump" in cmd:
+            if _is_pg_binary(cmd[0], "pg_dump"):
                 raise FileNotFoundError("pg_dump not found")
             return original_run(cmd, *args, **kwargs)
 
@@ -488,7 +573,7 @@ class TestFallbackDump:
             stderr = b""
 
         def mock_run(cmd, *args, **kwargs):
-            if "pg_dump" in cmd:
+            if _is_pg_binary(cmd[0], "pg_dump"):
                 return FakeResult()
             return original_run(cmd, *args, **kwargs)
 
@@ -504,7 +589,7 @@ class TestFallbackDump:
         original_run = subprocess.run
 
         def mock_run(cmd, *args, **kwargs):
-            if "pg_dump" in cmd:
+            if _is_pg_binary(cmd[0], "pg_dump"):
                 raise subprocess.TimeoutExpired(cmd, 120)
             return original_run(cmd, *args, **kwargs)
 
@@ -520,3 +605,47 @@ class TestFallbackDump:
         # SQLite no soporta information_schema, pero la funcion maneja
         # el error por tabla y debe retornar al menos la cabecera
         assert "TechStock Backup" in decoded
+
+
+class TestRestoreHelpers:
+    """Tests para funciones auxiliares de restauracion."""
+
+    def test_find_pg_binary_portable(self, monkeypatch, tmp_path):
+        """_find_pg_binary encuentra binarios en pgsql/bin/."""
+        import routers.backup as backup_router
+        pgsql_bin = tmp_path / "pgsql" / "bin"
+        pgsql_bin.mkdir(parents=True)
+        (pgsql_bin / "psql.exe").write_bytes(b"fake")
+
+        monkeypatch.setattr(backup_router, "PROJECT_ROOT", str(tmp_path))
+        result = backup_router._find_pg_binary("psql")
+        assert "psql" in result
+        assert str(tmp_path) in result
+
+    def test_find_pg_binary_fallback_to_name(self, monkeypatch, tmp_path):
+        """_find_pg_binary retorna nombre simple si no encuentra portable."""
+        import routers.backup as backup_router
+        monkeypatch.setattr(backup_router, "PROJECT_ROOT", str(tmp_path))
+        result = backup_router._find_pg_binary("pg_dump")
+        assert result == "pg_dump"
+
+    def test_restore_with_sqlalchemy_no_inserts(self, db, tmp_path):
+        """Archivo sin INSERTs retorna error."""
+        from routers.backup import _restore_with_sqlalchemy
+        filepath = tmp_path / "nodata.sql"
+        filepath.write_text("-- solo comentarios\n", encoding="utf-8")
+        ok, msg = _restore_with_sqlalchemy(str(filepath), db)
+        assert not ok
+        assert "no contiene datos" in msg
+
+    def test_restore_with_sqlalchemy_copy_format(self, db, tmp_path):
+        """Archivo con COPY sin INSERT retorna error."""
+        from routers.backup import _restore_with_sqlalchemy
+        filepath = tmp_path / "copy.sql"
+        filepath.write_text(
+            "COPY categorias FROM stdin;\n1\tTest\n\\.\n",
+            encoding="utf-8",
+        )
+        ok, msg = _restore_with_sqlalchemy(str(filepath), db)
+        assert not ok
+        assert "COPY" in msg

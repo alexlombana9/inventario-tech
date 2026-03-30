@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Request, Depends
 from templates_config import templates
 from fastapi.responses import RedirectResponse, StreamingResponse
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from datetime import datetime, date, timedelta
 from database import get_db
@@ -28,7 +28,9 @@ def reporte_stock(
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
 
-    query = db.query(models.Producto).filter(models.Producto.activo == True)
+    query = db.query(models.Producto).options(
+        joinedload(models.Producto.categoria)
+    ).filter(models.Producto.activo == True)
     if local_id is not None:
         query = query.filter(models.Producto.local_id == local_id)
 
@@ -76,7 +78,9 @@ def reporte_movimientos(
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
-    query = db.query(models.MovimientoInventario)
+    query = db.query(models.MovimientoInventario).options(
+        joinedload(models.MovimientoInventario.producto).joinedload(models.Producto.categoria)
+    )
     if local_id is not None:
         query = query.filter(models.MovimientoInventario.local_id == local_id)
 
@@ -93,11 +97,16 @@ def reporte_movimientos(
     if tipo and tipo in ("ENTRADA", "SALIDA", "AJUSTE"):
         query = query.filter(models.MovimientoInventario.tipo == tipo)
 
-    movimientos = query.order_by(models.MovimientoInventario.fecha.desc()).all()
-
+    # Filtrar por categoria en SQL en vez de en Python para evitar cargar datos innecesarios
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     if cat_id:
-        movimientos = [m for m in movimientos if m.producto and m.producto.categoria_id == cat_id]
+        query = query.filter(
+            models.MovimientoInventario.producto_id.in_(
+                db.query(models.Producto.id).filter(models.Producto.categoria_id == cat_id)
+            )
+        )
+
+    movimientos = query.order_by(models.MovimientoInventario.fecha.desc()).all()
 
     total_entradas = sum(m.cantidad for m in movimientos if m.tipo == "ENTRADA")
     total_salidas = sum(m.cantidad for m in movimientos if m.tipo == "SALIDA")
@@ -138,7 +147,9 @@ def reporte_stock_excel(
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
 
-    query = db.query(models.Producto).filter(models.Producto.activo == True)
+    query = db.query(models.Producto).options(
+        joinedload(models.Producto.categoria)
+    ).filter(models.Producto.activo == True)
     if local_id is not None:
         query = query.filter(models.Producto.local_id == local_id)
     if cat_id:
@@ -189,7 +200,9 @@ def reporte_movimientos_excel(
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
-    query = db.query(models.MovimientoInventario)
+    query = db.query(models.MovimientoInventario).options(
+        joinedload(models.MovimientoInventario.producto)
+    )
     if local_id is not None:
         query = query.filter(models.MovimientoInventario.local_id == local_id)
     try:
@@ -246,7 +259,9 @@ def reporte_stock_pdf(
     cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
     es_solo_bajo = solo_bajo in ("true", "True", "1", "on") if solo_bajo else False
 
-    query = db.query(models.Producto).filter(models.Producto.activo == True)
+    query = db.query(models.Producto).options(
+        joinedload(models.Producto.categoria)
+    ).filter(models.Producto.activo == True)
     if local_id is not None:
         query = query.filter(models.Producto.local_id == local_id)
     if cat_id:
@@ -352,7 +367,9 @@ def reporte_movimientos_pdf(
     if not fecha_hasta:
         fecha_hasta = date.today().strftime("%Y-%m-%d")
 
-    query = db.query(models.MovimientoInventario)
+    query = db.query(models.MovimientoInventario).options(
+        joinedload(models.MovimientoInventario.producto)
+    )
     if local_id is not None:
         query = query.filter(models.MovimientoInventario.local_id == local_id)
     try:

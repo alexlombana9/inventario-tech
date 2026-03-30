@@ -21,6 +21,7 @@ def super_dashboard(
     locales = db.query(models.Local).order_by(models.Local.activo.desc(), models.Local.nombre).all()
     hoy = date.today()
     inicio_mes = datetime(hoy.year, hoy.month, 1)
+    inicio_hoy = datetime.combine(hoy, datetime.min.time())
     fin_hoy = datetime.combine(hoy, datetime.max.time())
 
     # Métricas globales
@@ -35,52 +36,63 @@ def super_dashboard(
     ).scalar() or 0.0
 
     ventas_hoy_total = db.query(func.sum(models.Venta.total)).filter(
-        models.Venta.fecha >= datetime.combine(hoy, datetime.min.time()),
+        models.Venta.fecha >= inicio_hoy,
         models.Venta.fecha <= fin_hoy,
         models.Venta.estado == "COMPLETADA"
     ).scalar() or 0.0
 
-    # Métricas por local
+    # Métricas por local — queries agrupadas en vez de N+1
+    usuarios_por_local = dict(
+        db.query(models.Usuario.local_id, func.count(models.Usuario.id))
+        .filter(models.Usuario.activo == True)
+        .group_by(models.Usuario.local_id).all()
+    )
+    productos_por_local = dict(
+        db.query(models.Producto.local_id, func.count(models.Producto.id))
+        .filter(models.Producto.activo == True)
+        .group_by(models.Producto.local_id).all()
+    )
+    ventas_mes_por_local = dict(
+        db.query(models.Venta.local_id, func.sum(models.Venta.total))
+        .filter(
+            models.Venta.fecha >= inicio_mes, models.Venta.fecha <= fin_hoy,
+            models.Venta.estado == "COMPLETADA"
+        ).group_by(models.Venta.local_id).all()
+    )
+    ventas_hoy_por_local = dict(
+        db.query(models.Venta.local_id, func.sum(models.Venta.total))
+        .filter(
+            models.Venta.fecha >= inicio_hoy, models.Venta.fecha <= fin_hoy,
+            models.Venta.estado == "COMPLETADA"
+        ).group_by(models.Venta.local_id).all()
+    )
+    stock_bajo_por_local = dict(
+        db.query(models.Producto.local_id, func.count(models.Producto.id))
+        .filter(
+            models.Producto.activo == True,
+            models.Producto.stock_actual <= models.Producto.stock_minimo
+        ).group_by(models.Producto.local_id).all()
+    )
+    deudas_por_local = dict(
+        db.query(
+            models.Deuda.local_id,
+            func.sum(models.Deuda.monto_total - models.Deuda.monto_pagado)
+        ).filter(
+            models.Deuda.estado.in_(["PENDIENTE", "PARCIAL"])
+        ).group_by(models.Deuda.local_id).all()
+    )
+
     local_stats = []
     for local in locales:
         lid = local.id
-        n_usuarios = db.query(func.count(models.Usuario.id)).filter(
-            models.Usuario.local_id == lid, models.Usuario.activo == True
-        ).scalar() or 0
-        n_productos = db.query(func.count(models.Producto.id)).filter(
-            models.Producto.local_id == lid, models.Producto.activo == True
-        ).scalar() or 0
-        ventas_mes = db.query(func.sum(models.Venta.total)).filter(
-            models.Venta.local_id == lid,
-            models.Venta.fecha >= inicio_mes, models.Venta.fecha <= fin_hoy,
-            models.Venta.estado == "COMPLETADA"
-        ).scalar() or 0.0
-        ventas_hoy = db.query(func.sum(models.Venta.total)).filter(
-            models.Venta.local_id == lid,
-            models.Venta.fecha >= datetime.combine(hoy, datetime.min.time()),
-            models.Venta.fecha <= fin_hoy,
-            models.Venta.estado == "COMPLETADA"
-        ).scalar() or 0.0
-        stock_bajo = db.query(func.count(models.Producto.id)).filter(
-            models.Producto.local_id == lid,
-            models.Producto.activo == True,
-            models.Producto.stock_actual <= models.Producto.stock_minimo
-        ).scalar() or 0
-        deudas_pend = db.query(
-            func.sum(models.Deuda.monto_total - models.Deuda.monto_pagado)
-        ).filter(
-            models.Deuda.local_id == lid,
-            models.Deuda.estado != "PAGADO"
-        ).scalar() or 0.0
-
         local_stats.append({
             "local": local,
-            "usuarios": n_usuarios,
-            "productos": n_productos,
-            "ventas_mes": ventas_mes,
-            "ventas_hoy": ventas_hoy,
-            "stock_bajo": stock_bajo,
-            "deudas_pendientes": deudas_pend,
+            "usuarios": usuarios_por_local.get(lid, 0),
+            "productos": productos_por_local.get(lid, 0),
+            "ventas_mes": ventas_mes_por_local.get(lid, 0) or 0.0,
+            "ventas_hoy": ventas_hoy_por_local.get(lid, 0) or 0.0,
+            "stock_bajo": stock_bajo_por_local.get(lid, 0),
+            "deudas_pendientes": deudas_por_local.get(lid, 0) or 0.0,
         })
 
     return templates.TemplateResponse("super/dashboard.html", {

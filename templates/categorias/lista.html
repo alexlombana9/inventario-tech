@@ -3,12 +3,6 @@
 {% block page_title %}Inventario &rsaquo; Categorías{% endblock %}
 
 {% block content %}
-{% if msg %}
-<div class="alert alert-success alert-dismissible alert-auto-hide mb-3">
-  <i class="bi bi-check-circle me-2"></i>{{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 {% if error %}
 <div class="alert alert-danger alert-dismissible mb-3">
   <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
@@ -52,7 +46,7 @@
         <table class="table table-hover mb-0">
           <thead>
             <tr>
-              <th>Nombre</th>
+              <th data-sortable>Nombre</th>
               <th>Descripción</th>
               <th>Productos</th>
               <th class="table-actions">Acciones</th>
@@ -85,8 +79,12 @@
             </tr>
             {% else %}
             <tr>
-              <td colspan="4" class="text-center text-muted py-4">
-                No hay categorías. ¡Crea la primera!
+              <td colspan="4">
+                <div class="empty-state">
+                  <i class="bi bi-tags empty-icon"></i>
+                  <div class="empty-title">No hay categorias</div>
+                  <div class="empty-desc">Agrega tu primera categoria.</div>
+                </div>
               </td>
             </tr>
             {% endfor %}

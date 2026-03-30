@@ -187,4 +187,4 @@ class TestSubirLogo:
         )
         assert resp.status_code == 303
         db.refresh(sample_config)
-        assert "logo.png" in sample_config.logo_path
+        assert "logo" in sample_config.logo_path and ".png" in sample_config.logo_path

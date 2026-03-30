@@ -1,0 +1,206 @@
+{% extends "base.html" %}
+{% block title %}Editar Venta {{ venta.numero_venta }}{% endblock %}
+{% block page_title %}Ventas › Editar{% endblock %}
+
+{% block content %}
+
+{% if error %}
+<div class="alert alert-danger alert-dismissible mb-4" role="alert">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
+  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<div class="page-header">
+  <h1>
+    <i class="bi bi-pencil-square me-2 text-primary"></i>
+    Editar Venta {{ venta.numero_venta }}
+  </h1>
+  <div class="d-flex gap-2">
+    <a href="/ventas/{{ venta.id }}/detalle" class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Volver al Detalle
+    </a>
+  </div>
+</div>
+
+<div class="row g-4">
+  <!-- Formulario de edicion -->
+  <div class="col-md-5">
+    <div class="form-card">
+      <form method="post" action="/ventas/{{ venta.id }}/editar">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+
+        <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">
+          <i class="bi bi-info-circle me-1"></i>Datos Generales
+        </h6>
+
+        <div class="mb-3">
+          <label class="form-label">N° Venta</label>
+          <input type="text" class="form-control" value="{{ venta.numero_venta }}" disabled>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Fecha</label>
+          <input type="text" class="form-control" value="{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}" disabled>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Vendedor</label>
+          <input type="text" class="form-control" value="{{ venta.vendedor.nombre_completo if venta.vendedor else '—' }}" disabled>
+        </div>
+
+        <hr class="my-4">
+
+        <h6 class="fw-bold text-muted text-uppercase mb-3" style="font-size:.72rem;letter-spacing:1px">
+          <i class="bi bi-pencil me-1"></i>Campos Editables
+        </h6>
+
+        <div class="mb-3">
+          <label class="form-label">Cliente</label>
+          <select name="cliente_id" class="form-select" id="clienteSelect">
+            <option value="">Consumidor Final</option>
+            {% for c in clientes %}
+            <option value="{{ c.id }}"
+              data-nombre="{{ c.nombre }}"
+              {% if venta.cliente_id == c.id %}selected{% endif %}>
+              {{ c.nombre }}{% if c.documento %} ({{ c.documento }}){% endif %}
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Nombre del Cliente</label>
+          <input type="text" name="cliente_nombre" class="form-control" id="clienteNombre"
+                 value="{{ venta.cliente_nombre }}" placeholder="Consumidor Final">
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Metodo de Pago</label>
+          <select name="metodo_pago" class="form-select">
+            {% for mp in metodos_pago %}
+            <option value="{{ mp }}" {% if venta.metodo_pago == mp %}selected{% endif %}>{{ mp }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Descuento General</label>
+          <div class="input-group">
+            <span class="input-group-text">$</span>
+            <input type="number" name="descuento_total" class="form-control" step="any" min="0"
+                   value="{{ '%.2f' | format(venta.descuento_total) }}" id="descuentoInput">
+          </div>
+          <div class="form-text">
+            Subtotal: {{ venta.subtotal | moneda }}.
+            Total estimado: <strong id="totalEstimado">{{ venta.total | moneda }}</strong>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label">Notas</label>
+          <textarea name="notas" class="form-control" rows="3"
+                    placeholder="Observaciones sobre la venta...">{{ venta.notas or '' }}</textarea>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-check-lg me-1"></i>Guardar Cambios
+          </button>
+          <a href="/ventas/{{ venta.id }}/detalle" class="btn btn-outline-secondary">Cancelar</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Items de la venta (solo lectura) -->
+  <div class="col-md-7">
+    <div class="table-card">
+      <div class="p-3 border-bottom">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-box-seam me-1"></i>Productos Vendidos
+          <span class="badge bg-secondary ms-2">Solo lectura</span>
+        </h6>
+      </div>
+      <div class="table-responsive">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Codigo</th>
+              <th>Producto</th>
+              <th class="text-center">Cant.</th>
+              <th class="text-end">Precio</th>
+              <th class="text-end">Desc.</th>
+              <th class="text-end">Subtotal</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for d in venta.detalles %}
+            <tr>
+              <td><code>{{ d.producto_codigo }}</code></td>
+              <td>
+                {{ d.producto_nombre }}
+                {% if d.producto_referencia %}<br><small class="text-muted">Ref: {{ d.producto_referencia }}</small>{% endif %}
+              </td>
+              <td class="text-center">{{ d.cantidad | numero }}</td>
+              <td class="text-end">{{ d.precio_unitario | moneda }}</td>
+              <td class="text-end">{{ d.descuento_item | moneda }}</td>
+              <td class="text-end fw-bold">{{ d.subtotal | moneda }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr class="fw-bold">
+              <td colspan="5" class="text-end">Subtotal:</td>
+              <td class="text-end">{{ venta.subtotal | moneda }}</td>
+            </tr>
+            {% if venta.descuento_total > 0 %}
+            <tr class="text-danger">
+              <td colspan="5" class="text-end">Descuento:</td>
+              <td class="text-end">-{{ venta.descuento_total | moneda }}</td>
+            </tr>
+            {% endif %}
+            <tr class="fw-bold fs-5">
+              <td colspan="5" class="text-end">Total:</td>
+              <td class="text-end text-primary">{{ venta.total | moneda }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+
+    <div class="alert alert-info mt-3">
+      <i class="bi bi-info-circle me-2"></i>
+      Los productos de la venta no se pueden modificar. Solo se pueden editar los datos generales (cliente, metodo de pago, descuento y notas).
+    </div>
+  </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  const clienteSelect = document.getElementById('clienteSelect');
+  const clienteNombre = document.getElementById('clienteNombre');
+  const descuentoInput = document.getElementById('descuentoInput');
+  const totalEstimado = document.getElementById('totalEstimado');
+  const subtotal = {{ venta.subtotal }};
+
+  // Al seleccionar un cliente del dropdown, actualizar el nombre
+  clienteSelect.addEventListener('change', function() {
+    const opt = this.options[this.selectedIndex];
+    if (this.value) {
+      clienteNombre.value = opt.dataset.nombre || '';
+    } else {
+      clienteNombre.value = 'Consumidor Final';
+    }
+  });
+
+  // Recalcular total estimado al cambiar descuento
+  descuentoInput.addEventListener('input', function() {
+    const desc = parseFloat(this.value) || 0;
+    let total = subtotal - desc;
+    if (total < 0) total = 0;
+    totalEstimado.textContent = '$ ' + total.toLocaleString('es-CO', { minimumFractionDigits: 0 });
+  });
+});
+</script>
+{% endblock %}

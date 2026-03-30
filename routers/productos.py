@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, Depends, Form
 from templates_config import templates
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session, joinedload
+from datetime import date
 from database import get_db
 from auth import require_auth, log_audit, get_local_id
 from utils.queries import categorias_activas, proveedores_activos
@@ -55,6 +56,73 @@ def lista_productos(
         "msg": msg,
         "error": error,
     })
+
+
+@router.get("/exportar")
+def exportar_productos(
+    request: Request,
+    db: Session = Depends(get_db),
+    buscar: str = None,
+    categoria_id: str = None,
+    stock_bajo: str = None,
+):
+    from utils.excel import generate_excel
+
+    cat_id = int(categoria_id) if categoria_id and categoria_id.strip() else None
+    es_stock_bajo = stock_bajo in ("true", "True", "1", "on") if stock_bajo else False
+
+    local_id = get_local_id(request)
+    query = db.query(models.Producto).filter(models.Producto.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Producto.local_id == local_id)
+    if buscar:
+        query = query.filter(
+            models.Producto.nombre.ilike(f"%{buscar}%") |
+            models.Producto.codigo.ilike(f"%{buscar}%") |
+            models.Producto.referencia.ilike(f"%{buscar}%")
+        )
+    if cat_id:
+        query = query.filter(models.Producto.categoria_id == cat_id)
+    if es_stock_bajo:
+        query = query.filter(models.Producto.stock_actual <= models.Producto.stock_minimo)
+
+    productos = query.options(
+        joinedload(models.Producto.categoria),
+        joinedload(models.Producto.proveedor_principal),
+    ).order_by(models.Producto.nombre).all()
+
+    headers = ["Codigo", "Referencia", "Producto", "Categoria", "Proveedor",
+               "P. Costo", "P. Venta", "P. Venta Min.", "Stock", "Stock Min.",
+               "U.M.", "Margen %", "Estado"]
+    rows = []
+    for p in productos:
+        rows.append([
+            p.codigo,
+            p.referencia or "",
+            p.nombre,
+            p.categoria.nombre if p.categoria else "-",
+            p.proveedor_principal.nombre if p.proveedor_principal else "-",
+            p.precio_costo,
+            p.precio_venta,
+            p.precio_venta_minimo,
+            p.stock_actual,
+            p.stock_minimo,
+            p.unidad_medida,
+            p.margen,
+            "BAJO" if p.stock_bajo else "OK",
+        ])
+
+    output = generate_excel(
+        "Listado de Productos", headers, rows,
+        col_widths=[14, 14, 30, 16, 20, 14, 14, 14, 10, 10, 8, 10, 10],
+        money_cols=[5, 6, 7],
+    )
+    filename = f"productos_{date.today().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/nuevo")

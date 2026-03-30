@@ -8,7 +8,7 @@ from database import get_db
 from templates_config import templates
 from auth import (
     verify_password, create_session_cookie, decode_session_cookie,
-    hash_password, validate_password,
+    hash_password, validate_password, cookie_kwargs,
     COOKIE_NAME, set_flash, log_audit, login_limiter, SESSION_MAX_AGE,
     get_saved_accounts, save_accounts_cookie, remove_accounts_cookie,
 )
@@ -67,6 +67,8 @@ def login(
 
     if not user or not verify_password(password, user.password_hash):
         login_limiter.record(ip)
+        log_audit(db, None, "LOGIN_FAILED", "usuario", None,
+                  f"Intento fallido para usuario: {username.strip().lower()}", ip)
         return templates.TemplateResponse("auth/login.html", {
             "request": request,
             "error": "Usuario o contrasena incorrectos",
@@ -92,7 +94,7 @@ def login(
     response = RedirectResponse("/", status_code=303)
     response.set_cookie(
         COOKIE_NAME, cookie_value,
-        httponly=True, samesite="lax", max_age=SESSION_MAX_AGE,
+        **cookie_kwargs(), max_age=SESSION_MAX_AGE,
     )
 
     # Si estamos agregando una cuenta, guardar la sesion anterior en saved_accounts
@@ -195,7 +197,7 @@ def cambiar_cuenta(
     response = RedirectResponse("/", status_code=303)
     response.set_cookie(
         COOKIE_NAME, new_cookie,
-        httponly=True, samesite="lax", max_age=SESSION_MAX_AGE,
+        **cookie_kwargs(), max_age=SESSION_MAX_AGE,
     )
     save_accounts_cookie(response, accounts)
     return set_flash(response, f"Cambiaste a la cuenta de {target_user.nombre_completo}")

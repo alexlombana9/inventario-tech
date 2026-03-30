@@ -1,13 +1,17 @@
 import os
 import sys
 import logging
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, Depends
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from datetime import date
 import uvicorn
 import socket
+
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # ── Logging estructurado ──────────────────────────────────────
 logging.basicConfig(
@@ -20,28 +24,62 @@ logger = logging.getLogger("techstock")
 from sqlalchemy.exc import OperationalError
 
 from database import engine, Base, get_db
+from database import SessionLocal
 from templates_config import templates
 from middleware import AuthMiddleware
 from auth import get_flash, user_has_permiso, get_local_id
 import models
 
-# ── Crear tablas y ejecutar migraciones (solo en producción) ──
-if os.environ.get("TESTING") != "1":  # pragma: no cover
-    Base.metadata.create_all(bind=engine)
 
-    from migrations import run_migrations
-    run_migrations(engine)
+# ── Lifespan: startup y shutdown ─────────────────────────────
+@asynccontextmanager
+async def lifespan(app_instance):  # pragma: no cover
+    """Ciclo de vida de la aplicacion: startup y shutdown."""
+    # ── Startup ──
+    logger.info("TechStock v4.0 iniciando...")
 
-    from seed import run_seed
-    from database import SessionLocal
-    _seed_db = SessionLocal()
-    try:
-        run_seed(_seed_db)
-    finally:
-        _seed_db.close()
+    if os.environ.get("TESTING") != "1":
+        # Health check: verificar conexion antes de crear tablas
+        _startup_ok = False
+        for _attempt in range(3):
+            try:
+                with engine.connect() as _conn:
+                    _conn.execute(text("SELECT 1"))
+                _startup_ok = True
+                break
+            except Exception as _e:
+                logger.warning(f"DB connection attempt {_attempt + 1}/3 failed: {_e}")
+                import time; time.sleep(2)
+        if not _startup_ok:
+            logger.error("No se pudo conectar a PostgreSQL despues de 3 intentos.")
+
+        try:
+            Base.metadata.create_all(bind=engine)
+
+            from migrations import run_migrations
+            run_migrations(engine)
+
+            from seed import run_seed
+            _seed_db = SessionLocal()
+            try:
+                run_seed(_seed_db)
+            finally:
+                _seed_db.close()
+        except Exception as _startup_err:
+            logger.error(f"Error durante inicializacion de DB: {_startup_err}")
+
+    logger.info("TechStock v4.0 listo.")
+    yield
+
+    # ── Shutdown ──
+    if os.environ.get("TESTING") != "1":
+        logger.info("TechStock cerrando conexiones...")
+        engine.dispose()
+        logger.info("TechStock detenido correctamente.")
+
 
 # ── App ──
-app = FastAPI(title="TechStock - Sistema de Inventario")
+app = FastAPI(title="TechStock v4.0 - Sistema de Inventario", lifespan=lifespan)
 app.add_middleware(AuthMiddleware)
 _static_dir = os.path.join(
     os.path.dirname(sys.executable) if getattr(sys, "frozen", False)
@@ -51,6 +89,16 @@ _static_dir = os.path.join(
 app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 
+@app.get("/sw.js")
+async def service_worker():
+    """Service worker servido desde raiz para scope completo."""
+    return FileResponse(
+        os.path.join(_static_dir, "sw.js"),
+        media_type="application/javascript",
+    )
+
+
+# ── Exception Handlers ──
 @app.exception_handler(OperationalError)
 async def db_connection_error_handler(request: Request, exc: OperationalError):
     """Muestra error amigable cuando PostgreSQL no responde."""
@@ -60,11 +108,47 @@ async def db_connection_error_handler(request: Request, exc: OperationalError):
         status_code=303,
     )
 
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException):
+    """Paginas de error personalizadas para 404 y 500."""
+    if exc.status_code == 404:
+        return templates.TemplateResponse("errors/404.html", {"request": request}, status_code=404)
+    if exc.status_code == 500:
+        return templates.TemplateResponse("errors/500.html", {"request": request}, status_code=500)
+    # Para otros codigos, respuesta JSON simple
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(Exception)
+async def generic_exception_handler(request: Request, exc: Exception):
+    """Captura errores no manejados y muestra pagina 500."""
+    logger.exception(f"Error no manejado en {request.method} {request.url.path}")
+    return templates.TemplateResponse("errors/500.html", {"request": request}, status_code=500)
+
+
+# ── Health Endpoints ──
+@app.get("/health")
+async def health_check():
+    """Liveness probe — confirma que el proceso esta vivo."""
+    return {"status": "ok", "version": "4.0.0"}
+
+
+@app.get("/ready")
+async def readiness_check(db: Session = Depends(get_db)):
+    """Readiness probe — verifica conexion a base de datos."""
+    try:
+        db.execute(text("SELECT 1"))
+        return {"status": "ready", "database": "connected"}
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "not_ready", "database": "disconnected"})
+
 # ── Routers ──
 from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas, acreedores, gastos
 from routers import auth_router, usuarios, configuracion, clientes, ventas, caja, backup, importar, perfil, auditoria
 from routers import locales as locales_router
 from routers import super_dashboard as super_dashboard_router
+from routers import chatbot as chatbot_router
 
 app.include_router(auth_router.router)
 app.include_router(usuarios.router)
@@ -87,38 +171,24 @@ app.include_router(acreedores.router)
 app.include_router(gastos.router)
 app.include_router(locales_router.router)
 app.include_router(super_dashboard_router.router)
+app.include_router(chatbot_router.router)
 
 
 def _base_context(request: Request) -> dict:
-    """Contexto base que incluye usuario actual, local y flash messages."""
+    """Contexto base que incluye usuario actual, local y flash messages.
+
+    Reutiliza datos ya cargados por el middleware (request.state) para evitar
+    abrir sesiones de DB extra en cada request. Los indicadores de movimientos
+    del topbar se obtienen via el Jinja2 global movimientos_hoy(request).
+    """
     flash = get_flash(request)
     user = getattr(request.state, "user", None)
     local_id = getattr(request.state, "local_id", None)
     selected_local_id = getattr(request.state, "selected_local_id", None)
 
-    # Cargar nombre del local seleccionado para SUPERADMIN
-    current_local_name = None
-    all_locales = []
-    if user and user.rol == "SUPERADMIN":
-        from database import SessionLocal
-        _db = SessionLocal()
-        try:
-            all_locales = _db.query(models.Local).filter(models.Local.activo == True).all()
-            if selected_local_id:
-                local_obj = _db.query(models.Local).filter(models.Local.id == selected_local_id).first()
-                if local_obj:
-                    current_local_name = local_obj.nombre
-        finally:
-            _db.close()
-    elif user and user.local_id:
-        from database import SessionLocal
-        _db = SessionLocal()
-        try:
-            local_obj = _db.query(models.Local).filter(models.Local.id == user.local_id).first()
-            if local_obj:
-                current_local_name = local_obj.nombre
-        finally:
-            _db.close()
+    # Reutilizar datos ya cargados por el middleware en vez de queries extra
+    current_local_name = getattr(request.state, "local_name", None)
+    all_locales = getattr(request.state, "all_locales", [])
 
     return {
         "request": request,
@@ -194,7 +264,7 @@ def get_local_ip():
 if __name__ == "__main__":
     ip = get_local_ip()
     logger.info("=" * 55)
-    logger.info("  TechStock v3.0 - Sistema de Inventario")
+    logger.info("  TechStock v4.0 - Sistema de Inventario")
     logger.info("=" * 55)
     logger.info("  Acceso local:    http://localhost:8000")
     logger.info("  Acceso en red:   http://%s:8000", ip)

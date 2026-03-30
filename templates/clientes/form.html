@@ -9,12 +9,16 @@
 </div>
 
 <div class="form-card">
-  <form method="POST" action="/clientes{% if cliente %}/{{ cliente.id }}/editar{% else %}/nuevo{% endif %}">
+  <form method="POST" action="/clientes{% if cliente %}/{{ cliente.id }}/editar{% else %}/nuevo{% endif %}" data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row g-3">
-      <div class="col-md-8">
+      <div class="col-md-4">
         <label class="form-label">Nombre <span class="text-danger">*</span></label>
         <input type="text" name="nombre" class="form-control" required value="{{ cliente.nombre if cliente else '' }}">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Empresa</label>
+        <input type="text" name="empresa" class="form-control" value="{{ cliente.empresa if cliente else '' }}" placeholder="Empresa a la que pertenece">
       </div>
       <div class="col-md-4">
         <label class="form-label">Tipo Documento</label>

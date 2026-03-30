@@ -4,13 +4,16 @@
 
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-wallet2 me-2"></i>Gastos del Negocio</h1>
-  <a href="/gastos/nuevo" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo Gasto</a>
+  <h1><i class="bi bi-wallet2 me-2"></i>Gastos del Negocio
+    <button class="btn btn-sm btn-outline-secondary ms-2 btn-help-trigger" data-help="gastos" title="Ayuda"><i class="bi bi-question-circle"></i></button>
+  </h1>
+  <div class="d-flex gap-2">
+    <a href="/gastos/exportar?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&tipo={{ tipo }}&categoria_gasto={{ categoria_gasto }}&buscar={{ buscar }}"
+       class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="/gastos/nuevo" class="btn btn-primary"><i class="bi bi-plus-lg me-1"></i>Nuevo Gasto</a>
+  </div>
 </div>
 
-{% if msg %}
-<div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-1"></i>{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-{% endif %}
 {% if error %}
 <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 {% endif %}
@@ -88,28 +91,28 @@
     <table class="table table-hover">
       <thead>
         <tr>
-          <th>Fecha</th>
-          <th>Concepto</th>
-          <th>Tipo</th>
-          <th>Categoria</th>
-          <th class="text-end">Monto</th>
-          <th>Pago</th>
+          <th data-sortable>Fecha</th>
+          <th data-sortable>Concepto</th>
+          <th class="d-mobile-none">Tipo</th>
+          <th class="d-mobile-none" data-sortable>Categoria</th>
+          <th class="text-end" data-sortable>Monto</th>
+          <th class="d-mobile-none">Pago</th>
           <th class="text-end">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for g in gastos %}
-        <tr>
+        <tr data-href="/gastos/{{ g.id }}/editar">
           <td>{{ g.fecha.strftime('%d/%m/%Y') }}</td>
           <td><strong>{{ g.concepto }}</strong>
             {% if g.comprobante %}<br><small class="text-muted">{{ g.comprobante }}</small>{% endif %}
           </td>
-          <td>
+          <td class="d-mobile-none">
             <span class="badge {{ 'bg-warning' if g.tipo == 'DIRECTO' else 'bg-info' }}">{{ g.tipo }}</span>
           </td>
-          <td>{{ g.categoria_gasto or '-' }}</td>
+          <td class="d-mobile-none">{{ g.categoria_gasto or '-' }}</td>
           <td class="text-end fw-bold text-danger">{{ g.monto | moneda }}</td>
-          <td><span class="badge bg-secondary">{{ g.metodo_pago }}</span></td>
+          <td class="d-mobile-none"><span class="badge bg-secondary">{{ g.metodo_pago }}</span></td>
           <td class="text-end table-actions">
             <a href="/gastos/{{ g.id }}/editar" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i></a>
             <form method="POST" action="/gastos/{{ g.id }}/eliminar" class="d-inline"
@@ -121,7 +124,16 @@
         </tr>
         {% endfor %}
         {% if not gastos %}
-        <tr><td colspan="7" class="text-center text-muted py-4">No se encontraron gastos</td></tr>
+        <tr>
+          <td colspan="7">
+            <div class="empty-state">
+              <i class="bi bi-wallet2 empty-icon"></i>
+              <div class="empty-title">No se encontraron gastos</div>
+              <div class="empty-desc">No hay gastos registrados.</div>
+              <a href="/gastos/nuevo" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nuevo Gasto</a>
+            </div>
+          </td>
+        </tr>
         {% endif %}
       </tbody>
     </table>

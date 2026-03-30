@@ -3,12 +3,6 @@
 {% block page_title %}Compras &rsaquo; Proveedores{% endblock %}
 
 {% block content %}
-{% if msg %}
-<div class="alert alert-success alert-dismissible alert-auto-hide mb-3">
-  <i class="bi bi-check-circle me-2"></i>{{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 {% if error %}
 <div class="alert alert-danger alert-dismissible mb-3">
   <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
@@ -20,9 +14,13 @@
   <h1><i class="bi bi-truck me-2 text-primary"></i>Proveedores
     <button class="btn btn-sm btn-outline-secondary ms-2 btn-help-trigger" data-help="proveedores" title="Ayuda"><i class="bi bi-question-circle"></i></button>
   </h1>
-  <a href="/proveedores/nuevo" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i>Nuevo Proveedor
-  </a>
+  <div class="d-flex gap-2">
+    <a href="/proveedores/exportar?buscar={{ buscar }}"
+       class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="/proveedores/nuevo" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo Proveedor
+    </a>
+  </div>
 </div>
 
 <!-- Búsqueda -->
@@ -50,24 +48,24 @@
     <table class="table table-hover mb-0">
       <thead>
         <tr>
-          <th>Proveedor</th>
-          <th>Contacto</th>
+          <th data-sortable>Proveedor</th>
+          <th class="d-mobile-none" data-sortable>Contacto</th>
           <th>Teléfono</th>
-          <th>Email</th>
-          <th>NIT / RUC</th>
+          <th class="d-mobile-none">Email</th>
+          <th class="d-mobile-none" data-sortable>NIT / RUC</th>
           <th class="table-actions">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for prov in proveedores %}
-        <tr>
+        <tr data-href="/proveedores/{{ prov.id }}/detalle">
           <td>
             <div class="fw-medium">{{ prov.nombre }}</div>
             {% if prov.direccion %}
             <small class="text-muted"><i class="bi bi-geo-alt me-1"></i>{{ prov.direccion[:40] }}</small>
             {% endif %}
           </td>
-          <td>{{ prov.contacto or "-" }}</td>
+          <td class="d-mobile-none">{{ prov.contacto or "-" }}</td>
           <td>
             {% if prov.telefono %}
             <a href="tel:{{ prov.telefono }}" class="text-decoration-none">
@@ -75,14 +73,14 @@
             </a>
             {% else %}-{% endif %}
           </td>
-          <td>
+          <td class="d-mobile-none">
             {% if prov.email %}
-            <a href="mailto:{{ prov.email }}" class="text-decoration-none text-truncate" style="max-width:150px; display:block">
+            <a href="mailto:{{ prov.email }}" class="text-decoration-none">
               {{ prov.email }}
             </a>
             {% else %}-{% endif %}
           </td>
-          <td><code>{{ prov.nit_ruc or "-" }}</code></td>
+          <td class="d-mobile-none"><code>{{ prov.nit_ruc or "-" }}</code></td>
           <td class="table-actions">
             <a href="/proveedores/{{ prov.id }}/detalle" class="btn btn-sm btn-outline-info" title="Ver detalle">
               <i class="bi bi-eye"></i>
@@ -101,9 +99,13 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="6" class="text-center text-muted py-5">
-            <i class="bi bi-truck fs-2 d-block mb-2"></i>
-            No hay proveedores registrados
+          <td colspan="6">
+            <div class="empty-state">
+              <i class="bi bi-truck empty-icon"></i>
+              <div class="empty-title">No se encontraron proveedores</div>
+              <div class="empty-desc">Agrega tu primer proveedor.</div>
+              <a href="/proveedores/nuevo" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nuevo Proveedor</a>
+            </div>
           </td>
         </tr>
         {% endfor %}

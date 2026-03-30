@@ -89,12 +89,12 @@
           <th>Producto</th>
           <th>Tipo</th>
           <th>Cantidad</th>
-          <th>Stock Ant.</th>
-          <th>Stock Res.</th>
-          <th>Precio Unit.</th>
-          <th>Proveedor</th>
-          <th>Referencia</th>
-          <th>Observaciones</th>
+          <th class="d-mobile-none">Stock Ant.</th>
+          <th class="d-mobile-none">Stock Res.</th>
+          <th class="d-mobile-none">Precio Unit.</th>
+          <th class="d-mobile-none">Proveedor</th>
+          <th class="d-mobile-none">Referencia</th>
+          <th class="d-mobile-none">Observaciones</th>
         </tr>
       </thead>
       <tbody>
@@ -114,12 +114,12 @@
             {% if mov.tipo == 'ENTRADA' %}+{% elif mov.tipo == 'SALIDA' %}-{% else %}~{% endif %}
             {{ mov.cantidad | numero }}
           </td>
-          <td class="text-muted">{{ mov.stock_anterior | numero }}</td>
-          <td class="fw-medium">{{ mov.stock_resultante | numero }}</td>
-          <td>{{ mov.precio_unitario | moneda if mov.precio_unitario else "-" }}</td>
-          <td>{{ mov.proveedor.nombre[:20] if mov.proveedor else "-" }}</td>
-          <td><code>{{ mov.numero_referencia or "-" }}</code></td>
-          <td class="text-muted" style="font-size:0.8rem">{{ mov.observaciones[:35] if mov.observaciones else "-" }}</td>
+          <td class="d-mobile-none text-muted">{{ mov.stock_anterior | numero }}</td>
+          <td class="d-mobile-none fw-medium">{{ mov.stock_resultante | numero }}</td>
+          <td class="d-mobile-none">{{ mov.precio_unitario | moneda if mov.precio_unitario else "-" }}</td>
+          <td class="d-mobile-none">{{ mov.proveedor.nombre[:20] if mov.proveedor else "-" }}</td>
+          <td class="d-mobile-none"><code>{{ mov.numero_referencia or "-" }}</code></td>
+          <td class="d-mobile-none text-muted" style="font-size:0.8rem">{{ mov.observaciones[:35] if mov.observaciones else "-" }}</td>
         </tr>
         {% else %}
         <tr>

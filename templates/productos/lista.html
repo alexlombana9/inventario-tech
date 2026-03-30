@@ -3,12 +3,6 @@
 {% block page_title %}Inventario &rsaquo; Productos{% endblock %}
 
 {% block content %}
-{% if msg %}
-<div class="alert alert-success alert-dismissible alert-auto-hide mb-3" role="alert">
-  <i class="bi bi-check-circle me-2"></i>{{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 {% if error %}
 <div class="alert alert-danger alert-dismissible mb-3" role="alert">
   <i class="bi bi-exclamation-circle me-2"></i>{{ error }}
@@ -20,9 +14,13 @@
   <h1><i class="bi bi-box-seam me-2 text-primary"></i>Productos
     <button class="btn btn-sm btn-outline-secondary ms-2 btn-help-trigger" data-help="productos" title="Ayuda"><i class="bi bi-question-circle"></i></button>
   </h1>
-  <a href="/productos/nuevo" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
-  </a>
+  <div class="d-flex gap-2">
+    <a href="/productos/exportar?buscar={{ buscar }}&categoria_id={{ categoria_id or '' }}&stock_bajo={{ 'true' if stock_bajo else '' }}"
+       class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="/productos/nuevo" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo Producto
+    </a>
+  </div>
 </div>
 
 <!-- Filtros -->
@@ -75,31 +73,31 @@
     <table class="table table-hover mb-0">
       <thead>
         <tr>
-          <th>Código</th>
-          <th>Ref.</th>
-          <th>Producto</th>
-          <th>Categoría</th>
-          <th>Stock</th>
-          <th>Stock Mín.</th>
-          <th>P. Costo</th>
-          <th>P. Venta</th>
-          <th>Margen</th>
-          <th>Estado</th>
+          <th data-sortable>Código</th>
+          <th class="d-mobile-none">Ref.</th>
+          <th data-sortable>Producto</th>
+          <th class="d-mobile-none" data-sortable>Categoría</th>
+          <th data-sortable>Stock</th>
+          <th class="d-mobile-none">Stock Mín.</th>
+          <th class="d-mobile-none" data-sortable>P. Costo</th>
+          <th data-sortable>P. Venta</th>
+          <th class="d-mobile-none" data-sortable>Margen</th>
+          <th class="d-mobile-none">Estado</th>
           <th class="table-actions">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for p in productos %}
-        <tr>
+        <tr data-href="/productos/{{ p.id }}/editar">
           <td><code class="text-primary">{{ p.codigo }}</code></td>
-          <td><small class="text-muted">{{ p.referencia or '—' }}</small></td>
+          <td class="d-mobile-none"><small class="text-muted">{{ p.referencia or '—' }}</small></td>
           <td>
             <div class="fw-medium">{{ p.nombre }}</div>
             {% if p.descripcion %}
             <small class="text-muted">{{ p.descripcion[:40] }}{% if p.descripcion|length > 40 %}...{% endif %}</small>
             {% endif %}
           </td>
-          <td>
+          <td class="d-mobile-none">
             {% if p.categoria %}
             <span class="badge bg-light text-dark border">{{ p.categoria.nombre }}</span>
             {% else %}<span class="text-muted">-</span>{% endif %}
@@ -110,15 +108,15 @@
             </span>
             <small class="text-muted">{{ p.unidad_medida }}</small>
           </td>
-          <td class="text-muted">{{ p.stock_minimo | numero }}</td>
-          <td>{{ p.precio_costo | moneda }}</td>
+          <td class="d-mobile-none text-muted">{{ p.stock_minimo | numero }}</td>
+          <td class="d-mobile-none">{{ p.precio_costo | moneda }}</td>
           <td>{{ p.precio_venta | moneda }}</td>
-          <td>
+          <td class="d-mobile-none">
             <span class="badge bg-light text-{{ 'success' if p.margen >= 0 else 'danger' }} border">
               {{ p.margen }}%
             </span>
           </td>
-          <td>
+          <td class="d-mobile-none">
             {% if p.stock_bajo %}
             <span class="badge badge-stock-low">BAJO</span>
             {% else %}
@@ -143,10 +141,18 @@
         </tr>
         {% else %}
         <tr>
-          <td colspan="11" class="text-center text-muted py-5">
-            <i class="bi bi-inbox fs-2 d-block mb-2"></i>
-            No se encontraron productos
-            {% if buscar %} para "{{ buscar }}"{% endif %}
+          <td colspan="11">
+            <div class="empty-state">
+              <i class="bi bi-box-seam empty-icon"></i>
+              <div class="empty-title">No se encontraron productos</div>
+              <div class="empty-desc">
+                {% if buscar %}No hay resultados para "{{ buscar }}". Intenta otros terminos.
+                {% else %}Agrega tu primer producto para comenzar.{% endif %}
+              </div>
+              {% if not buscar %}
+              <a href="/productos/nuevo" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nuevo Producto</a>
+              {% endif %}
+            </div>
           </td>
         </tr>
         {% endfor %}

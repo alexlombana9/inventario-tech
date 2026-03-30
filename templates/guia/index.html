@@ -5,29 +5,70 @@
 {% block content %}
 
 <div class="page-header">
-  <h1><i class="bi bi-book me-2 text-primary"></i>Guia de Uso &mdash; TechStock</h1>
+  <h1><i class="bi bi-book me-2 text-primary"></i>Guia de Uso &mdash; TechStock v3.1</h1>
+  <p class="text-muted mb-0" style="font-size:.875rem">Sistema de Inventario, Punto de Venta y Gestion Financiera &mdash; 21 modulos integrados</p>
 </div>
 
-<!-- Navegacion de la guia -->
-<div class="mb-4 d-flex flex-wrap gap-2">
-  <a href="#inicio-rapido"   class="btn btn-sm btn-outline-primary"><i class="bi bi-rocket me-1"></i>Inicio Rapido</a>
-  <a href="#productos"       class="btn btn-sm btn-outline-secondary"><i class="bi bi-box-seam me-1"></i>Productos</a>
-  <a href="#categorias"      class="btn btn-sm btn-outline-secondary"><i class="bi bi-tags me-1"></i>Categorias</a>
-  <a href="#inventario"      class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left-right me-1"></i>Inventario</a>
-  <a href="#proveedores"     class="btn btn-sm btn-outline-secondary"><i class="bi bi-truck me-1"></i>Proveedores</a>
-  <a href="#ventas"          class="btn btn-sm btn-outline-success"><i class="bi bi-cart-check me-1"></i>Ventas / POS</a>
-  <a href="#clientes"        class="btn btn-sm btn-outline-secondary"><i class="bi bi-person-vcard me-1"></i>Clientes</a>
-  <a href="#caja"            class="btn btn-sm btn-outline-secondary"><i class="bi bi-cash-stack me-1"></i>Caja</a>
-  <a href="#acreedores"      class="btn btn-sm btn-outline-secondary"><i class="bi bi-person-lines-fill me-1"></i>Acreedores</a>
-  <a href="#deudas"          class="btn btn-sm btn-outline-danger"><i class="bi bi-credit-card-2-back me-1"></i>Cuentas x Pagar</a>
-  <a href="#facturas"        class="btn btn-sm btn-outline-primary"><i class="bi bi-receipt me-1"></i>Cuentas x Cobrar</a>
-  <a href="#reportes"        class="btn btn-sm btn-outline-secondary"><i class="bi bi-bar-chart-line me-1"></i>Reportes</a>
-  <a href="#importar"        class="btn btn-sm btn-outline-success"><i class="bi bi-file-earmark-excel me-1"></i>Importar Excel</a>
-  <a href="#usuarios"        class="btn btn-sm btn-outline-secondary"><i class="bi bi-people me-1"></i>Usuarios</a>
-  <a href="#perfil"          class="btn btn-sm btn-outline-secondary"><i class="bi bi-person-gear me-1"></i>Mi Perfil</a>
-  <a href="#configuracion"   class="btn btn-sm btn-outline-secondary"><i class="bi bi-gear me-1"></i>Configuracion</a>
-  <a href="#backup"          class="btn btn-sm btn-outline-secondary"><i class="bi bi-shield-check me-1"></i>Backups</a>
-  <a href="#preguntas"       class="btn btn-sm btn-outline-secondary"><i class="bi bi-question-circle me-1"></i>FAQ</a>
+<!-- ═══════════════════════════════════════════ TABLA DE CONTENIDOS -->
+<div class="guide-section" id="tabla-contenidos">
+  <h4><i class="bi bi-list-nested me-2 text-primary"></i>Tabla de Contenidos</h4>
+
+  <div class="row g-3">
+    <div class="col-md-4">
+      <p class="fw-semibold mb-2 text-primary" style="font-size:.82rem"><i class="bi bi-rocket me-1"></i>INICIO</p>
+      <ul class="list-unstyled mb-0" style="font-size:.82rem; line-height:2">
+        <li><a href="#inicio-rapido" class="text-decoration-none"><i class="bi bi-rocket-takeoff me-1"></i>Inicio Rapido</a></li>
+        <li><a href="#dashboard" class="text-decoration-none"><i class="bi bi-speedometer2 me-1"></i>Dashboard</a></li>
+        <li><a href="#atajos" class="text-decoration-none"><i class="bi bi-keyboard me-1"></i>Atajos y Herramientas</a></li>
+      </ul>
+    </div>
+    <div class="col-md-4">
+      <p class="fw-semibold mb-2 text-success" style="font-size:.82rem"><i class="bi bi-box-seam me-1"></i>INVENTARIO</p>
+      <ul class="list-unstyled mb-0" style="font-size:.82rem; line-height:2">
+        <li><a href="#productos" class="text-decoration-none"><i class="bi bi-box-seam me-1"></i>Productos</a></li>
+        <li><a href="#categorias" class="text-decoration-none"><i class="bi bi-tags me-1"></i>Categorias</a></li>
+        <li><a href="#inventario" class="text-decoration-none"><i class="bi bi-arrow-left-right me-1"></i>Movimientos</a></li>
+        <li><a href="#proveedores" class="text-decoration-none"><i class="bi bi-truck me-1"></i>Proveedores</a></li>
+      </ul>
+    </div>
+    <div class="col-md-4">
+      <p class="fw-semibold mb-2 text-warning" style="font-size:.82rem"><i class="bi bi-cart-check me-1"></i>VENTAS</p>
+      <ul class="list-unstyled mb-0" style="font-size:.82rem; line-height:2">
+        <li><a href="#ventas" class="text-decoration-none"><i class="bi bi-cart-check me-1"></i>Punto de Venta (POS)</a></li>
+        <li><a href="#clientes" class="text-decoration-none"><i class="bi bi-person-vcard me-1"></i>Clientes</a></li>
+        <li><a href="#caja" class="text-decoration-none"><i class="bi bi-cash-stack me-1"></i>Caja Registradora</a></li>
+      </ul>
+    </div>
+    <div class="col-md-4">
+      <p class="fw-semibold mb-2 text-danger" style="font-size:.82rem"><i class="bi bi-wallet2 me-1"></i>FINANZAS</p>
+      <ul class="list-unstyled mb-0" style="font-size:.82rem; line-height:2">
+        <li><a href="#acreedores" class="text-decoration-none"><i class="bi bi-person-lines-fill me-1"></i>Acreedores</a></li>
+        <li><a href="#deudas" class="text-decoration-none"><i class="bi bi-credit-card-2-back me-1"></i>Cuentas por Pagar</a></li>
+        <li><a href="#facturas" class="text-decoration-none"><i class="bi bi-receipt me-1"></i>Cuentas por Cobrar</a></li>
+        <li><a href="#gastos" class="text-decoration-none"><i class="bi bi-wallet2 me-1"></i>Gastos</a></li>
+      </ul>
+    </div>
+    <div class="col-md-4">
+      <p class="fw-semibold mb-2 text-info" style="font-size:.82rem"><i class="bi bi-bar-chart-line me-1"></i>REPORTES Y DATOS</p>
+      <ul class="list-unstyled mb-0" style="font-size:.82rem; line-height:2">
+        <li><a href="#reportes" class="text-decoration-none"><i class="bi bi-bar-chart-line me-1"></i>Reportes</a></li>
+        <li><a href="#exportar" class="text-decoration-none"><i class="bi bi-download me-1"></i>Exportar Excel</a></li>
+        <li><a href="#importar" class="text-decoration-none"><i class="bi bi-file-earmark-excel me-1"></i>Importar Excel</a></li>
+      </ul>
+    </div>
+    <div class="col-md-4">
+      <p class="fw-semibold mb-2 text-secondary" style="font-size:.82rem"><i class="bi bi-gear me-1"></i>ADMINISTRACION</p>
+      <ul class="list-unstyled mb-0" style="font-size:.82rem; line-height:2">
+        <li><a href="#usuarios" class="text-decoration-none"><i class="bi bi-people me-1"></i>Usuarios y Roles</a></li>
+        <li><a href="#perfil" class="text-decoration-none"><i class="bi bi-person-gear me-1"></i>Mi Perfil</a></li>
+        <li><a href="#configuracion" class="text-decoration-none"><i class="bi bi-gear me-1"></i>Configuracion</a></li>
+        <li><a href="#auditoria" class="text-decoration-none"><i class="bi bi-clock-history me-1"></i>Auditoria</a></li>
+        <li><a href="#backup" class="text-decoration-none"><i class="bi bi-shield-check me-1"></i>Backups</a></li>
+        <li><a href="#locales" class="text-decoration-none"><i class="bi bi-building me-1"></i>Multi-Local (SUPERADMIN)</a></li>
+        <li><a href="#preguntas" class="text-decoration-none"><i class="bi bi-question-circle me-1"></i>Preguntas Frecuentes</a></li>
+      </ul>
+    </div>
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════ INICIO RAPIDO -->
@@ -80,7 +121,110 @@
 
   <div class="guide-tip">
     <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
-    <strong>Consejo:</strong> Si tienes muchos datos, usa <strong>Importar Excel</strong> para cargar productos, clientes, proveedores y categorias de forma masiva.
+    <strong>Consejo:</strong> Si tienes muchos datos, usa <strong>Importar Excel</strong> para cargar productos, clientes, proveedores y categorias de forma masiva. Tambien puedes usar <kbd>Ctrl+K</kbd> en cualquier momento para buscar paginas y acciones rapidamente.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ DASHBOARD -->
+<div class="guide-section" id="dashboard">
+  <h4><i class="bi bi-speedometer2 me-2 text-primary"></i>Dashboard &mdash; Panel Principal</h4>
+  <p class="text-muted mb-4">El Dashboard es tu pantalla de inicio. Muestra un resumen en tiempo real del estado de tu negocio con metricas, graficas y alertas.</p>
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Metricas principales</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li><i class="bi bi-box-seam me-1 text-muted"></i><strong>Productos activos</strong> &mdash; Total de productos registrados y activos.</li>
+        <li><i class="bi bi-truck me-1 text-muted"></i><strong>Proveedores</strong> &mdash; Total de proveedores activos.</li>
+        <li><i class="bi bi-tags me-1 text-muted"></i><strong>Categorias</strong> &mdash; Total de categorias en uso.</li>
+        <li><i class="bi bi-exclamation-triangle me-1 text-danger"></i><strong>Stock bajo</strong> &mdash; Productos cuyo stock actual es menor o igual al minimo configurado.</li>
+        <li><i class="bi bi-cash-coin me-1 text-muted"></i><strong>Valor del inventario</strong> &mdash; Suma de (stock x precio costo) de todos los productos.</li>
+        <li><i class="bi bi-cart-check me-1 text-muted"></i><strong>Ventas del periodo</strong> &mdash; Total vendido en el rango de fechas seleccionado.</li>
+        <li><i class="bi bi-graph-up-arrow me-1 text-success"></i><strong>Ganancias</strong> &mdash; Diferencia entre precio de venta y costo en el periodo.</li>
+      </ul>
+    </div>
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Graficas</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li><strong>Ventas diarias</strong> &mdash; Tendencia de ventas de los ultimos 7 dias.</li>
+        <li><strong>Ganancias diarias</strong> &mdash; Evolucion de la ganancia.</li>
+        <li><strong>Top productos vendidos</strong> &mdash; Los productos mas vendidos en el periodo.</li>
+        <li><strong>Ventas por metodo de pago</strong> &mdash; Distribucion entre efectivo, tarjeta, etc.</li>
+        <li><strong>Movimientos de inventario</strong> &mdash; Entradas y salidas de los ultimos dias.</li>
+        <li><strong>Ventas por categoria</strong> &mdash; Que categorias generan mas ingresos.</li>
+        <li><strong>Productos con stock bajo</strong> &mdash; Alerta visual de productos que necesitan reabastecimiento.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Filtro de fechas</p>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">En la parte superior del dashboard encontraras los campos <strong>Fecha desde</strong> y <strong>Fecha hasta</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Selecciona el rango y haz clic en <strong>Filtrar</strong>. Las metricas de ventas, ganancias y graficas se actualizaran al periodo seleccionado.</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Por defecto muestra los datos del <strong>mes actual</strong>.</div></div>
+    </div>
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Secciones financieras</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li><i class="bi bi-credit-card me-1 text-danger"></i><strong>Deudas pendientes</strong> &mdash; Total que debes a proveedores/acreedores. Muestra deudas vencidas por separado.</li>
+        <li><i class="bi bi-receipt me-1 text-primary"></i><strong>Facturas por cobrar</strong> &mdash; Total que te deben tus clientes. Muestra facturas vencidas.</li>
+        <li><i class="bi bi-wallet2 me-1 text-muted"></i><strong>Gastos del periodo</strong> &mdash; Total de gastos registrados en el rango seleccionado.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="guide-tip">
+    <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+    <strong>Consejo:</strong> Los datos del Dashboard se actualizan cada vez que abres la pagina. Si eres <strong>Super Administrador</strong> sin local seleccionado, se te redirige al <strong>Super Dashboard</strong> con metricas consolidadas de todos los locales.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ ATAJOS Y HERRAMIENTAS -->
+<div class="guide-section" id="atajos">
+  <h4><i class="bi bi-keyboard-fill me-2 text-primary"></i>Atajos de Teclado y Herramientas</h4>
+  <p class="text-muted mb-4">TechStock incluye herramientas que agilizan tu trabajo diario.</p>
+
+  <div class="row g-4">
+    <div class="col-md-4">
+      <div class="p-3 rounded-3 bg-primary bg-opacity-10 h-100">
+        <p class="fw-bold text-primary mb-2"><i class="bi bi-search me-1"></i>Paleta de Comandos</p>
+        <p style="font-size:.875rem" class="mb-2">Presiona <kbd>Ctrl+K</kbd> en cualquier pagina para abrir la paleta de busqueda rapida.</p>
+        <ul style="font-size:.82rem;color:#495057" class="mb-0">
+          <li>Busca paginas, modulos y acciones.</li>
+          <li>Usa las flechas <kbd>&uarr;</kbd><kbd>&darr;</kbd> para navegar.</li>
+          <li>Presiona <kbd>Enter</kbd> para ir al resultado.</li>
+          <li>Presiona <kbd>Esc</kbd> para cerrar.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="p-3 rounded-3 bg-success bg-opacity-10 h-100">
+        <p class="fw-bold text-success mb-2"><i class="bi bi-chat-dots me-1"></i>Asistente de Ayuda</p>
+        <p style="font-size:.875rem" class="mb-2">Haz clic en el boton flotante <strong>?</strong> en la esquina inferior derecha para abrir el chatbot de ayuda.</p>
+        <ul style="font-size:.82rem;color:#495057" class="mb-0">
+          <li>Escribe tu pregunta en lenguaje natural.</li>
+          <li>El asistente te guia con respuestas contextuales.</li>
+          <li>Sugiere acciones rapidas con enlaces directos.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="p-3 rounded-3 bg-warning bg-opacity-10 h-100">
+        <p class="fw-bold text-warning mb-2"><i class="bi bi-moon me-1"></i>Tema Claro/Oscuro</p>
+        <p style="font-size:.875rem" class="mb-2">Haz clic en el icono de <i class="bi bi-moon-fill"></i> luna en la barra superior para alternar entre modo claro y oscuro.</p>
+        <ul style="font-size:.82rem;color:#495057" class="mb-0">
+          <li>Tu preferencia se guarda automaticamente.</li>
+          <li>Tambien detecta la preferencia de tu sistema operativo.</li>
+          <li>Todos los modulos y graficas se adaptan al tema.</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-tip mt-3">
+    <i class="bi bi-info-circle me-1 text-primary"></i>
+    En cada modulo del sistema encontraras un boton <strong><i class="bi bi-question-circle"></i> Ayuda</strong> que abre una ventana con informacion especifica de esa seccion.
   </div>
 </div>
 
@@ -96,7 +240,8 @@
       <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Completar el <strong>codigo</strong> (identificador unico, ej: CEL-001), nombre y categoria.</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Ingresar <strong>precio de costo</strong> y <strong>precio de venta</strong>. El margen se calcula automaticamente.</div></div>
       <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Establecer el <strong>stock minimo</strong>: cuando el inventario llegue a este numero, el sistema te alertara.</div></div>
-      <div class="guide-step"><div class="guide-step-num">5</div><div class="guide-step-text">Opcionalmente, agrega una <strong>referencia</strong> del fabricante y un <strong>precio de venta minimo</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">5</div><div class="guide-step-text">Opcionalmente, agrega una <strong>referencia</strong> del fabricante y un <strong>precio de venta minimo</strong> (protege tu margen).</div></div>
+      <div class="guide-step"><div class="guide-step-num">6</div><div class="guide-step-text">Selecciona la <strong>unidad de medida</strong> (Unidad, Caja, Metro, Kilo, Litro, Par, Rollo).</div></div>
     </div>
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Filtros y busqueda</p>
@@ -105,10 +250,11 @@
         <li>Filtra por <strong>Categoria</strong> para ver solo los productos de un tipo.</li>
         <li>Activa el filtro <strong>Stock Bajo</strong> para ver que productos necesitan reabastecerse.</li>
         <li>El margen de ganancia se muestra en color: <span class="text-success fw-semibold">verde</span> si es positivo.</li>
+        <li>Exporta la lista completa a <strong>Excel</strong> con el boton verde en la esquina superior.</li>
       </ul>
       <div class="guide-tip mt-3">
         <i class="bi bi-info-circle me-1 text-primary"></i>
-        Para <strong>desactivar</strong> un producto sin eliminarlo, usa el boton de eliminar &mdash; el producto quedara inactivo pero su historial se conserva.
+        Para <strong>desactivar</strong> un producto sin eliminarlo, usa el boton de eliminar &mdash; el producto quedara inactivo pero su historial se conserva. Los productos desactivados no aparecen en el POS ni en selecciones.
       </div>
     </div>
   </div>
@@ -131,9 +277,13 @@
       <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
         <li>Usa nombres claros y generales (ej: "Celulares", "Accesorios", "Cables").</li>
         <li>Cada categoria muestra la cantidad de productos asociados.</li>
-        <li>Las categorias se pueden editar o eliminar si no tienen productos.</li>
+        <li>Las categorias se pueden editar en cualquier momento.</li>
         <li>Al importar productos desde Excel, las categorias se crean automaticamente si no existen.</li>
       </ul>
+      <div class="guide-tip mt-3">
+        <i class="bi bi-exclamation-triangle me-1 text-warning"></i>
+        <strong>Proteccion de cascada:</strong> No puedes eliminar una categoria que tiene productos activos asociados. Primero mueve o desactiva los productos.
+      </div>
     </div>
   </div>
 </div>
@@ -141,35 +291,47 @@
 <!-- ═══════════════════════════════════════════ INVENTARIO -->
 <div class="guide-section" id="inventario">
   <h4><i class="bi bi-arrow-left-right me-2 text-secondary"></i>Movimientos de Inventario</h4>
-  <p class="text-muted mb-4">Cada cambio en el stock queda registrado con fecha, tipo y motivo.</p>
+  <p class="text-muted mb-4">Cada cambio en el stock queda registrado con fecha, tipo y motivo. La trazabilidad es completa.</p>
 
   <div class="row g-4">
     <div class="col-md-4">
       <div class="p-3 rounded-3 bg-success bg-opacity-10 h-100">
         <p class="fw-bold text-success mb-2"><i class="bi bi-box-arrow-in-down me-1"></i>Entrada</p>
         <p style="font-size:.875rem">Registra cuando <strong>recibes mercancia</strong>: compras a proveedores, devoluciones de clientes, o stock inicial. El stock del producto aumenta.</p>
-        <p style="font-size:.82rem;color:#495057">Ve a <strong>Compras &rsaquo; Registrar Entrada</strong> o desde la barra superior.</p>
+        <p style="font-size:.82rem;color:#495057">Ve a <strong>Compras &rsaquo; Registrar Entrada</strong>. Usa el <strong>buscador</strong> para encontrar el producto rapidamente por nombre, codigo o referencia.</p>
       </div>
     </div>
     <div class="col-md-4">
       <div class="p-3 rounded-3 bg-danger bg-opacity-10 h-100">
         <p class="fw-bold text-danger mb-2"><i class="bi bi-box-arrow-up me-1"></i>Salida</p>
-        <p style="font-size:.875rem">Registra cuando <strong>sale mercancia</strong>: ventas, envios, o merma. El stock del producto disminuye.</p>
-        <p style="font-size:.82rem;color:#495057">Usa el boton <strong>Salida</strong> en la barra superior.</p>
+        <p style="font-size:.875rem">Registra cuando <strong>sale mercancia</strong>: envios, merma, o retiro manual. El stock del producto disminuye.</p>
+        <p style="font-size:.82rem;color:#495057">Usa el boton <strong>Salida</strong> en la barra superior. Las ventas desde el POS generan salidas automaticamente.</p>
       </div>
     </div>
     <div class="col-md-4">
       <div class="p-3 rounded-3 bg-warning bg-opacity-10 h-100">
         <p class="fw-bold text-warning mb-2"><i class="bi bi-arrow-repeat me-1"></i>Ajuste</p>
         <p style="font-size:.875rem">Corrige el stock cuando hay diferencia entre el sistema y el conteo fisico. Para <strong>cuadres de inventario</strong>.</p>
-        <p style="font-size:.82rem;color:#495057">Puede ser positivo o negativo. Siempre documenta el motivo.</p>
+        <p style="font-size:.82rem;color:#495057">Puede ser positivo o negativo. Siempre documenta el motivo en las observaciones.</p>
       </div>
     </div>
   </div>
 
-  <div class="guide-tip mt-4">
-    <i class="bi bi-info-circle me-1 text-primary"></i>
-    Cada movimiento registra el <strong>stock anterior</strong> y el <strong>stock resultante</strong>. Los movimientos no se eliminan para mantener la trazabilidad.
+  <div class="row g-4 mt-2">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Historial de movimientos</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li>Ve a <strong>Inventario &rsaquo; Movimientos</strong> para ver el historial completo.</li>
+        <li>Filtra por <strong>tipo</strong> (entrada, salida, ajuste) y por <strong>fecha</strong>.</li>
+        <li>Cada registro muestra: producto, stock anterior, cantidad, stock resultante, proveedor y observaciones.</li>
+      </ul>
+    </div>
+    <div class="col-md-6">
+      <div class="guide-tip">
+        <i class="bi bi-info-circle me-1 text-primary"></i>
+        Los movimientos <strong>no se pueden eliminar ni editar</strong> para mantener la trazabilidad. Si hay un error, registra un <strong>Ajuste</strong> para corregir el stock y documenta el motivo.
+      </div>
+    </div>
   </div>
 </div>
 
@@ -189,12 +351,13 @@
       <p class="fw-semibold mb-2">Ver historial de un proveedor</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">En la lista de proveedores, clic en <i class="bi bi-eye"></i> <strong>Ver detalle</strong>.</div></div>
       <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Veras los ultimos movimientos de inventario asociados y los productos vinculados.</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Tambien se muestran las <strong>deudas pendientes</strong> con ese proveedor.</div></div>
     </div>
   </div>
 
   <div class="guide-tip">
     <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
-    Al registrar una <strong>Entrada</strong>, selecciona el proveedor para que quede vinculado al movimiento.
+    Al registrar una <strong>Entrada</strong>, selecciona el proveedor para que quede vinculado al movimiento. Los proveedores desactivados no aparecen en las listas de seleccion.
   </div>
 </div>
 
@@ -207,24 +370,27 @@
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Realizar una venta</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Ventas &rsaquo; Punto de Venta</strong>. Asegurate de tener la <strong>caja abierta</strong>.</div></div>
-      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Busca productos por <strong>nombre o codigo</strong>. Haz clic para agregar al carrito.</div></div>
-      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Ajusta la <strong>cantidad</strong> y aplica descuentos si es necesario.</div></div>
-      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Selecciona el <strong>metodo de pago</strong> (efectivo, tarjeta, transferencia, credito o mixto).</div></div>
-      <div class="guide-step"><div class="guide-step-num">5</div><div class="guide-step-text">Si es efectivo, ingresa el monto recibido &mdash; el sistema calcula el cambio automaticamente.</div></div>
-      <div class="guide-step"><div class="guide-step-num">6</div><div class="guide-step-text">Clic en <strong>Procesar Venta</strong>. Se genera el recibo y se actualiza el stock.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Busca productos por <strong>nombre, codigo o referencia</strong>. Haz clic para agregar al carrito. La referencia se muestra junto al nombre para evitar confusiones.</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Ajusta la <strong>cantidad</strong> y aplica descuentos por item si es necesario.</div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Opcionalmente, selecciona un <strong>cliente</strong> registrado o deja como "Consumidor Final".</div></div>
+      <div class="guide-step"><div class="guide-step-num">5</div><div class="guide-step-text">Selecciona el <strong>metodo de pago</strong>: Efectivo, Tarjeta, Transferencia, Credito o Mixto.</div></div>
+      <div class="guide-step"><div class="guide-step-num">6</div><div class="guide-step-text">Si es efectivo, ingresa el monto recibido &mdash; el sistema calcula el cambio automaticamente.</div></div>
+      <div class="guide-step"><div class="guide-step-num">7</div><div class="guide-step-text">Clic en <strong>Procesar Venta</strong>. Se genera el recibo, se actualiza el stock y se registra en la caja.</div></div>
     </div>
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Historial de ventas</p>
       <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
         <li>Ve a <strong>Ventas &rsaquo; Historial Ventas</strong> para ver todas las ventas.</li>
-        <li>Filtra por fecha, metodo de pago o busca por numero de venta.</li>
-        <li>Haz clic en una venta para ver el <strong>detalle completo</strong> con productos, precios y ganancia.</li>
-        <li>Puedes <strong>anular</strong> una venta si es necesario (devuelve el stock).</li>
-        <li>Descarga el <strong>recibo</strong> desde el detalle de cada venta.</li>
+        <li>Filtra por <strong>fecha</strong>, <strong>metodo de pago</strong> o busca por <strong>numero de venta</strong>.</li>
+        <li>Haz clic en una venta para ver el <strong>detalle completo</strong> con productos, precios y ganancia por item.</li>
+        <li>Los <strong>administradores</strong> pueden <strong>editar</strong> datos generales de una venta (cliente, metodo de pago, descuento).</li>
+        <li>Puedes <strong>anular</strong> una venta si es necesario &mdash; el stock se devuelve automaticamente.</li>
+        <li>Descarga el <strong>recibo en PDF</strong> desde el detalle de cada venta.</li>
+        <li>Exporta el historial a <strong>Excel</strong> con los filtros aplicados.</li>
       </ul>
       <div class="guide-tip mt-3">
-        <i class="bi bi-info-circle me-1 text-primary"></i>
-        El sistema respeta el <strong>precio de venta minimo</strong> configurado en cada producto. No permite vender por debajo de ese precio.
+        <i class="bi bi-exclamation-triangle me-1 text-warning"></i>
+        El sistema respeta el <strong>precio de venta minimo</strong> configurado en cada producto. No permite vender por debajo de ese precio. El precio se puede editar manualmente en el POS, pero con este limite.
       </div>
     </div>
   </div>
@@ -239,18 +405,24 @@
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Registrar un cliente</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Ventas &rsaquo; Clientes &rsaquo; Nuevo Cliente</strong>.</div></div>
-      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa nombre, tipo y numero de documento, telefono, email.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa nombre, <strong>empresa</strong> a la que pertenece, tipo y numero de documento, telefono, email.</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Agrega direccion y notas adicionales si es necesario.</div></div>
     </div>
     <div class="col-md-6">
-      <p class="fw-semibold mb-2">Uso en ventas</p>
+      <p class="fw-semibold mb-2">Uso en ventas y facturas</p>
       <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
-        <li>Al hacer una venta, puedes seleccionar un cliente registrado.</li>
+        <li>Al hacer una venta en el POS, puedes seleccionar un cliente registrado.</li>
         <li>Si no seleccionas cliente, la venta se registra como "Consumidor Final".</li>
-        <li>Desde el detalle del cliente puedes ver su historial de compras.</li>
+        <li>Desde el <strong>detalle del cliente</strong> puedes ver su historial completo de compras.</li>
         <li>Los clientes con ventas a credito muestran su <strong>saldo pendiente</strong>.</li>
+        <li>Exporta la lista de clientes a <strong>Excel</strong> para analisis externo.</li>
       </ul>
     </div>
+  </div>
+
+  <div class="guide-tip">
+    <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+    Los tipos de documento disponibles son: <strong>CC</strong> (Cedula), <strong>NIT</strong>, <strong>CE</strong> (Cedula Extranjeria) y <strong>Pasaporte</strong>.
   </div>
 </div>
 
@@ -269,15 +441,34 @@
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Cerrar caja</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Al final del dia, ve a <strong>Ventas &rsaquo; Caja</strong>.</div></div>
-      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa el <strong>monto real</strong> que hay en caja.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa el <strong>monto real</strong> que hay en caja (el conteo fisico del efectivo).</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">El sistema calcula la <strong>diferencia</strong> entre lo esperado y lo real.</div></div>
       <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Agrega notas si hay sobrante o faltante y cierra la caja.</div></div>
     </div>
   </div>
 
+  <div class="row g-4 mt-2">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Estado de caja</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li>Mientras la caja esta abierta puedes ver el <strong>estado actual</strong>: monto de apertura, ingresos, egresos y saldo esperado.</li>
+        <li>Cada venta en efectivo se registra automaticamente como <strong>ingreso</strong>.</li>
+        <li>Puedes registrar <strong>movimientos manuales</strong> (egresos por gastos, retiros de efectivo).</li>
+      </ul>
+    </div>
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Historial de cajas</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li>Ve a <strong>Historial</strong> en el modulo de Caja para ver todos los cierres anteriores.</li>
+        <li>Cada cierre muestra: monto apertura, total ingresos, total egresos, esperado, real y diferencia.</li>
+        <li>Haz clic en un cierre para ver el <strong>detalle completo</strong> con todos los movimientos.</li>
+      </ul>
+    </div>
+  </div>
+
   <div class="guide-tip">
-    <i class="bi bi-info-circle me-1 text-primary"></i>
-    Debes tener la caja abierta para poder registrar ventas. En el historial de caja puedes ver todos los cierres anteriores con sus cuadres.
+    <i class="bi bi-exclamation-triangle me-1 text-warning"></i>
+    <strong>Importante:</strong> Debes tener la caja abierta para poder registrar ventas. Cada usuario tiene su propia caja independiente.
   </div>
 </div>
 
@@ -290,7 +481,7 @@
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Registrar un acreedor</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Finanzas &rsaquo; Acreedores &rsaquo; Nuevo Acreedor</strong>.</div></div>
-      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa nombre y selecciona el <strong>tipo</strong>: Proveedor, Banco, Persona u Otro.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa nombre, <strong>empresa</strong> y selecciona el <strong>tipo</strong>: Proveedor, Banco, Persona u Otro.</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Completa documento, telefono, email, direccion y notas.</div></div>
     </div>
     <div class="col-md-6">
@@ -303,12 +494,17 @@
       </ul>
     </div>
   </div>
+
+  <div class="guide-tip">
+    <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+    Los tipos de acreedor te ayudan a clasificar tus obligaciones: <strong>Proveedor</strong> (mercancia a credito), <strong>Banco</strong> (prestamos), <strong>Persona</strong> (prestamos personales), <strong>Otro</strong> (arriendos, servicios, etc.).
+  </div>
 </div>
 
 <!-- ═══════════════════════════════════════════ DEUDAS -->
 <div class="guide-section" id="deudas">
   <h4><i class="bi bi-credit-card-2-back-fill me-2 text-danger"></i>Cuentas por Pagar &mdash; Gestion de Deudas</h4>
-  <p class="text-muted mb-4">Controla todo lo que debes a proveedores, locales u otras empresas.</p>
+  <p class="text-muted mb-4">Controla todo lo que debes a proveedores, bancos, personas u otras empresas.</p>
 
   <div class="row g-4 mb-4">
     <div class="col-md-6">
@@ -329,10 +525,15 @@
 
   <p class="fw-semibold mb-2">Estados de una deuda</p>
   <div class="d-flex gap-3 flex-wrap mb-3">
-    <div><span class="badge badge-pendiente px-3 py-2">PENDIENTE</span> <small class="text-muted ms-1">Sin pagos.</small></div>
-    <div><span class="badge badge-parcial px-3 py-2">PARCIAL</span> <small class="text-muted ms-1">Pago parcial.</small></div>
-    <div><span class="badge badge-pagado px-3 py-2">PAGADO</span> <small class="text-muted ms-1">Saldada.</small></div>
-    <div><span class="badge badge-vencido px-3 py-2">VENCIDA</span> <small class="text-muted ms-1">Paso la fecha limite.</small></div>
+    <div><span class="badge badge-pendiente px-3 py-2">PENDIENTE</span> <small class="text-muted ms-1">Sin pagos realizados.</small></div>
+    <div><span class="badge badge-parcial px-3 py-2">PARCIAL</span> <small class="text-muted ms-1">Pagada parcialmente.</small></div>
+    <div><span class="badge badge-pagado px-3 py-2">PAGADO</span> <small class="text-muted ms-1">Completamente saldada.</small></div>
+    <div><span class="badge badge-vencido px-3 py-2">VENCIDA</span> <small class="text-muted ms-1">Paso la fecha limite sin saldar.</small></div>
+  </div>
+
+  <div class="guide-tip">
+    <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+    Consulta el <strong>Reporte de Deudas</strong> en la seccion Reportes para ver un resumen consolidado de todas tus obligaciones pendientes, parciales y vencidas. Las deudas se pueden <strong>anular</strong> si fueron registradas por error.
   </div>
 </div>
 
@@ -346,7 +547,7 @@
       <p class="fw-semibold mb-2">Crear una factura</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Finanzas &rsaquo; Cuentas por Cobrar &rsaquo; Nueva Factura</strong>.</div></div>
       <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">El numero de factura se sugiere automaticamente (FAC-0001, FAC-0002...).</div></div>
-      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Ingresa datos del cliente, concepto y monto total.</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Ingresa datos del cliente, documento, concepto y monto total.</div></div>
       <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Si tiene plazo de pago, ingresa la <strong>fecha de vencimiento</strong>.</div></div>
     </div>
     <div class="col-md-6">
@@ -360,43 +561,121 @@
 
   <p class="fw-semibold mb-2">Estados de una factura</p>
   <div class="d-flex gap-3 flex-wrap mb-3">
-    <div><span class="badge badge-pendiente px-3 py-2">PENDIENTE</span> <small class="text-muted ms-1">Sin cobros.</small></div>
-    <div><span class="badge badge-parcial px-3 py-2">PARCIAL</span> <small class="text-muted ms-1">Cobro parcial.</small></div>
+    <div><span class="badge badge-pendiente px-3 py-2">PENDIENTE</span> <small class="text-muted ms-1">Sin cobros realizados.</small></div>
+    <div><span class="badge badge-parcial px-3 py-2">PARCIAL</span> <small class="text-muted ms-1">Cobrada parcialmente.</small></div>
     <div><span class="badge badge-pagado px-3 py-2">COBRADA</span> <small class="text-muted ms-1">Completamente cobrada.</small></div>
     <div><span class="badge badge-vencido px-3 py-2">VENCIDA</span> <small class="text-muted ms-1">Paso la fecha de pago.</small></div>
+  </div>
+
+  <div class="guide-tip">
+    <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+    Puedes <strong>importar facturas desde Excel</strong> para cargar grandes volumenes. Descarga la plantilla desde <strong>Administracion &rsaquo; Importar Excel</strong>. Las facturas tambien se pueden anular si fueron creadas por error.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ GASTOS -->
+<div class="guide-section" id="gastos">
+  <h4><i class="bi bi-wallet2 me-2 text-danger"></i>Modulo de Gastos</h4>
+  <p class="text-muted mb-4">Registra y controla todos los gastos operativos de tu negocio para tener una vision financiera completa.</p>
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Registrar un gasto</p>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Finanzas &rsaquo; Gastos &rsaquo; Nuevo Gasto</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa el <strong>concepto</strong> (descripcion del gasto).</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Selecciona el <strong>tipo</strong>: Directo (relacionado con ventas) o Indirecto (operativo).</div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Selecciona la <strong>categoria</strong>: Arriendo, Servicios publicos, Nomina, Transporte, Insumos, Mantenimiento, etc.</div></div>
+      <div class="guide-step"><div class="guide-step-num">5</div><div class="guide-step-text">Ingresa el <strong>monto</strong>, <strong>fecha</strong> y <strong>metodo de pago</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">6</div><div class="guide-step-text">Opcionalmente, agrega numero de <strong>comprobante</strong> y notas.</div></div>
+    </div>
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Filtros y analisis</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li>Filtra por <strong>tipo</strong> (Directo/Indirecto) para separar gastos operativos de los de ventas.</li>
+        <li>Filtra por <strong>categoria</strong> para ver gastos agrupados (arriendo, servicios, etc.).</li>
+        <li>Filtra por <strong>rango de fechas</strong> para analizar periodos especificos.</li>
+        <li>Exporta la lista a <strong>Excel</strong> con los filtros aplicados.</li>
+        <li>Los gastos se reflejan en el <strong>Dashboard</strong> como "Gastos del periodo".</li>
+      </ul>
+      <div class="guide-tip mt-3">
+        <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+        Los gastos <strong>Directos</strong> son los vinculados a la operacion de venta (ej: embalaje, envios). Los <strong>Indirectos</strong> son gastos generales del negocio (ej: arriendo, servicios publicos, nomina).
+      </div>
+    </div>
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════ REPORTES -->
 <div class="guide-section" id="reportes">
   <h4><i class="bi bi-bar-chart-line-fill me-2 text-secondary"></i>Modulo de Reportes</h4>
-  <p class="text-muted mb-4">Genera reportes para analizar el estado de tu negocio.</p>
+  <p class="text-muted mb-4">Genera reportes para analizar el estado de tu negocio. Todos los reportes son exportables a Excel.</p>
 
   <div class="row g-4">
     <div class="col-md-6">
       <div class="p-3 rounded-3 border h-100">
         <p class="fw-semibold mb-2"><i class="bi bi-archive me-1"></i>Reporte de Stock Actual</p>
-        <p style="font-size:.875rem;color:#495057">Muestra todos los productos con su stock, precio de costo, precio de venta y valor en inventario. Ideal para inventarios fisicos.</p>
-        <p style="font-size:.82rem;color:#6c757d" class="mb-0">Filtra por categoria y exporta a Excel.</p>
+        <p style="font-size:.875rem;color:#495057">Muestra todos los productos con su stock, precio de costo, precio de venta y valor en inventario. Ideal para inventarios fisicos y cuadres.</p>
+        <p style="font-size:.82rem;color:#6c757d" class="mb-0">Filtra por categoria. Exporta a Excel con un clic.</p>
       </div>
     </div>
     <div class="col-md-6">
       <div class="p-3 rounded-3 border h-100">
         <p class="fw-semibold mb-2"><i class="bi bi-graph-up me-1"></i>Reporte de Movimientos</p>
-        <p style="font-size:.875rem;color:#495057">Muestra entradas, salidas y ajustes en un periodo. Filtra por fecha de inicio y fin.</p>
+        <p style="font-size:.875rem;color:#495057">Muestra entradas, salidas y ajustes en un periodo. Filtra por fecha de inicio y fin. Identifica tendencias de compra y consumo.</p>
         <p style="font-size:.82rem;color:#6c757d" class="mb-0">Exportable a Excel con totales por tipo.</p>
       </div>
     </div>
     <div class="col-md-6">
       <div class="p-3 rounded-3 border h-100">
         <p class="fw-semibold mb-2"><i class="bi bi-file-earmark-minus me-1"></i>Reporte de Deudas</p>
-        <p style="font-size:.875rem;color:#495057">Resumen de todas las deudas con montos totales, pagados y pendientes. Identifica deudas vencidas rapidamente.</p>
+        <p style="font-size:.875rem;color:#495057">Resumen de todas las deudas con montos totales, pagados y pendientes. Identifica deudas vencidas rapidamente con indicadores visuales.</p>
+        <p style="font-size:.82rem;color:#6c757d" class="mb-0">Incluye totales globales y desglose por estado.</p>
       </div>
     </div>
     <div class="col-md-6">
       <div class="p-3 rounded-3 border h-100">
         <p class="fw-semibold mb-2"><i class="bi bi-file-earmark-check me-1"></i>Reporte de Facturas</p>
-        <p style="font-size:.875rem;color:#495057">Resumen de todas las facturas por cobrar con montos emitidos, cobrados y pendientes.</p>
+        <p style="font-size:.875rem;color:#495057">Resumen de todas las facturas por cobrar con montos emitidos, cobrados y pendientes. Exportable a Excel.</p>
+        <p style="font-size:.82rem;color:#6c757d" class="mb-0">Ideal para seguimiento de cartera.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-tip mt-3">
+    <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+    <strong>Consejo:</strong> Usa los reportes de forma periodica (semanal o mensual) para detectar productos que no rotan, deudas por vencer y oportunidades de mejora.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ EXPORTAR EXCEL -->
+<div class="guide-section" id="exportar">
+  <h4><i class="bi bi-download me-2 text-success"></i>Exportar a Excel</h4>
+  <p class="text-muted mb-4">Descarga los datos de cualquier modulo en formato Excel (.xlsx) para analisis externo, auditorias o respaldo.</p>
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Como exportar</p>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve al modulo que deseas exportar (Productos, Clientes, etc.).</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Aplica los <strong>filtros</strong> que necesites (busqueda, estado, fechas, etc.).</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Clic en el boton verde <strong><i class="bi bi-file-earmark-excel"></i> Excel</strong> en la esquina superior.</div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">El archivo se descarga automaticamente con los datos filtrados.</div></div>
+    </div>
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Modulos con exportacion</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li><i class="bi bi-box-seam me-1 text-muted"></i><strong>Productos</strong> &mdash; Catalogo completo con precios, stock y margenes.</li>
+        <li><i class="bi bi-people me-1 text-muted"></i><strong>Clientes</strong> &mdash; Con empresa, documento, contacto.</li>
+        <li><i class="bi bi-truck me-1 text-muted"></i><strong>Proveedores</strong> &mdash; Datos de contacto.</li>
+        <li><i class="bi bi-person-lines-fill me-1 text-muted"></i><strong>Acreedores</strong> &mdash; Con empresa y tipo.</li>
+        <li><i class="bi bi-credit-card me-1 text-muted"></i><strong>Deudas</strong> &mdash; Montos, estados, vencimientos.</li>
+        <li><i class="bi bi-receipt me-1 text-muted"></i><strong>Facturas</strong> &mdash; Cuentas por cobrar con estados.</li>
+        <li><i class="bi bi-wallet me-1 text-muted"></i><strong>Gastos</strong> &mdash; Detalle por categoria y periodo.</li>
+        <li><i class="bi bi-cart-check me-1 text-muted"></i><strong>Ventas</strong> &mdash; Historial de ventas.</li>
+        <li><i class="bi bi-archive me-1 text-muted"></i><strong>Reportes</strong> &mdash; Stock actual y movimientos.</li>
+      </ul>
+      <div class="guide-tip mt-3">
+        <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+        La exportacion respeta los filtros activos. Si quieres todos los datos, limpia los filtros antes de exportar.
       </div>
     </div>
   </div>
@@ -411,10 +690,11 @@
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Como importar</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Administracion &rsaquo; Importar Excel</strong>.</div></div>
-      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Selecciona el <strong>tipo de datos</strong> a importar (productos, categorias, clientes, proveedores, acreedores o deudas).</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Selecciona el <strong>tipo de datos</strong> a importar (categorias, productos, clientes, proveedores, acreedores, deudas o facturas).</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Descarga la <strong>plantilla</strong> para ver los encabezados correctos.</div></div>
-      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Prepara tu archivo con los datos (maximo 10 MB).</div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Prepara tu archivo con los datos (maximo 10 MB, formato <code>.xlsx</code> o <code>.xls</code>).</div></div>
       <div class="guide-step"><div class="guide-step-num">5</div><div class="guide-step-text">Sube el archivo y clic en <strong>Importar Datos</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">6</div><div class="guide-step-text">El sistema muestra un resumen con los registros importados exitosamente y los errores encontrados.</div></div>
     </div>
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Orden recomendado</p>
@@ -422,13 +702,14 @@
         <li><strong>Categorias</strong> &mdash; Para que los productos se vinculen.</li>
         <li><strong>Proveedores</strong> &mdash; Para vincular productos a proveedores.</li>
         <li><strong>Productos</strong> &mdash; Con categorias y proveedores ya creados.</li>
-        <li><strong>Clientes</strong> &mdash; Datos de tus clientes.</li>
+        <li><strong>Clientes</strong> &mdash; Datos de tus clientes (incluye empresa).</li>
         <li><strong>Acreedores</strong> &mdash; Para vincular deudas.</li>
         <li><strong>Deudas</strong> &mdash; Se vinculan a acreedores existentes.</li>
+        <li><strong>Facturas</strong> &mdash; Cuentas por cobrar (incluye empresa del cliente).</li>
       </ol>
       <div class="guide-tip">
         <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
-        No importa el orden de las columnas en el archivo. El sistema las detecta por nombre de encabezado.
+        No importa el orden de las columnas en el archivo. El sistema las detecta por nombre de encabezado. Si un producto referencia una categoria que no existe, se crea automaticamente.
       </div>
     </div>
   </div>
@@ -436,23 +717,27 @@
 
 <!-- ═══════════════════════════════════════════ USUARIOS -->
 <div class="guide-section" id="usuarios">
-  <h4><i class="bi bi-people-fill me-2 text-secondary"></i>Gestion de Usuarios</h4>
+  <h4><i class="bi bi-people-fill me-2 text-secondary"></i>Gestion de Usuarios y Roles</h4>
   <p class="text-muted mb-4">Administra las cuentas de acceso al sistema. Solo disponible para administradores.</p>
 
   <div class="row g-4">
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Roles disponibles</p>
+      <div class="p-3 rounded-3 bg-dark bg-opacity-10 mb-2">
+        <p class="fw-bold text-dark mb-1"><i class="bi bi-shield-lock me-1"></i>Super Administrador</p>
+        <p style="font-size:.82rem;color:#495057" class="mb-0">Gestion global de todos los locales, dashboard consolidado, creacion de locales y usuarios en cualquier sede. No pertenece a un local especifico.</p>
+      </div>
       <div class="p-3 rounded-3 bg-primary bg-opacity-10 mb-2">
         <p class="fw-bold text-primary mb-1"><i class="bi bi-shield-check me-1"></i>Administrador</p>
-        <p style="font-size:.82rem;color:#495057" class="mb-0">Acceso completo: usuarios, configuracion, importacion, backups, y todos los modulos.</p>
+        <p style="font-size:.82rem;color:#495057" class="mb-0">Acceso completo dentro de su local: usuarios, configuracion, importacion, backups, edicion de ventas y auditoria.</p>
       </div>
       <div class="p-3 rounded-3 bg-success bg-opacity-10 mb-2">
         <p class="fw-bold text-success mb-1"><i class="bi bi-cart-check me-1"></i>Vendedor</p>
-        <p style="font-size:.82rem;color:#495057" class="mb-0">Ventas, clientes, caja, productos (solo ver), finanzas y reportes.</p>
+        <p style="font-size:.82rem;color:#495057" class="mb-0">Dashboard, productos (solo ver), ventas/POS, historial de ventas, clientes, caja, acreedores, deudas, facturas, gastos y reportes.</p>
       </div>
       <div class="p-3 rounded-3 bg-warning bg-opacity-10">
         <p class="fw-bold text-warning mb-1"><i class="bi bi-box-seam me-1"></i>Bodeguero</p>
-        <p style="font-size:.82rem;color:#495057" class="mb-0">Productos, categorias, inventario (entradas/salidas), proveedores y reportes.</p>
+        <p style="font-size:.82rem;color:#495057" class="mb-0">Dashboard, productos, categorias, inventario (entradas, salidas, ajustes), proveedores y reportes.</p>
       </div>
     </div>
     <div class="col-md-6">
@@ -460,6 +745,14 @@
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Administracion &rsaquo; Usuarios &rsaquo; Nuevo Usuario</strong>.</div></div>
       <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa nombre de usuario (login), nombre completo y contrasena (minimo 8 caracteres).</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Selecciona el <strong>rol</strong> adecuado segun las funciones del empleado.</div></div>
+      <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Si eres SUPERADMIN, selecciona el <strong>local</strong> al que pertenecera el usuario.</div></div>
+
+      <p class="fw-semibold mb-2 mt-3">Permisos personalizados</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li>Cada rol tiene permisos predefinidos, pero el administrador puede <strong>personalizar los permisos</strong> de cada usuario.</li>
+        <li>Los permisos personalizados sobreescriben los del rol.</li>
+        <li>Si se dejan vacios, se usan los permisos del rol.</li>
+      </ul>
 
       <div class="guide-tip mt-3">
         <i class="bi bi-info-circle me-1 text-primary"></i>
@@ -472,33 +765,39 @@
 <!-- ═══════════════════════════════════════════ MI PERFIL -->
 <div class="guide-section" id="perfil">
   <h4><i class="bi bi-person-gear me-2 text-secondary"></i>Mi Perfil</h4>
-  <p class="text-muted mb-4">Cada usuario puede gestionar su informacion personal y cambiar su contrasena.</p>
+  <p class="text-muted mb-4">Cada usuario puede gestionar su informacion personal, foto y contrasena.</p>
 
   <div class="row g-4">
-    <div class="col-md-6">
+    <div class="col-md-4">
       <p class="fw-semibold mb-2">Editar datos personales</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Haz clic en tu nombre en la esquina superior derecha y selecciona <strong>Mi Perfil</strong>.</div></div>
       <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Puedes cambiar tu <strong>nombre completo</strong>, <strong>email</strong> y <strong>telefono</strong>.</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Clic en <strong>Guardar Cambios</strong>.</div></div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-4">
+      <p class="fw-semibold mb-2">Foto de perfil</p>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">En tu perfil, haz clic en <strong>Cambiar foto</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Sube una imagen (JPG, PNG). Se redimensiona automaticamente.</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Tu foto aparecera en la barra superior junto a tu nombre.</div></div>
+    </div>
+    <div class="col-md-4">
       <p class="fw-semibold mb-2">Cambiar contrasena</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">En la seccion de seguridad, ingresa tu <strong>contrasena actual</strong>.</div></div>
       <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Escribe la <strong>nueva contrasena</strong> (minimo 8 caracteres) y confirmala.</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Clic en <strong>Cambiar Contrasena</strong>.</div></div>
-
-      <div class="guide-tip mt-3">
-        <i class="bi bi-info-circle me-1 text-primary"></i>
-        Para cambiar de cuenta, usa el boton <strong>"Cerrar Sesion y Cambiar Cuenta"</strong> en tu perfil.
-      </div>
     </div>
+  </div>
+
+  <div class="guide-tip">
+    <i class="bi bi-info-circle me-1 text-primary"></i>
+    Tu nombre de usuario y rol solo los puede cambiar un administrador. Usa <strong>"Agregar Cuenta"</strong> en el menu de usuario para iniciar sesion con otra cuenta sin cerrar la actual (multi-cuenta).
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════ CONFIGURACION -->
 <div class="guide-section" id="configuracion">
   <h4><i class="bi bi-gear-fill me-2 text-secondary"></i>Configuracion del Negocio</h4>
-  <p class="text-muted mb-4">Personaliza la informacion de tu negocio que aparece en recibos, facturas y reportes.</p>
+  <p class="text-muted mb-4">Personaliza la informacion de tu negocio que aparece en recibos, facturas y reportes. Cada local puede tener su propia configuracion.</p>
 
   <div class="row g-4">
     <div class="col-md-6">
@@ -507,9 +806,9 @@
         <li><strong>Nombre del negocio</strong> &mdash; Aparece en recibos y encabezados.</li>
         <li><strong>NIT</strong> &mdash; Numero de identificacion tributaria.</li>
         <li><strong>Direccion, telefono, email</strong> &mdash; Datos de contacto.</li>
-        <li><strong>Logo</strong> &mdash; Sube la imagen de tu negocio (aparece en recibos).</li>
-        <li><strong>Moneda</strong> &mdash; Simbolo y codigo de moneda (ej: $ COP).</li>
-        <li><strong>Mensaje de recibo</strong> &mdash; Texto al pie del recibo de venta.</li>
+        <li><strong>Logo</strong> &mdash; Sube la imagen de tu negocio (aparece en recibos). Cada local puede tener su propio logo.</li>
+        <li><strong>Moneda</strong> &mdash; Simbolo y codigo de moneda (ej: $ COP, $ USD).</li>
+        <li><strong>Mensaje de recibo</strong> &mdash; Texto al pie del recibo de venta (ej: "Gracias por su compra").</li>
         <li><strong>Pie de factura</strong> &mdash; Texto legal al pie de facturas.</li>
       </ul>
     </div>
@@ -519,31 +818,151 @@
       <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Completa los campos con la informacion de tu negocio.</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Sube tu <strong>logo</strong> (formato PNG, JPG; maximo recomendado 500x500px).</div></div>
       <div class="guide-step"><div class="guide-step-num">4</div><div class="guide-step-text">Clic en <strong>Guardar</strong>.</div></div>
+
+      <div class="guide-tip mt-3">
+        <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+        La configuracion es <strong>independiente por local</strong>. Si tienes multiples sucursales, cada una puede tener su propio nombre, logo, moneda y mensajes personalizados.
+      </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ AUDITORIA -->
+<div class="guide-section" id="auditoria">
+  <h4><i class="bi bi-clock-history me-2 text-secondary"></i>Registro de Actividad (Auditoria)</h4>
+  <p class="text-muted mb-4">Consulta un historial detallado de todas las acciones realizadas en el sistema. Solo disponible para administradores.</p>
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Que se registra</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li><i class="bi bi-plus-circle me-1 text-success"></i><strong>Creacion</strong> &mdash; Nuevos registros (productos, ventas, deudas, etc.).</li>
+        <li><i class="bi bi-pencil me-1 text-primary"></i><strong>Edicion</strong> &mdash; Modificaciones a registros existentes.</li>
+        <li><i class="bi bi-trash me-1 text-danger"></i><strong>Eliminacion</strong> &mdash; Desactivacion de registros (soft delete).</li>
+        <li><i class="bi bi-x-circle me-1 text-warning"></i><strong>Anulacion</strong> &mdash; Ventas, deudas o facturas anuladas.</li>
+        <li><i class="bi bi-box-arrow-in-right me-1 text-muted"></i><strong>Sesion</strong> &mdash; Inicios y cierres de sesion.</li>
+      </ul>
+    </div>
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Filtros disponibles</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li>Filtra por <strong>usuario</strong> para ver las acciones de un empleado especifico.</li>
+        <li>Filtra por <strong>tipo de accion</strong> (crear, editar, eliminar).</li>
+        <li>Filtra por <strong>entidad</strong> (producto, venta, deuda, etc.).</li>
+        <li>Filtra por <strong>rango de fechas</strong>.</li>
+        <li>Cada registro incluye: usuario, accion, entidad, detalle, IP y fecha/hora.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="guide-tip">
+    <i class="bi bi-info-circle me-1 text-primary"></i>
+    El registro de auditoria <strong>no se puede editar ni eliminar</strong>. Es una herramienta de control y transparencia. Usa los filtros para encontrar rapidamente la informacion que necesitas.
   </div>
 </div>
 
 <!-- ═══════════════════════════════════════════ BACKUP -->
 <div class="guide-section" id="backup">
   <h4><i class="bi bi-shield-check me-2 text-secondary"></i>Copias de Seguridad (Backups)</h4>
-  <p class="text-muted mb-4">Protege tus datos creando copias de seguridad periodicas.</p>
+  <p class="text-muted mb-4">Protege tus datos creando copias de seguridad periodicas. Solo disponible para Super Administradores.</p>
 
   <div class="row g-4">
     <div class="col-md-6">
       <p class="fw-semibold mb-2">Crear un backup</p>
       <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Administracion &rsaquo; Backups</strong>.</div></div>
-      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Clic en <strong>Crear Backup</strong>. Se genera una copia de la base de datos.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Clic en <strong>Crear Backup</strong>. Se genera una copia completa de la base de datos.</div></div>
       <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Descarga el archivo y guardalo en un lugar seguro (USB, nube, otro equipo).</div></div>
     </div>
     <div class="col-md-6">
-      <p class="fw-semibold mb-2">Recomendaciones</p>
+      <p class="fw-semibold mb-2">Restaurar un backup</p>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">En la seccion de Backups, clic en <strong>Restaurar</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Selecciona el archivo de backup previamente descargado.</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Confirma la operacion. <strong>Los datos actuales se reemplazaran</strong> con los del backup.</div></div>
+    </div>
+  </div>
+
+  <div class="row g-4 mt-2">
+    <div class="col-md-12">
+      <p class="fw-semibold mb-2">Mejores practicas</p>
+      <div class="row g-3">
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 bg-success bg-opacity-10 text-center h-100">
+            <i class="bi bi-calendar-check text-success" style="font-size:1.5rem"></i>
+            <p style="font-size:.82rem" class="mb-0 mt-2">Haz backup <strong>diariamente</strong> o al menos semanalmente.</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 bg-primary bg-opacity-10 text-center h-100">
+            <i class="bi bi-hdd text-primary" style="font-size:1.5rem"></i>
+            <p style="font-size:.82rem" class="mb-0 mt-2">Guarda copias en un lugar <strong>diferente</strong> al equipo principal.</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 bg-warning bg-opacity-10 text-center h-100">
+            <i class="bi bi-stack text-warning" style="font-size:1.5rem"></i>
+            <p style="font-size:.82rem" class="mb-0 mt-2">Mantiene <strong>varias versiones</strong>, no solo la mas reciente.</p>
+          </div>
+        </div>
+        <div class="col-md-3">
+          <div class="p-3 rounded-3 bg-danger bg-opacity-10 text-center h-100">
+            <i class="bi bi-arrow-repeat text-danger" style="font-size:1.5rem"></i>
+            <p style="font-size:.82rem" class="mb-0 mt-2"><strong>Prueba restaurar</strong> periodicamente para verificar que funciona.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="guide-tip mt-3">
+    <i class="bi bi-exclamation-triangle me-1 text-warning"></i>
+    <strong>Importante:</strong> El backup incluye todos los datos de todos los locales: productos, ventas, clientes, deudas, facturas, gastos, usuarios, configuracion y auditoria. Si el equipo falla y no tienes backup, <strong>los datos se pierden permanentemente</strong>.
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ MULTI-TENANT / LOCALES -->
+<div class="guide-section" id="locales">
+  <h4><i class="bi bi-building-fill me-2 text-primary"></i>Gestion Multi-Local (Super Administrador)</h4>
+  <p class="text-muted mb-4">Si tu negocio tiene multiples sucursales o puntos de venta, TechStock permite gestionarlos todos desde una sola instalacion. Esta seccion aplica exclusivamente para usuarios con rol <strong>Super Administrador</strong>.</p>
+
+  <div class="row g-4 mb-4">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Crear un nuevo local</p>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">Ve a <strong>Super Admin &rsaquo; Locales &rsaquo; Nuevo Local</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Ingresa <strong>nombre</strong> (ej: "Sucursal Norte"), <strong>codigo</strong> unico (ej: "SUC-NORTE"), direccion, telefono y responsable.</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Clic en <strong>Crear Local</strong>. El local queda activo y listo para asignar usuarios.</div></div>
+    </div>
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Seleccionar un local para operar</p>
+      <div class="guide-step"><div class="guide-step-num">1</div><div class="guide-step-text">En la <strong>barra de contexto</strong> (parte superior), haz clic en <strong>Seleccionar local</strong> o <strong>Cambiar local</strong>.</div></div>
+      <div class="guide-step"><div class="guide-step-num">2</div><div class="guide-step-text">Elige el local donde deseas trabajar. Todos los modulos mostraran solo los datos de ese local.</div></div>
+      <div class="guide-step"><div class="guide-step-num">3</div><div class="guide-step-text">Para volver a la vista global, clic en <strong>"Ver todos (Super Dashboard)"</strong>.</div></div>
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Super Dashboard</p>
       <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
-        <li>Haz backup <strong>diariamente</strong> o al menos semanalmente.</li>
-        <li>Guarda las copias en un lugar diferente al equipo principal.</li>
-        <li>Mantiene varias versiones (no solo la mas reciente).</li>
-        <li>Prueba restaurar un backup periodicamente para verificar que funciona.</li>
+        <li>Accede desde <strong>Super Admin &rsaquo; Dashboard General</strong>.</li>
+        <li>Muestra metricas <strong>consolidadas</strong> de todos los locales.</li>
+        <li>Total de locales activos, usuarios, productos y ventas.</li>
+        <li>Tabla comparativa por local: ventas del dia, ventas del mes, stock bajo, deudas pendientes.</li>
       </ul>
     </div>
+    <div class="col-md-6">
+      <p class="fw-semibold mb-2">Aislamiento de datos</p>
+      <ul class="mb-0" style="font-size:.875rem;color:#495057;line-height:1.8">
+        <li>Cada local tiene su propio inventario, ventas, clientes y configuracion.</li>
+        <li>Los usuarios normales solo ven datos de su local asignado.</li>
+        <li>Los codigos de producto y numeros de factura/venta son <strong>independientes por local</strong>.</li>
+        <li>La configuracion (nombre, logo, moneda) es independiente por local.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="guide-tip mt-3">
+    <i class="bi bi-lightbulb-fill me-2 text-warning"></i>
+    <strong>Consejo:</strong> Al crear usuarios, asigna siempre el local correcto. Un usuario solo puede pertenecer a un local. El Super Administrador no pertenece a ningun local especifico y puede operar en todos.
   </div>
 </div>
 
@@ -562,7 +981,7 @@
       </h2>
       <div id="faq1" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
         <div class="accordion-body" style="font-size:.875rem;color:#495057">
-          Cuando inicias el sistema veras la direccion de red (ej: <code>http://192.168.1.10:8000</code>). Desde cualquier dispositivo en la misma red WiFi/LAN, abre un navegador e ingresa esa direccion.
+          Cuando inicias el sistema veras la direccion de red (ej: <code>http://192.168.1.10:8000</code>). Desde cualquier dispositivo en la misma red WiFi/LAN, abre un navegador e ingresa esa direccion. Funciona en computadores, tablets y celulares.
         </div>
       </div>
     </div>
@@ -618,7 +1037,7 @@
       </h2>
       <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
         <div class="accordion-body" style="font-size:.875rem;color:#495057">
-          Es el porcentaje de ganancia sobre el costo: <code>((Precio Venta - Precio Costo) / Precio Costo) x 100</code>. Un margen de 30% significa que vendes a un 30% mas de lo que costo.
+          Es el porcentaje de ganancia sobre el costo: <code>((Precio Venta - Precio Costo) / Precio Costo) x 100</code>. Un margen de 30% significa que vendes a un 30% mas de lo que costo. Se calcula automaticamente al registrar precios.
         </div>
       </div>
     </div>
@@ -632,7 +1051,7 @@
       </h2>
       <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
         <div class="accordion-body" style="font-size:.875rem;color:#495057">
-          <strong>No</strong>. Toda la informacion se guarda localmente en la base de datos. Solo necesitas la red local (WiFi/LAN) si deseas acceder desde otro equipo. Se recomienda hacer backups periodicos.
+          <strong>No</strong>. TechStock funciona 100% offline. Toda la informacion se guarda localmente en la base de datos. Solo necesitas la red local (WiFi/LAN) si deseas acceder desde otro equipo. Se recomienda hacer backups periodicos en USB o nube.
         </div>
       </div>
     </div>
@@ -665,7 +1084,69 @@
       </div>
     </div>
 
+    <div class="accordion-item border mb-2 rounded-3 overflow-hidden">
+      <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-semibold" type="button"
+                data-bs-toggle="collapse" data-bs-target="#faq9" style="font-size:.875rem">
+          &#x00BF;Como anulo una venta?
+        </button>
+      </h2>
+      <div id="faq9" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body" style="font-size:.875rem;color:#495057">
+          Ve a <strong>Ventas &rsaquo; Historial Ventas</strong>, abre el detalle de la venta y haz clic en <strong>Anular Venta</strong>. El stock de los productos se devuelve automaticamente. Las ventas anuladas se mantienen en el historial con estado "ANULADA" para trazabilidad.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item border mb-2 rounded-3 overflow-hidden">
+      <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-semibold" type="button"
+                data-bs-toggle="collapse" data-bs-target="#faq10" style="font-size:.875rem">
+          &#x00BF;Como busco algo rapidamente en el sistema?
+        </button>
+      </h2>
+      <div id="faq10" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body" style="font-size:.875rem;color:#495057">
+          Presiona <kbd>Ctrl+K</kbd> en cualquier pagina para abrir la <strong>Paleta de Comandos</strong>. Escribe lo que buscas (ej: "productos", "nueva venta", "caja") y presiona Enter para navegar directamente. Tambien puedes hacer clic en el boton "Buscar..." en la barra superior.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item border mb-2 rounded-3 overflow-hidden">
+      <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-semibold" type="button"
+                data-bs-toggle="collapse" data-bs-target="#faq11" style="font-size:.875rem">
+          &#x00BF;Puedo tener multiples sucursales?
+        </button>
+      </h2>
+      <div id="faq11" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body" style="font-size:.875rem;color:#495057">
+          Si. TechStock soporta <strong>multiples locales/sucursales</strong>. El Super Administrador puede crear nuevos locales desde <strong>Super Admin &rsaquo; Locales</strong>, asignar usuarios a cada local y ver metricas consolidadas en el Super Dashboard. Cada local tiene inventario, ventas, clientes y configuracion independiente.
+        </div>
+      </div>
+    </div>
+
+    <div class="accordion-item border mb-2 rounded-3 overflow-hidden">
+      <h2 class="accordion-header">
+        <button class="accordion-button collapsed fw-semibold" type="button"
+                data-bs-toggle="collapse" data-bs-target="#faq12" style="font-size:.875rem">
+          &#x00BF;Que diferencia hay entre "eliminar" y "anular"?
+        </button>
+      </h2>
+      <div id="faq12" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+        <div class="accordion-body" style="font-size:.875rem;color:#495057">
+          <strong>Eliminar</strong> (productos, categorias, clientes, etc.) los marca como <em>inactivos</em>: no aparecen en listas pero su historial se conserva. <strong>Anular</strong> (ventas, deudas, facturas) las marca con estado "ANULADA/O" y revierte los efectos (ej: devuelve stock). En ambos casos los datos nunca se borran del sistema.
+        </div>
+      </div>
+    </div>
+
   </div>
+</div>
+
+<!-- ═══════════════════════════════════════════ PIE DE PAGINA -->
+<div class="text-center text-muted py-4" style="font-size:.78rem">
+  <p class="mb-1"><strong>TechStock v3.1</strong> &mdash; Sistema de Inventario, Punto de Venta y Gestion Financiera</p>
+  <p class="mb-0">&#x00BF;Necesitas mas ayuda? Usa el boton <i class="bi bi-chat-dots"></i> del asistente en la esquina inferior derecha o presiona <kbd>Ctrl+K</kbd> para buscar.</p>
 </div>
 
 {% endblock %}

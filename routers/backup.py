@@ -1,6 +1,7 @@
 import os
 import io
 import subprocess
+import tempfile
 from datetime import datetime
 from fastapi import APIRouter, Request, Depends, UploadFile, File
 from fastapi.responses import RedirectResponse, StreamingResponse
@@ -14,8 +15,18 @@ import models
 
 router = APIRouter(prefix="/backup", tags=["backup"])
 
-BACKUP_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "backups")
+PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
+BACKUP_DIR = os.path.join(PROJECT_ROOT, "backups")
 MAX_BACKUP_SIZE = 50 * 1024 * 1024  # 50 MB
+
+# Tablas en orden de dependencia (hijos primero para TRUNCATE, padres primero para INSERT)
+_TABLES_INSERT_ORDER = [
+    "locales", "usuarios", "categorias", "proveedores", "productos",
+    "clientes", "acreedores", "cajas",
+    "movimientos_inventario", "ventas", "detalle_venta",
+    "movimientos_caja", "deudas", "pagos_deuda",
+    "facturas", "cobros_factura", "gastos", "configuracion", "audit_log",
+]
 
 
 def _parse_pg_url(url: str) -> dict:
@@ -31,24 +42,41 @@ def _parse_pg_url(url: str) -> dict:
     }
 
 
-def _pg_dump_sql(pg: dict) -> bytes | None:
-    """Intenta ejecutar pg_dump y retorna los bytes del dump, o None si falla."""
+def _find_pg_binary(name: str) -> str:
+    """Busca binario PG en portable pgsql/bin/ o en PATH."""
+    ext = ".exe" if os.name == "nt" else ""
+    portable = os.path.join(PROJECT_ROOT, "pgsql", "bin", f"{name}{ext}")
+    if os.path.isfile(portable):
+        return portable
+    return name
+
+
+def _pg_env(pg: dict) -> dict:
+    """Crea entorno con PGPASSWORD para subprocesos PG."""
     env = os.environ.copy()
     if pg["password"]:
         env["PGPASSWORD"] = pg["password"]
+    return env
+
+
+def _pg_dump_sql(pg: dict) -> bytes | None:
+    """Intenta ejecutar pg_dump y retorna los bytes del dump, o None si falla."""
+    pg_dump = _find_pg_binary("pg_dump")
     try:
         result = subprocess.run(
             [
-                "pg_dump",
+                pg_dump,
                 "-h", pg["host"],
                 "-p", pg["port"],
                 "-U", pg["user"],
                 "-d", pg["dbname"],
                 "--no-owner",
                 "--no-acl",
+                "--data-only",
+                "--inserts",
             ],
             capture_output=True,
-            env=env,
+            env=_pg_env(pg),
             timeout=120,
         )
         if result.returncode == 0:
@@ -59,25 +87,18 @@ def _pg_dump_sql(pg: dict) -> bytes | None:
 
 
 def _fallback_dump(db: Session) -> bytes:
-    """Genera un dump SQL básico usando SQLAlchemy cuando pg_dump no está disponible."""
+    """Genera un dump SQL completo usando SQLAlchemy (cuando pg_dump no esta disponible)."""
     lines = [
-        f"-- TechStock Backup (fallback)",
+        f"-- TechStock Backup",
         f"-- Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
-        f"-- Nota: Este es un respaldo parcial generado sin pg_dump.",
-        f"--       Para respaldos completos, instale postgresql-client.\n",
+        f"-- Formato: INSERT (compatible con psql y SQLAlchemy)",
+        "",
     ]
 
-    tables = [
-        "locales", "usuarios", "categorias", "proveedores", "productos",
-        "movimientos_inventario", "clientes", "ventas", "detalle_venta",
-        "cajas", "movimientos_caja", "acreedores", "deudas", "pagos_deuda",
-        "facturas", "cobros_factura", "gastos", "configuracion", "audit_log",
-    ]
+    # Whitelist de tablas validas
+    valid_tables = set(_TABLES_INSERT_ORDER)
 
-    # Whitelist de tablas válidas (defensa en profundidad)
-    valid_tables = set(tables)
-
-    for table_name in tables:  # pragma: no cover — requires PostgreSQL information_schema
+    for table_name in _TABLES_INSERT_ORDER:
         if table_name not in valid_tables:
             continue
         try:
@@ -91,7 +112,7 @@ def _fallback_dump(db: Session) -> bytes:
             ).fetchall()
             col_names = [c[0] for c in columns]
 
-            lines.append(f"\n-- Tabla: {table_name} ({len(rows)} registros)")
+            lines.append(f"-- Tabla: {table_name} ({len(rows)} registros)")
             for row in rows:
                 vals = []
                 for v in row:
@@ -108,10 +129,199 @@ def _fallback_dump(db: Session) -> bytes:
                 cols_str = ", ".join(col_names)
                 vals_str = ", ".join(vals)
                 lines.append(f"INSERT INTO {table_name} ({cols_str}) VALUES ({vals_str});")
+            lines.append("")
         except Exception as e:
             lines.append(f"-- Error exportando tabla {table_name}: {type(e).__name__}")
 
     return "\n".join(lines).encode("utf-8")
+
+
+def _restore_with_psql(filepath: str, pg: dict) -> tuple[bool, str]:
+    """Restaura usando psql. Retorna (exito, mensaje).
+
+    Usa --single-transaction para atomicidad: si algo falla, todo hace rollback.
+    Deshabilita triggers FK para tolerar INSERTs en cualquier orden.
+    No requiere permisos de superuser (el owner de las tablas puede hacerlo).
+    """
+    psql = _find_pg_binary("psql")
+
+    # Leer el dump para analizar su contenido
+    with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+        dump_content = f.read()
+
+    # Construir SQL de restauracion atomica
+    restore_lines = []
+
+    # Deshabilitar triggers FK en todas las tablas (permite INSERTs en cualquier orden)
+    for table in _TABLES_INSERT_ORDER:
+        restore_lines.append(f"ALTER TABLE {table} DISABLE TRIGGER ALL;")
+
+    # Limpiar TODAS las tablas de una vez (CASCADE maneja FK automaticamente)
+    has_truncate = "TRUNCATE" in dump_content
+    if not has_truncate:
+        all_tables = ", ".join(reversed(_TABLES_INSERT_ORDER))
+        restore_lines.append(f"TRUNCATE TABLE {all_tables} CASCADE;")
+
+    # Agregar el contenido del dump (INSERTs — orden no importa con triggers deshabilitados)
+    restore_lines.append("")
+    restore_lines.append(dump_content)
+    restore_lines.append("")
+
+    # Re-habilitar triggers FK
+    for table in _TABLES_INSERT_ORDER:
+        restore_lines.append(f"ALTER TABLE {table} ENABLE TRIGGER ALL;")
+
+    # Resetear secuencias de IDs para que nuevos registros no colisionen
+    for table in _TABLES_INSERT_ORDER:
+        restore_lines.append(
+            f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
+            f"COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false) "
+            f"WHERE pg_get_serial_sequence('{table}', 'id') IS NOT NULL;"
+        )
+
+    restore_sql = "\n".join(restore_lines)
+
+    # Escribir a archivo temporal
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".sql", delete=False, encoding="utf-8"
+    ) as tmp:
+        tmp.write(restore_sql)
+        tmp_path = tmp.name
+
+    try:
+        result = subprocess.run(
+            [
+                psql,
+                "-h", pg["host"],
+                "-p", pg["port"],
+                "-U", pg["user"],
+                "-d", pg["dbname"],
+                "-v", "ON_ERROR_STOP=1",
+                "--single-transaction",
+                "-f", tmp_path,
+            ],
+            capture_output=True,
+            env=_pg_env(pg),
+            timeout=300,
+        )
+    finally:
+        os.unlink(tmp_path)
+
+    if result.returncode == 0:
+        return True, "OK"
+    else:
+        stderr = result.stderr.decode("utf-8", errors="replace")
+        # Filtrar lineas informativas de psql, mantener solo errores reales
+        error_lines = [
+            l for l in stderr.split("\n")
+            if l.strip() and "ERROR" in l.upper()
+        ]
+        error_msg = "; ".join(error_lines[:3]) if error_lines else stderr[:300]
+        return False, error_msg
+
+
+def _restore_with_sqlalchemy(filepath: str, db: Session) -> tuple[bool, str]:
+    """Restaura usando SQLAlchemy. Todo en UNA transaccion (atomico).
+
+    Si algo falla, hace ROLLBACK completo y la DB queda intacta.
+    Deshabilita FK constraints para tolerar INSERTs en cualquier orden.
+    No requiere permisos de superuser.
+    """
+    is_pg = DATABASE_URL.startswith("postgresql")
+
+    with open(filepath, "r", encoding="utf-8", errors="replace") as f:
+        sql_content = f.read()
+
+    # Verificar que el dump contiene INSERT statements
+    has_inserts = "INSERT INTO" in sql_content.upper()
+    has_copy = "COPY " in sql_content and "FROM stdin" in sql_content
+    if not has_inserts and has_copy:
+        return False, (
+            "El backup usa formato COPY (incompatible sin psql). "
+            "Instale PostgreSQL completo o use un backup en formato INSERT."
+        )
+    if not has_inserts and not has_copy:
+        return False, "El archivo no contiene datos para restaurar."
+
+    # Parsear statements SQL (solo INSERT y comandos ejecutables)
+    statements = []
+    current = []
+    for line in sql_content.split("\n"):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("--"):
+            continue
+        # Saltar comandos que SQLAlchemy no puede ejecutar
+        upper = stripped.upper()
+        if any(upper.startswith(skip) for skip in [
+            "COPY ", "\\.", "CREATE ", "DROP ", "ALTER ", "GRANT ", "REVOKE ",
+            "SET DEFAULT_", "SET STATEMENT_", "SET LOCK_", "SET CLIENT_",
+            "SET SEARCH_PATH", "SET CHECK_", "SET XMLOPTION",
+            "SET SESSION", "SELECT PG_CATALOG",
+        ]):
+            continue
+        current.append(line)
+        if stripped.endswith(";"):
+            statements.append("\n".join(current))
+            current = []
+
+    # Restaurar en UNA transaccion atomica
+    try:
+        # Deshabilitar FK constraints (permite INSERTs en cualquier orden)
+        if is_pg:
+            for table in _TABLES_INSERT_ORDER:
+                db.execute(text(f"ALTER TABLE {table} DISABLE TRIGGER ALL"))
+        else:
+            db.execute(text("PRAGMA foreign_keys = OFF"))
+
+        # Limpiar tablas (una sola sentencia en PG, loop en SQLite)
+        if is_pg:
+            all_tables = ", ".join(reversed(_TABLES_INSERT_ORDER))
+            db.execute(text(f"TRUNCATE TABLE {all_tables} CASCADE"))
+        else:
+            for table in reversed(_TABLES_INSERT_ORDER):
+                db.execute(text(f"DELETE FROM {table}"))
+
+        # Ejecutar todos los INSERT statements
+        executed = 0
+        for stmt in statements:
+            stmt = stmt.strip()
+            if not stmt:
+                continue
+            db.execute(text(stmt))
+            executed += 1
+
+        # Re-habilitar FK constraints
+        if is_pg:
+            for table in _TABLES_INSERT_ORDER:
+                db.execute(text(f"ALTER TABLE {table} ENABLE TRIGGER ALL"))
+        else:
+            db.execute(text("PRAGMA foreign_keys = ON"))
+
+        # Resetear secuencias (solo PostgreSQL)
+        if is_pg:
+            for table in _TABLES_INSERT_ORDER:
+                db.execute(text(
+                    f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
+                    f"COALESCE((SELECT MAX(id) FROM {table}), 0) + 1, false) "
+                    f"WHERE pg_get_serial_sequence('{table}', 'id') IS NOT NULL"
+                ))
+
+        # COMMIT solo si todo salio bien
+        db.commit()
+        return True, f"{executed} sentencias ejecutadas"
+
+    except Exception as e:
+        # ROLLBACK atomico: la DB queda intacta como antes
+        # (en PG el DISABLE TRIGGER tambien se revierte con el rollback)
+        db.rollback()
+        # Re-habilitar FK en SQLite (PRAGMA no es transaccional)
+        if not is_pg:
+            try:
+                db.execute(text("PRAGMA foreign_keys = ON"))
+            except Exception:
+                pass
+        error_msg = f"{type(e).__name__}: {str(e)[:200]}"
+        return False, error_msg
 
 
 @router.get("")
@@ -291,87 +501,49 @@ def restaurar_backup(
 
     pg = _parse_pg_url(DATABASE_URL)
 
-    # Intentar restaurar con psql
-    env = os.environ.copy()
-    if pg["password"]:
-        env["PGPASSWORD"] = pg["password"]
-
+    # Paso 1: Intentar restaurar con psql (maneja cualquier formato, atomico)
     try:
-        result = subprocess.run(
-            [
-                "psql",
-                "-h", pg["host"],
-                "-p", pg["port"],
-                "-U", pg["user"],
-                "-d", pg["dbname"],
-                "-f", filepath,
-            ],
-            capture_output=True,
-            env=env,
-            timeout=300,
-        )
-        if result.returncode == 0:
-            ip = request.client.host if request.client else ""
-            log_audit(db, current_user, "UPDATE", "backup", None,
-                      f"Backup restaurado con psql: {safe_name}", ip)
+        ok, msg = _restore_with_psql(filepath, pg)
+        if ok:
+            try:
+                ip = request.client.host if request.client else ""
+                log_audit(db, current_user, "UPDATE", "backup", None,
+                          f"Backup restaurado (psql): {safe_name}", ip)
+            except Exception:
+                pass  # DB cambio tras restore, audit puede fallar
             resp = RedirectResponse("/backup", status_code=303)
             return set_flash(resp, f"Backup restaurado correctamente: {safe_name}")
         else:
-            error_msg = result.stderr.decode("utf-8", errors="replace")[:200]
             resp = RedirectResponse("/backup", status_code=303)
-            return set_flash(resp, f"Error en psql: {error_msg}", "error")
+            return set_flash(resp, f"Error en restauracion: {msg}", "error")
     except FileNotFoundError:
-        # psql no disponible, intentar restauracion por SQLAlchemy
-        pass
+        pass  # psql no disponible, usar fallback
     except subprocess.TimeoutExpired:
         resp = RedirectResponse("/backup", status_code=303)
         return set_flash(resp, "La restauracion tardo demasiado (timeout)", "error")
-
-    # Fallback: ejecutar SQL directamente con SQLAlchemy
-    try:
-        with open(filepath, "r", encoding="utf-8") as f:
-            sql_content = f.read()
-
-        # Filtrar comentarios y lineas vacias, ejecutar statements
-        statements = []
-        current = []
-        for line in sql_content.split("\n"):
-            stripped = line.strip()
-            if not stripped or stripped.startswith("--"):
-                continue
-            current.append(line)
-            if stripped.endswith(";"):
-                statements.append("\n".join(current))
-                current = []
-
-        executed = 0
-        errors = 0
-        for stmt in statements:
-            stmt = stmt.strip()
-            if not stmt:  # pragma: no cover
-                continue
-            try:
-                db.execute(text(stmt))
-                executed += 1
-            except Exception:
-                errors += 1
-                db.rollback()
-
-        db.commit()
-
-        ip = request.client.host if request.client else ""
-        log_audit(db, current_user, "UPDATE", "backup", None,
-                  f"Backup restaurado (fallback): {safe_name} ({executed} sentencias, {errors} errores)", ip)
-
-        msg = f"Backup restaurado: {executed} sentencias ejecutadas"
-        if errors > 0:
-            msg += f", {errors} con errores"
+    except Exception as e:
         resp = RedirectResponse("/backup", status_code=303)
-        return set_flash(resp, msg)
+        return set_flash(resp, f"Error leyendo backup: {type(e).__name__}: {str(e)[:150]}", "error")
 
+    # Paso 2: Fallback con SQLAlchemy (solo dumps con INSERT, atomico)
+    try:
+        ok, msg = _restore_with_sqlalchemy(filepath, db)
     except Exception as e:
         resp = RedirectResponse("/backup", status_code=303)
         return set_flash(resp, f"Error al restaurar: {type(e).__name__}: {str(e)[:150]}", "error")
+
+    if ok:
+        try:
+            ip = request.client.host if request.client else ""
+            log_audit(db, current_user, "UPDATE", "backup", None,
+                      f"Backup restaurado (SQLAlchemy): {safe_name} — {msg}", ip)
+        except Exception:
+            pass  # DB cambio tras restore, audit puede fallar
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, f"Backup restaurado correctamente: {safe_name}")
+    else:
+        resp = RedirectResponse("/backup", status_code=303)
+        return set_flash(resp, f"Error al restaurar: {msg}", "error")
 
 
 @router.post("/eliminar/{filename}")

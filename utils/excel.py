@@ -62,7 +62,7 @@ def generate_excel(
             cell.font = CELL_FONT
             cell.border = THIN_BORDER
             if (col_idx - 1) in money_cols:
-                cell.number_format = '#,##0'
+                cell.number_format = '#,##0.00'
                 cell.alignment = Alignment(horizontal="right")
 
     # Anchos de columna

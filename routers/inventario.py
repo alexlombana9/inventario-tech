@@ -139,55 +139,61 @@ def registrar_movimiento(
     current_user: models.Usuario = Depends(require_auth),
 ):
     local_id = get_local_id(request)
-    prod_query = db.query(models.Producto).filter(models.Producto.id == producto_id)
-    if local_id is not None:
-        prod_query = prod_query.filter(models.Producto.local_id == local_id)
-    producto = prod_query.first()
-    if not producto:
-        return RedirectResponse(f"/inventario/{tipo.lower()}?error=Producto+no+encontrado", status_code=303)
 
     if cantidad <= 0:
         return RedirectResponse(f"/inventario/{tipo.lower()}?error=La+cantidad+debe+ser+mayor+a+0", status_code=303)
 
-    if tipo == "SALIDA" and producto.stock_actual < cantidad:
-        return RedirectResponse(
-            f"/inventario/salida?error=Stock+insuficiente.+Disponible:+{producto.stock_actual}+{producto.unidad_medida}",
-            status_code=303
+    try:
+        prod_query = db.query(models.Producto).filter(models.Producto.id == producto_id)
+        if local_id is not None:
+            prod_query = prod_query.filter(models.Producto.local_id == local_id)
+        producto = prod_query.with_for_update().first()
+        if not producto:
+            return RedirectResponse(f"/inventario/{tipo.lower()}?error=Producto+no+encontrado", status_code=303)
+
+        if tipo == "SALIDA" and producto.stock_actual < cantidad:
+            db.rollback()
+            return RedirectResponse(
+                f"/inventario/salida?error=Stock+insuficiente.+Disponible:+{producto.stock_actual}+{producto.unidad_medida}",
+                status_code=303
+            )
+
+        stock_anterior = producto.stock_actual
+
+        if tipo == "ENTRADA":
+            nuevo_stock = stock_anterior + cantidad
+        elif tipo == "SALIDA":
+            nuevo_stock = stock_anterior - cantidad
+        else:  # AJUSTE
+            nuevo_stock = cantidad
+
+        fecha_mov = datetime.now()
+        if fecha:
+            try:
+                fecha_mov = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
+            except ValueError:
+                pass
+
+        mov = models.MovimientoInventario(
+            producto_id=producto_id,
+            tipo=tipo,
+            cantidad=cantidad if tipo != "AJUSTE" else abs(nuevo_stock - stock_anterior),
+            stock_anterior=stock_anterior,
+            stock_resultante=nuevo_stock,
+            precio_unitario=precio_unitario,
+            proveedor_id=int(proveedor_id) if proveedor_id else None,
+            numero_referencia=numero_referencia.strip(),
+            observaciones=observaciones.strip(),
+            fecha=fecha_mov,
         )
+        mov.local_id = local_id
+        db.add(mov)
 
-    stock_anterior = producto.stock_actual
-
-    if tipo == "ENTRADA":
-        nuevo_stock = stock_anterior + cantidad
-    elif tipo == "SALIDA":
-        nuevo_stock = stock_anterior - cantidad
-    else:  # AJUSTE
-        nuevo_stock = cantidad  # En ajuste, la cantidad ES el nuevo stock
-
-    fecha_mov = datetime.now()
-    if fecha:
-        try:
-            fecha_mov = datetime.strptime(fecha, "%Y-%m-%dT%H:%M")
-        except ValueError:
-            pass
-
-    mov = models.MovimientoInventario(
-        producto_id=producto_id,
-        tipo=tipo,
-        cantidad=cantidad if tipo != "AJUSTE" else abs(nuevo_stock - stock_anterior),
-        stock_anterior=stock_anterior,
-        stock_resultante=nuevo_stock,
-        precio_unitario=precio_unitario,
-        proveedor_id=int(proveedor_id) if proveedor_id else None,
-        numero_referencia=numero_referencia.strip(),
-        observaciones=observaciones.strip(),
-        fecha=fecha_mov,
-    )
-    mov.local_id = local_id
-    db.add(mov)
-
-    producto.stock_actual = nuevo_stock
-    db.commit()
+        producto.stock_actual = nuevo_stock
+        db.commit()
+    except Exception:
+        db.rollback()
+        return RedirectResponse(f"/inventario/{tipo.lower()}?error=Error+al+registrar+el+movimiento", status_code=303)
 
     ip = request.client.host if request.client else ""
     log_audit(db, current_user, "CREATE", "movimiento_inventario", mov.id,
@@ -212,6 +218,9 @@ def registrar_ajuste(
     producto = prod_query.first()
     if not producto:
         return RedirectResponse("/inventario/ajuste?error=Producto+no+encontrado", status_code=303)
+
+    if nuevo_stock < 0:
+        return RedirectResponse("/inventario/ajuste?error=El+stock+no+puede+ser+negativo", status_code=303)
 
     stock_anterior = producto.stock_actual
     diferencia = abs(nuevo_stock - stock_anterior)

@@ -1,40 +1,53 @@
 {% extends "base.html" %}
-{% block title %}Aviso Legal y Privacidad{% endblock %}
-{% block page_title %}Aviso Legal, Privacidad y Seguridad{% endblock %}
+{% block title %}Legal, Privacidad y Cookies{% endblock %}
+{% block page_title %}Terminos de Servicio, Privacidad y Cookies{% endblock %}
 
 {% block content %}
 
 <div class="page-header">
-  <h1><i class="bi bi-shield-lock-fill me-2 text-primary"></i>Aviso Legal, Privacidad y Seguridad</h1>
+  <h1><i class="bi bi-shield-lock-fill me-2 text-primary"></i>Terminos de Servicio, Privacidad y Cookies</h1>
+  <p class="text-muted small mb-0">
+    <i class="bi bi-calendar3 me-1"></i>Ultima actualizacion: 30 de marzo de 2026 &nbsp;|&nbsp;
+    <i class="bi bi-tag me-1"></i>TechStock v3.1 &nbsp;|&nbsp;
+    <i class="bi bi-geo-alt me-1"></i>Ley aplicable: Republica de Colombia
+  </p>
 </div>
 
-<!-- Navegacion interna -->
-<div class="mb-4 d-flex flex-wrap gap-2">
-  <a href="#aviso-legal"        class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-text me-1"></i>Aviso Legal</a>
-  <a href="#privacidad"         class="btn btn-sm btn-outline-success"><i class="bi bi-eye-slash me-1"></i>Privacidad</a>
-  <a href="#seguridad"          class="btn btn-sm btn-outline-danger"><i class="bi bi-shield-check me-1"></i>Seguridad</a>
-  <a href="#datos"              class="btn btn-sm btn-outline-secondary"><i class="bi bi-database-lock me-1"></i>Datos</a>
-  <a href="#roles"              class="btn btn-sm btn-outline-secondary"><i class="bi bi-people me-1"></i>Control de Acceso</a>
-  <a href="#auditoria"          class="btn btn-sm btn-outline-secondary"><i class="bi bi-clock-history me-1"></i>Auditoria</a>
-  <a href="#respaldos"          class="btn btn-sm btn-outline-secondary"><i class="bi bi-hdd me-1"></i>Respaldos</a>
-  <a href="#cumplimiento"       class="btn btn-sm btn-outline-warning"><i class="bi bi-patch-check me-1"></i>Cumplimiento</a>
-  <a href="#responsabilidades"  class="btn btn-sm btn-outline-secondary"><i class="bi bi-person-check me-1"></i>Responsabilidades</a>
-  <a href="#contacto"           class="btn btn-sm btn-outline-primary"><i class="bi bi-envelope me-1"></i>Contacto</a>
+<!-- Tabla de contenidos -->
+<div class="mb-4">
+  <h6 class="fw-bold mb-2"><i class="bi bi-list-nested me-1"></i> Tabla de Contenidos</h6>
+  <div class="d-flex flex-wrap gap-2">
+    <a href="#terminos"           class="btn btn-sm btn-outline-primary"><i class="bi bi-file-earmark-text me-1"></i>1. Terminos de Servicio</a>
+    <a href="#licencia"           class="btn btn-sm btn-outline-primary"><i class="bi bi-key me-1"></i>2. Licencia de Uso</a>
+    <a href="#privacidad"         class="btn btn-sm btn-outline-success"><i class="bi bi-eye-slash me-1"></i>3. Politica de Privacidad</a>
+    <a href="#cookies"            class="btn btn-sm btn-outline-info"><i class="bi bi-cookie me-1"></i>4. Politica de Cookies</a>
+    <a href="#seguridad"          class="btn btn-sm btn-outline-danger"><i class="bi bi-shield-check me-1"></i>5. Medidas de Seguridad</a>
+    <a href="#datos"              class="btn btn-sm btn-outline-secondary"><i class="bi bi-database-lock me-1"></i>6. Almacenamiento de Datos</a>
+    <a href="#roles"              class="btn btn-sm btn-outline-secondary"><i class="bi bi-people me-1"></i>7. Control de Acceso</a>
+    <a href="#auditoria"          class="btn btn-sm btn-outline-secondary"><i class="bi bi-clock-history me-1"></i>8. Auditoria</a>
+    <a href="#respaldos"          class="btn btn-sm btn-outline-secondary"><i class="bi bi-hdd me-1"></i>9. Respaldos</a>
+    <a href="#cumplimiento"       class="btn btn-sm btn-outline-warning"><i class="bi bi-patch-check me-1"></i>10. Cumplimiento Normativo</a>
+    <a href="#responsabilidades"  class="btn btn-sm btn-outline-secondary"><i class="bi bi-person-check me-1"></i>11. Responsabilidades</a>
+    <a href="#limitaciones"       class="btn btn-sm btn-outline-secondary"><i class="bi bi-exclamation-diamond me-1"></i>12. Limitaciones y Garantias</a>
+    <a href="#terminacion"        class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle me-1"></i>13. Terminacion</a>
+    <a href="#contacto"           class="btn btn-sm btn-outline-primary"><i class="bi bi-envelope me-1"></i>14. Contacto</a>
+  </div>
 </div>
 
-<!-- ═══════════════════════════ AVISO LEGAL ═══════════════════════════ -->
-<div class="guide-section" id="aviso-legal">
-  <h4><i class="bi bi-file-earmark-text-fill me-2 text-primary"></i>1. Aviso Legal</h4>
+<!-- ═══════════════════════════ 1. TERMINOS DE SERVICIO ═══════════════════════════ -->
+<div class="guide-section" id="terminos">
+  <h4><i class="bi bi-file-earmark-text-fill me-2 text-primary"></i>1. Terminos de Servicio</h4>
 
   <!-- Identificacion del titular -->
   <div class="row g-3 mb-4">
     <div class="col-md-6">
-      <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
-        <h6 class="fw-bold mb-2"><i class="bi bi-building-fill text-primary me-1"></i> Empresa Responsable</h6>
+      <div class="border rounded p-3 h-100">
+        <h6 class="fw-bold mb-2"><i class="bi bi-building-fill text-primary me-1"></i> Empresa Desarrolladora</h6>
         <table class="table table-sm table-borderless small mb-0">
           <tbody>
-            <tr><td class="fw-semibold" style="width:110px">Razon social:</td><td><strong>Orionics</strong></td></tr>
-            <tr><td class="fw-semibold">Descripcion:</td><td>Empresa lider de Barrancabermeja en brindar soluciones tecnologicas</td></tr>
+            <tr><td class="fw-semibold" style="width:120px">Razon social:</td><td><strong>Orionics</strong></td></tr>
+            <tr><td class="fw-semibold">Actividad:</td><td>Desarrollo de soluciones tecnologicas</td></tr>
+            <tr><td class="fw-semibold">Domicilio:</td><td>Barrancabermeja, Santander, Colombia</td></tr>
             <tr><td class="fw-semibold">Telefono:</td><td>+57 312 586 5357</td></tr>
             <tr><td class="fw-semibold">Correo:</td><td>orionics@outlook.es</td></tr>
           </tbody>
@@ -42,11 +55,11 @@
       </div>
     </div>
     <div class="col-md-6">
-      <div class="border rounded p-3 h-100" style="background: linear-gradient(135deg, #f8f9fa, #e9ecef);">
+      <div class="border rounded p-3 h-100">
         <h6 class="fw-bold mb-2"><i class="bi bi-person-badge-fill text-success me-1"></i> Representante Legal</h6>
         <table class="table table-sm table-borderless small mb-0">
           <tbody>
-            <tr><td class="fw-semibold" style="width:110px">Nombre:</td><td><strong>Sebastian Alexander Pava Lombana</strong></td></tr>
+            <tr><td class="fw-semibold" style="width:120px">Nombre:</td><td><strong>Sebastian Alexander Pava Lombana</strong></td></tr>
             <tr><td class="fw-semibold">Direccion:</td><td>Cra 21a #76a 02, Barrancabermeja</td></tr>
             <tr><td class="fw-semibold">Telefono:</td><td>+57 321 599 6243</td></tr>
             <tr><td class="fw-semibold">Correo:</td><td>spava2311@gmail.com</td></tr>
@@ -57,63 +70,117 @@
   </div>
 
   <div class="guide-step">
-    <div class="guide-step-num"><i class="bi bi-building" style="font-size:0.7rem"></i></div>
+    <div class="guide-step-num">1.1</div>
     <div class="guide-step-text">
-      <strong>Titular del Sistema</strong> &mdash; TechStock es un sistema de gestion de inventario, ventas y finanzas propiedad de <strong>Orionics</strong>, desarrollado y operado bajo la responsabilidad de <strong>Sebastian Alexander Pava Lombana</strong>. El acceso al sistema esta restringido exclusivamente a los usuarios autorizados por el administrador.
+      <strong>Descripcion del Software</strong> &mdash; TechStock es un sistema de gestion integral para negocios que comprende: gestion de inventario y productos, punto de venta (POS), control de caja, administracion de clientes y proveedores, cuentas por cobrar y por pagar, registro de gastos, generacion de reportes, y herramientas de auditoria. Es un software de escritorio/web que opera de forma <strong>100% local</strong> (offline), sin dependencia de servidores externos ni servicios en la nube.
     </div>
   </div>
 
   <div class="guide-step">
-    <div class="guide-step-num"><i class="bi bi-journal-check" style="font-size:0.7rem"></i></div>
+    <div class="guide-step-num">1.2</div>
     <div class="guide-step-text">
-      <strong>Objeto del Sistema</strong> &mdash; TechStock tiene como finalidad la gestion integral del inventario de productos tecnologicos, registro de ventas, control de caja, gestion de proveedores, clientes, cuentas por cobrar y cuentas por pagar, proporcionando herramientas de seguimiento, reportes y auditoria para los clientes de <strong>Orionics</strong>.
+      <strong>Aceptacion de los Terminos</strong> &mdash; El acceso y uso de TechStock implica la aceptacion integra de los presentes Terminos de Servicio, la Politica de Privacidad y la Politica de Cookies. Si el usuario no esta de acuerdo con alguna de estas condiciones, debera abstenerse de utilizar el software. Estos terminos aplican a todos los usuarios del sistema, independientemente de su rol (Super Administrador, Administrador, Vendedor, Bodeguero).
     </div>
   </div>
 
   <div class="guide-step">
-    <div class="guide-step-num"><i class="bi bi-geo-alt" style="font-size:0.7rem"></i></div>
+    <div class="guide-step-num">1.3</div>
     <div class="guide-step-text">
-      <strong>Domicilio</strong> &mdash; La empresa <strong>Orionics</strong> tiene su sede en la ciudad de <strong>Barrancabermeja, Santander, Colombia</strong>. Todas las operaciones del sistema se rigen por la legislacion colombiana vigente.
+      <strong>Propiedad Intelectual</strong> &mdash; Todo el contenido del sistema, incluyendo pero no limitado a: codigo fuente, algoritmos, diseno de interfaz, logotipos, marca &ldquo;TechStock&rdquo;, estructura de base de datos, documentacion tecnica y de usuario, es propiedad exclusiva de <strong>Orionics</strong> y se encuentra protegido por la legislacion colombiana de derechos de autor (Ley 23 de 1982 y Ley 1915 de 2018) y por los tratados internacionales aplicables. Queda expresamente prohibida la reproduccion, distribucion, modificacion, ingenieria inversa, descompilacion o cualquier forma de explotacion no autorizada, total o parcial, sin consentimiento previo y por escrito de Orionics.
     </div>
   </div>
 
   <div class="guide-step">
-    <div class="guide-step-num"><i class="bi bi-globe" style="font-size:0.7rem"></i></div>
+    <div class="guide-step-num">1.4</div>
     <div class="guide-step-text">
-      <strong>Ambito de Aplicacion</strong> &mdash; Este aviso legal aplica a todos los usuarios del sistema, independientemente de su rol (Administrador, Vendedor, Bodeguero). El uso del sistema implica la aceptacion integra de las condiciones aqui descritas.
+      <strong>Modificaciones a los Terminos</strong> &mdash; Orionics se reserva el derecho de modificar estos Terminos de Servicio en cualquier momento. Las modificaciones entraran en vigor desde su publicacion dentro del sistema. Se notificara a los usuarios de cambios sustanciales mediante aviso en el propio sistema. El uso continuado del software tras la publicacion de los cambios constituye la aceptacion de los nuevos terminos.
     </div>
   </div>
 
   <div class="guide-step">
-    <div class="guide-step-num"><i class="bi bi-c-circle" style="font-size:0.7rem"></i></div>
+    <div class="guide-step-num">1.5</div>
     <div class="guide-step-text">
-      <strong>Propiedad Intelectual</strong> &mdash; Todo el contenido del sistema, incluyendo el software, diseno, logotipos, bases de datos y documentacion, es propiedad exclusiva de <strong>Orionics</strong> y su representante legal, o cuenta con las licencias correspondientes. Queda prohibida su reproduccion, distribucion o modificacion sin autorizacion expresa por escrito.
+      <strong>Ley Aplicable y Jurisdiccion</strong> &mdash; Estos terminos se rigen por la legislacion de la <strong>Republica de Colombia</strong>. Para cualquier controversia derivada del uso del software, las partes se someten a la jurisdiccion de los jueces y tribunales competentes de la ciudad de <strong>Barrancabermeja, Santander</strong>, renunciando expresamente a cualquier otro fuero que pudiera corresponderles.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ 2. LICENCIA DE USO ═══════════════════════════ -->
+<div class="guide-section" id="licencia">
+  <h4><i class="bi bi-key-fill me-2 text-warning"></i>2. Licencia de Uso</h4>
+
+  <div class="guide-step">
+    <div class="guide-step-num">2.1</div>
+    <div class="guide-step-text">
+      <strong>Otorgamiento de Licencia</strong> &mdash; Orionics otorga al usuario una licencia <strong>no exclusiva, intransferible y revocable</strong> para utilizar el software TechStock conforme a las condiciones pactadas en el acuerdo comercial correspondiente. La licencia se otorga por local (sucursal), permitiendo la creacion de multiples usuarios dentro de cada local autorizado.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">2.2</div>
+    <div class="guide-step-text">
+      <strong>Alcance de la Licencia</strong> &mdash; La licencia autoriza al usuario a: (a) instalar y ejecutar el software en un servidor o equipo para uso interno del negocio; (b) crear cuentas de usuario para los empleados autorizados; (c) realizar copias de seguridad de los datos generados; (d) recibir actualizaciones de software cuando esten disponibles segun el plan contratado.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">2.3</div>
+    <div class="guide-step-text">
+      <strong>Restricciones</strong> &mdash; El usuario <strong>no podra</strong>: (a) sublicenciar, vender, arrendar o transferir el software a terceros; (b) realizar ingenieria inversa, descompilar o desensamblar el software; (c) modificar, adaptar o crear obras derivadas del software; (d) remover, alterar u ocultar avisos de propiedad intelectual o marcas del software; (e) utilizar el software para fines ilegales o no autorizados; (f) compartir las credenciales de acceso con personas no autorizadas.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">2.4</div>
+    <div class="guide-step-text">
+      <strong>Actualizaciones y Soporte</strong> &mdash; Orionics podra publicar actualizaciones del software que incluyan correcciones de errores, mejoras de seguridad o nuevas funcionalidades. La disponibilidad de soporte tecnico, sus canales y tiempos de respuesta se rigen por el acuerdo comercial vigente entre Orionics y el cliente. Orionics no esta obligada a proporcionar soporte indefinido sobre versiones anteriores del software.
     </div>
   </div>
 
   <div class="guide-tip">
     <i class="bi bi-info-circle me-1 text-primary"></i>
-    <strong>Fecha de vigencia:</strong> Este aviso legal entra en vigor a partir de la fecha de despliegue del sistema y se mantiene vigente mientras el sistema este en operacion. Cualquier modificacion sera comunicada a los usuarios mediante notificacion dentro del sistema.
+    <strong>Nota:</strong> La licencia no transfiere la propiedad del software al usuario. Orionics conserva todos los derechos de propiedad intelectual sobre TechStock. Los datos generados por el usuario dentro del sistema son propiedad del usuario.
   </div>
 </div>
 
-<!-- ═══════════════════════════ PRIVACIDAD ═══════════════════════════ -->
+<!-- ═══════════════════════════ 3. POLITICA DE PRIVACIDAD ═══════════════════════════ -->
 <div class="guide-section" id="privacidad">
-  <h4><i class="bi bi-eye-slash-fill me-2 text-success"></i>2. Politica de Privacidad</h4>
+  <h4><i class="bi bi-eye-slash-fill me-2 text-success"></i>3. Politica de Privacidad</h4>
 
-  <h6 class="fw-bold mt-3 mb-2"><i class="bi bi-collection me-1"></i> 2.1 Datos que Recopilamos</h6>
-  <p class="text-muted small mb-3">TechStock recopila y procesa unicamente los datos necesarios para el funcionamiento del negocio:</p>
+  <p class="text-muted small mb-3">
+    Esta politica de privacidad se establece en cumplimiento de la <strong>Ley Estatutaria 1581 de 2012</strong> (Proteccion de Datos Personales) y su <strong>Decreto Reglamentario 1377 de 2013</strong>, y describe como se recopilan, usan, almacenan y protegen los datos personales dentro de TechStock.
+  </p>
+
+  <h6 class="fw-bold mt-3 mb-2"><i class="bi bi-building me-1"></i> 3.1 Responsable del Tratamiento</h6>
+  <div class="border rounded p-3 mb-3">
+    <table class="table table-sm table-borderless small mb-0">
+      <tbody>
+        <tr><td class="fw-semibold" style="width:180px">Responsable:</td><td><strong>Orionics</strong></td></tr>
+        <tr><td class="fw-semibold">Representante legal:</td><td>Sebastian Alexander Pava Lombana</td></tr>
+        <tr><td class="fw-semibold">Domicilio:</td><td>Cra 21a #76a 02, Barrancabermeja, Santander, Colombia</td></tr>
+        <tr><td class="fw-semibold">Correo de contacto:</td><td>orionics@outlook.es</td></tr>
+        <tr><td class="fw-semibold">Telefono:</td><td>+57 312 586 5357</td></tr>
+      </tbody>
+    </table>
+    <p class="small text-muted mb-0 mt-2">
+      <i class="bi bi-info-circle me-1"></i>
+      <strong>Importante:</strong> Si bien Orionics es el desarrollador del software, en la practica el <strong>cliente</strong> (propietario del negocio que instala y opera TechStock) actua como <strong>Responsable del Tratamiento</strong> de los datos personales de sus propios clientes, proveedores y empleados ingresados en el sistema, dado que TechStock opera de forma 100% local en la infraestructura del cliente.
+    </p>
+  </div>
+
+  <h6 class="fw-bold mt-4 mb-2"><i class="bi bi-collection me-1"></i> 3.2 Datos que se Recopilan</h6>
+  <p class="text-muted small mb-3">TechStock recopila y procesa unicamente los datos necesarios para el funcionamiento del negocio del usuario:</p>
 
   <div class="row g-3 mb-3">
     <div class="col-md-6">
       <div class="border rounded p-3 h-100">
-        <h6 class="fw-semibold mb-2"><i class="bi bi-people-fill text-primary me-1"></i> Datos de Usuarios</h6>
+        <h6 class="fw-semibold mb-2"><i class="bi bi-people-fill text-primary me-1"></i> Datos de Usuarios del Sistema</h6>
         <ul class="small text-muted mb-0">
           <li>Nombre de usuario y nombre completo</li>
           <li>Correo electronico y telefono (opcionales)</li>
-          <li>Rol asignado y permisos</li>
+          <li>Rol asignado y permisos de acceso</li>
           <li>Foto de perfil (si se carga voluntariamente)</li>
-          <li>Registro de ultimo acceso</li>
+          <li>Registro de ultimo acceso y acciones realizadas</li>
         </ul>
       </div>
     </div>
@@ -121,10 +188,10 @@
       <div class="border rounded p-3 h-100">
         <h6 class="fw-semibold mb-2"><i class="bi bi-person-vcard-fill text-success me-1"></i> Datos de Clientes y Proveedores</h6>
         <ul class="small text-muted mb-0">
-          <li>Nombre, documento de identidad</li>
-          <li>Telefono, correo, direccion</li>
+          <li>Nombre o razon social</li>
+          <li>Tipo y numero de documento de identidad (NIT, CC, etc.)</li>
+          <li>Telefono, correo electronico, direccion</li>
           <li>Historial de transacciones comerciales</li>
-          <li>Notas comerciales relevantes</li>
         </ul>
       </div>
     </div>
@@ -132,10 +199,10 @@
       <div class="border rounded p-3 h-100">
         <h6 class="fw-semibold mb-2"><i class="bi bi-cart-check-fill text-warning me-1"></i> Datos Comerciales</h6>
         <ul class="small text-muted mb-0">
-          <li>Productos, precios, stock</li>
-          <li>Registro de ventas y movimientos</li>
-          <li>Cuentas por cobrar y por pagar</li>
-          <li>Movimientos de caja</li>
+          <li>Productos, precios, stock e inventario</li>
+          <li>Registro de ventas y movimientos de inventario</li>
+          <li>Cuentas por cobrar y cuentas por pagar</li>
+          <li>Movimientos de caja y registro de gastos</li>
         </ul>
       </div>
     </div>
@@ -143,122 +210,271 @@
       <div class="border rounded p-3 h-100">
         <h6 class="fw-semibold mb-2"><i class="bi bi-clock-history text-info me-1"></i> Datos de Auditoria</h6>
         <ul class="small text-muted mb-0">
-          <li>Registro de acciones realizadas por usuarios</li>
-          <li>Direccion IP de origen</li>
-          <li>Fecha y hora de cada operacion</li>
-          <li>Tipo de accion (crear, editar, eliminar)</li>
+          <li>Registro de acciones realizadas por cada usuario</li>
+          <li>Direccion IP de origen de cada operacion</li>
+          <li>Fecha y hora exacta de cada accion</li>
+          <li>Tipo de operacion (crear, editar, eliminar)</li>
         </ul>
       </div>
     </div>
   </div>
 
-  <h6 class="fw-bold mt-4 mb-2"><i class="bi bi-arrow-right-circle me-1"></i> 2.2 Uso de los Datos</h6>
+  <h6 class="fw-bold mt-4 mb-2"><i class="bi bi-crosshair me-1"></i> 3.3 Finalidad del Tratamiento</h6>
   <div class="guide-step">
     <div class="guide-step-num">A</div>
     <div class="guide-step-text">
-      <strong>Gestion operativa</strong> &mdash; Los datos se utilizan exclusivamente para la operacion del negocio: registro de inventario, procesamiento de ventas, control financiero y generacion de reportes.
+      <strong>Gestion operativa del negocio</strong> &mdash; Los datos se utilizan exclusivamente para la operacion interna del negocio del usuario: registro de inventario, procesamiento de ventas, control financiero, generacion de reportes y administracion de clientes y proveedores.
     </div>
   </div>
   <div class="guide-step">
     <div class="guide-step-num">B</div>
     <div class="guide-step-text">
-      <strong>No se comparten con terceros</strong> &mdash; Los datos almacenados en TechStock no se comparten, venden ni transfieren a terceros bajo ninguna circunstancia. <strong>Orionics</strong> se compromete a no divulgar informacion de sus usuarios salvo obligacion legal expresa por autoridad competente.
+      <strong>Seguridad y auditoria</strong> &mdash; Los datos de auditoria (acciones, IPs, fechas) se recopilan para garantizar la seguridad del sistema, detectar accesos no autorizados y mantener la trazabilidad de las operaciones.
     </div>
   </div>
   <div class="guide-step">
     <div class="guide-step-num">C</div>
     <div class="guide-step-text">
-      <strong>Retencion de datos</strong> &mdash; Los datos se conservan mientras sean necesarios para la operacion del negocio. Los registros de auditoria se mantienen con fines de trazabilidad y cumplimiento normativo.
+      <strong>Cumplimiento normativo</strong> &mdash; Los registros comerciales (ventas, facturas, movimientos) se conservan para facilitar el cumplimiento de obligaciones tributarias y legales ante las autoridades competentes.
     </div>
   </div>
 
-  <h6 class="fw-bold mt-4 mb-2"><i class="bi bi-person-lock me-1"></i> 2.3 Derechos del Usuario</h6>
-  <div class="alert alert-info small py-2 mb-0">
-    <i class="bi bi-shield-check me-1"></i>
-    Todo usuario tiene derecho a: <strong>acceder</strong> a sus datos personales almacenados, solicitar la <strong>rectificacion</strong> de datos incorrectos, solicitar la <strong>eliminacion</strong> de sus datos cuando ya no sean necesarios, y ser <strong>informado</strong> sobre el uso que se da a su informacion. Para ejercer estos derechos, contacte a <strong>Orionics</strong> al correo <strong>orionics@outlook.es</strong>.
+  <h6 class="fw-bold mt-4 mb-2"><i class="bi bi-server me-1"></i> 3.4 Almacenamiento y Transferencia de Datos</h6>
+  <div class="alert alert-success small py-2 mb-3">
+    <i class="bi bi-shield-fill-check me-1"></i>
+    <strong>Software 100% local:</strong> Todos los datos se almacenan exclusivamente en la base de datos PostgreSQL del servidor donde esta instalado TechStock. <strong>No se envian datos a servidores externos, servicios en la nube ni a Orionics</strong>. El usuario tiene control total y exclusivo sobre la ubicacion fisica de sus datos. No existe transferencia internacional de datos.
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">D</div>
+    <div class="guide-step-text">
+      <strong>No se comparten con terceros</strong> &mdash; Los datos almacenados en TechStock no se comparten, venden, alquilan ni transfieren a terceros bajo ninguna circunstancia. Orionics no tiene acceso remoto a los datos del usuario. La unica excepcion seria el cumplimiento de una orden judicial o requerimiento de autoridad competente, en cuyo caso la responsabilidad recae sobre el operador del sistema (cliente).
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">E</div>
+    <div class="guide-step-text">
+      <strong>Retencion de datos</strong> &mdash; Los datos se conservan mientras el usuario tenga el software instalado y en operacion. Los registros de auditoria se mantienen de forma indefinida como mecanismo de trazabilidad y cumplimiento normativo. Ante la desinstalacion del software, el usuario es responsable de eliminar o resguardar sus datos.
+    </div>
+  </div>
+
+  <h6 class="fw-bold mt-4 mb-2"><i class="bi bi-person-lock me-1"></i> 3.5 Derechos de los Titulares de Datos</h6>
+  <p class="text-muted small mb-2">
+    En cumplimiento del articulo 8 de la Ley 1581 de 2012, los titulares de datos personales tienen los siguientes derechos:
+  </p>
+  <div class="border rounded p-3 mb-3">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="d-flex align-items-start gap-2 mb-2">
+          <span class="badge bg-primary">A</span>
+          <div class="small"><strong>Acceso:</strong> Conocer, actualizar y consultar sus datos personales almacenados en el sistema.</div>
+        </div>
+        <div class="d-flex align-items-start gap-2 mb-2">
+          <span class="badge bg-success">R</span>
+          <div class="small"><strong>Rectificacion:</strong> Solicitar la correccion de datos personales que sean inexactos, incompletos o desactualizados.</div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="d-flex align-items-start gap-2 mb-2">
+          <span class="badge bg-warning text-dark">C</span>
+          <div class="small"><strong>Cancelacion (Supresion):</strong> Solicitar la eliminacion de sus datos personales cuando no sean necesarios para la finalidad para la cual fueron recopilados.</div>
+        </div>
+        <div class="d-flex align-items-start gap-2 mb-2">
+          <span class="badge bg-danger">O</span>
+          <div class="small"><strong>Oposicion:</strong> Oponerse al tratamiento de sus datos personales cuando existan motivos fundados relativos a su situacion particular.</div>
+        </div>
+      </div>
+    </div>
+    <hr class="my-2">
+    <p class="small text-muted mb-0">
+      <i class="bi bi-envelope me-1"></i>
+      Para ejercer cualquiera de estos derechos, el titular debera enviar su solicitud al correo <strong>orionics@outlook.es</strong> indicando: nombre completo, numero de documento de identidad, descripcion de la solicitud y datos de contacto. Orionics dara respuesta en un plazo maximo de <strong>quince (15) dias habiles</strong> contados a partir de la recepcion de la solicitud, conforme al articulo 15 de la Ley 1581 de 2012.
+    </p>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">F</div>
+    <div class="guide-step-text">
+      <strong>Autorizacion</strong> &mdash; De conformidad con el articulo 9 de la Ley 1581 de 2012, el uso del sistema por parte del titular de datos personales (usuarios, clientes registrados) constituye autorizacion previa, expresa e informada para el tratamiento de sus datos personales conforme a las finalidades aqui descritas.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">G</div>
+    <div class="guide-step-text">
+      <strong>Autoridad de Proteccion de Datos</strong> &mdash; Si el titular considera que sus derechos no han sido debidamente atendidos, podra presentar una queja ante la <strong>Superintendencia de Industria y Comercio (SIC)</strong>, autoridad nacional de proteccion de datos personales en Colombia (www.sic.gov.co).
+    </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════ SEGURIDAD ═══════════════════════════ -->
+<!-- ═══════════════════════════ 4. POLITICA DE COOKIES ═══════════════════════════ -->
+<div class="guide-section" id="cookies">
+  <h4><i class="bi bi-cookie me-2 text-info"></i>4. Politica de Cookies</h4>
+
+  <p class="text-muted small mb-3">
+    TechStock utiliza cookies estrictamente necesarias para el funcionamiento del sistema. Al ser un software local (no un sitio web publico), no se utilizan cookies de rastreo, publicidad ni analitica de terceros.
+  </p>
+
+  <div class="table-responsive mb-3">
+    <table class="table table-sm table-bordered small">
+      <thead class="table-dark">
+        <tr>
+          <th style="width:25%">Cookie</th>
+          <th style="width:15%">Tipo</th>
+          <th>Finalidad</th>
+          <th style="width:15%">Duracion</th>
+          <th style="width:12%">HttpOnly</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>techstock_session</code></td>
+          <td><span class="badge bg-danger">Esencial</span></td>
+          <td>Sesion de usuario autenticado. Contiene un token firmado criptograficamente que identifica al usuario.</td>
+          <td>8 horas</td>
+          <td><i class="bi bi-check-circle-fill text-success"></i> Si</td>
+        </tr>
+        <tr>
+          <td><code>techstock_flash</code></td>
+          <td><span class="badge bg-danger">Esencial</span></td>
+          <td>Mensajes de notificacion temporales (exito, error, advertencia) que se muestran al usuario una sola vez.</td>
+          <td>60 segundos</td>
+          <td><i class="bi bi-check-circle-fill text-success"></i> Si</td>
+        </tr>
+        <tr>
+          <td><code>techstock_accounts</code></td>
+          <td><span class="badge bg-primary">Funcional</span></td>
+          <td>Almacena la lista de cuentas guardadas para facilitar el cambio rapido entre usuarios (multi-cuenta).</td>
+          <td>30 dias</td>
+          <td><i class="bi bi-check-circle-fill text-success"></i> Si</td>
+        </tr>
+        <tr>
+          <td><code>techstock_selected_local</code></td>
+          <td><span class="badge bg-primary">Funcional</span></td>
+          <td>Indica el local (sucursal) seleccionado por el Super Administrador para operar dentro de un local especifico.</td>
+          <td>Sesion</td>
+          <td><i class="bi bi-check-circle-fill text-success"></i> Si</td>
+        </tr>
+        <tr>
+          <td><code>csrf_token</code> (en formularios)</td>
+          <td><span class="badge bg-danger">Esencial</span></td>
+          <td>Token de proteccion contra ataques CSRF (Cross-Site Request Forgery). Se incluye como campo oculto en cada formulario POST.</td>
+          <td>1 hora</td>
+          <td>N/A (campo de formulario)</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h6 class="fw-bold mt-3 mb-2"><i class="bi bi-hdd me-1"></i> Almacenamiento Local (localStorage)</h6>
+  <div class="table-responsive mb-3">
+    <table class="table table-sm table-bordered small">
+      <thead class="table-dark">
+        <tr>
+          <th style="width:25%">Clave</th>
+          <th style="width:15%">Tipo</th>
+          <th>Finalidad</th>
+          <th style="width:15%">Duracion</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>techstock_theme</code></td>
+          <td><span class="badge bg-secondary">Preferencia</span></td>
+          <td>Almacena la preferencia de tema visual del usuario (claro u oscuro). No se envia al servidor.</td>
+          <td>Persistente</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="guide-tip">
+    <i class="bi bi-info-circle me-1 text-primary"></i>
+    <strong>Nota:</strong> Todas las cookies utilizadas por TechStock son de primera parte (first-party) y estrictamente necesarias para el funcionamiento del sistema. No se utilizan cookies de rastreo, publicidad, analitica ni de redes sociales. Al ser un software local, las cookies jamas se transmiten a dominios externos.
+  </div>
+</div>
+
+<!-- ═══════════════════════════ 5. SEGURIDAD ═══════════════════════════ -->
 <div class="guide-section" id="seguridad">
-  <h4><i class="bi bi-shield-fill-check me-2 text-danger"></i>3. Medidas de Seguridad</h4>
-  <p class="text-muted small mb-3">TechStock implementa multiples capas de seguridad para proteger la informacion del negocio y de los usuarios:</p>
+  <h4><i class="bi bi-shield-fill-check me-2 text-danger"></i>5. Medidas de Seguridad</h4>
+  <p class="text-muted small mb-3">TechStock implementa multiples capas de seguridad tecnica para proteger la informacion del negocio y de los usuarios:</p>
 
   <div class="row g-3 mb-3">
     <div class="col-lg-4 col-md-6">
       <div class="border rounded p-3 h-100 text-center">
         <i class="bi bi-key-fill text-warning d-block mb-2" style="font-size:2rem"></i>
         <h6 class="fw-bold">Autenticacion Segura</h6>
-        <p class="small text-muted mb-0">Contrasenas cifradas con algoritmo <strong>bcrypt</strong> (hash irreversible). Las sesiones se gestionan mediante cookies firmadas criptograficamente con <strong>itsdangerous</strong>.</p>
+        <p class="small text-muted mb-0">Contrasenas cifradas con algoritmo <strong>bcrypt</strong> (hash irreversible con salt). Las sesiones se gestionan mediante cookies firmadas criptograficamente con <strong>itsdangerous (HMAC-SHA1)</strong>.</p>
       </div>
     </div>
     <div class="col-lg-4 col-md-6">
       <div class="border rounded p-3 h-100 text-center">
         <i class="bi bi-lock-fill text-primary d-block mb-2" style="font-size:2rem"></i>
         <h6 class="fw-bold">Control de Acceso por Roles</h6>
-        <p class="small text-muted mb-0">Sistema de roles (<strong>Administrador, Vendedor, Bodeguero</strong>) con permisos granulares por modulo. Cada usuario solo accede a las funciones que su rol y permisos permiten.</p>
+        <p class="small text-muted mb-0">Sistema RBAC con cuatro roles (<strong>Super Admin, Administrador, Vendedor, Bodeguero</strong>) y permisos granulares por modulo. Cada usuario accede solo a lo autorizado.</p>
       </div>
     </div>
     <div class="col-lg-4 col-md-6">
       <div class="border rounded p-3 h-100 text-center">
         <i class="bi bi-journal-text text-success d-block mb-2" style="font-size:2rem"></i>
         <h6 class="fw-bold">Registro de Auditoria</h6>
-        <p class="small text-muted mb-0">Todas las acciones criticas (crear, editar, eliminar) quedan registradas con <strong>usuario, IP, fecha/hora y descripcion</strong> detallada.</p>
+        <p class="small text-muted mb-0">Toda accion critica (crear, editar, eliminar) queda registrada con <strong>usuario, IP, fecha/hora y descripcion</strong> detallada en el log de auditoria.</p>
       </div>
     </div>
     <div class="col-lg-4 col-md-6">
       <div class="border rounded p-3 h-100 text-center">
         <i class="bi bi-file-earmark-lock-fill text-danger d-block mb-2" style="font-size:2rem"></i>
-        <h6 class="fw-bold">Proteccion contra Ataques</h6>
-        <p class="small text-muted mb-0">Validacion de entradas en servidor, sanitizacion de nombres de archivo, proteccion contra <strong>path traversal</strong>, inyeccion SQL (uso de ORM parametrizado) y XSS.</p>
-      </div>
-    </div>
-    <div class="col-lg-4 col-md-6">
-      <div class="border rounded p-3 h-100 text-center">
-        <i class="bi bi-cookie text-info d-block mb-2" style="font-size:2rem"></i>
-        <h6 class="fw-bold">Sesiones Protegidas</h6>
-        <p class="small text-muted mb-0">Las sesiones utilizan cookies con <strong>firma criptografica</strong>, tiempo de expiracion configurable y soporte para <strong>multiples cuentas</strong> simultaneas.</p>
+        <h6 class="fw-bold">Proteccion CSRF</h6>
+        <p class="small text-muted mb-0">Todos los formularios incluyen un <strong>token CSRF</strong> unico por sesion que previene ataques de falsificacion de solicitudes entre sitios (Cross-Site Request Forgery).</p>
       </div>
     </div>
     <div class="col-lg-4 col-md-6">
       <div class="border rounded p-3 h-100 text-center">
         <i class="bi bi-database-fill-lock text-secondary d-block mb-2" style="font-size:2rem"></i>
         <h6 class="fw-bold">Base de Datos Segura</h6>
-        <p class="small text-muted mb-0">Base de datos <strong>PostgreSQL</strong> con conexiones autenticadas, consultas parametrizadas via <strong>SQLAlchemy ORM</strong> que previenen inyecciones SQL.</p>
+        <p class="small text-muted mb-0"><strong>PostgreSQL</strong> con conexiones autenticadas y consultas parametrizadas via <strong>SQLAlchemy ORM</strong> que previenen inyeccion SQL. Sin consultas SQL crudas.</p>
+      </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+      <div class="border rounded p-3 h-100 text-center">
+        <i class="bi bi-shield-fill-exclamation text-info d-block mb-2" style="font-size:2rem"></i>
+        <h6 class="fw-bold">Validacion de Entradas</h6>
+        <p class="small text-muted mb-0">Validacion en servidor de todas las entradas. Sanitizacion de nombres de archivo. Proteccion contra <strong>path traversal</strong>, XSS y subida de archivos maliciosos.</p>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════ PROTECCION DE DATOS ═══════════════════════════ -->
+<!-- ═══════════════════════════ 6. ALMACENAMIENTO DE DATOS ═══════════════════════════ -->
 <div class="guide-section" id="datos">
-  <h4><i class="bi bi-database-fill-lock me-2 text-secondary"></i>4. Proteccion y Almacenamiento de Datos</h4>
+  <h4><i class="bi bi-database-fill-lock me-2 text-secondary"></i>6. Almacenamiento y Proteccion de Datos</h4>
 
   <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-server" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Almacenamiento local</strong> &mdash; Todos los datos se almacenan en la base de datos del servidor donde esta instalado TechStock. No se envian datos a servidores externos, servicios en la nube ni terceros. Usted tiene <strong>control total</strong> sobre la ubicacion fisica de sus datos.
+      <strong>Almacenamiento 100% local</strong> &mdash; Todos los datos se almacenan en la base de datos PostgreSQL del servidor donde esta instalado TechStock. No se envian datos a servidores externos, servicios en la nube ni a terceros. El usuario tiene <strong>control total y exclusivo</strong> sobre la ubicacion fisica de sus datos. Orionics no tiene acceso remoto a los datos del usuario.
     </div>
   </div>
 
   <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-shield-lock" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Cifrado de contrasenas</strong> &mdash; Las contrasenas de los usuarios jamas se almacenan en texto plano. Se utiliza el algoritmo <strong>bcrypt</strong> para generar un hash irreversible, lo que garantiza que incluso en caso de acceso no autorizado a la base de datos, las contrasenas permanecen protegidas.
+      <strong>Cifrado de contrasenas</strong> &mdash; Las contrasenas de los usuarios jamas se almacenan en texto plano. Se utiliza el algoritmo <strong>bcrypt</strong> con salt aleatorio para generar un hash irreversible, lo que garantiza que incluso en caso de acceso no autorizado a la base de datos, las contrasenas permanecen protegidas.
     </div>
   </div>
 
   <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-trash3" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Eliminacion segura</strong> &mdash; El sistema emplea un mecanismo de <strong>eliminacion logica</strong> (soft delete) para registros criticos como productos, clientes y proveedores. Esto permite recuperacion ante errores y mantiene la integridad referencial de los datos historicos.
+      <strong>Eliminacion logica (soft delete)</strong> &mdash; El sistema emplea un mecanismo de eliminacion logica para registros criticos (productos, clientes, proveedores, categorias). Los registros no se borran fisicamente, sino que se marcan como inactivos, permitiendo la recuperacion ante errores y manteniendo la integridad referencial de los datos historicos.
     </div>
   </div>
 
   <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-upload" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Archivos subidos</strong> &mdash; Los archivos que los usuarios suben (fotos de perfil, backups) son validados en tipo, extension y tamano antes de ser almacenados. Se aplican <strong>limites de tamano</strong> (fotos: 2 MB, backups: 50 MB) y se sanitizan los nombres de archivo para prevenir ataques.
+      <strong>Archivos subidos</strong> &mdash; Los archivos que los usuarios suben (fotos de perfil, archivos de backup) son validados en tipo, extension y tamano antes de ser almacenados. Se aplican <strong>limites de tamano</strong> (fotos: 2 MB, backups: 50 MB) y se sanitizan los nombres de archivo para prevenir ataques de path traversal.
     </div>
   </div>
 
@@ -268,11 +484,11 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════ CONTROL DE ACCESO ═══════════════════════════ -->
+<!-- ═══════════════════════════ 7. CONTROL DE ACCESO ═══════════════════════════ -->
 <div class="guide-section" id="roles">
-  <h4><i class="bi bi-people-fill me-2 text-primary"></i>5. Control de Acceso y Permisos</h4>
+  <h4><i class="bi bi-people-fill me-2 text-primary"></i>7. Control de Acceso y Permisos</h4>
 
-  <p class="text-muted small mb-3">El sistema implementa un control de acceso basado en roles (RBAC) con permisos granulares:</p>
+  <p class="text-muted small mb-3">El sistema implementa un control de acceso basado en roles (RBAC) con permisos granulares por modulo:</p>
 
   <div class="table-responsive mb-3">
     <table class="table table-sm table-bordered small">
@@ -285,19 +501,24 @@
       </thead>
       <tbody>
         <tr>
+          <td><span class="badge bg-dark">Super Admin</span></td>
+          <td>Gestion global multi-local</td>
+          <td>Todos los modulos + gestion de locales (sucursales), dashboard consolidado, backups, usuarios globales</td>
+        </tr>
+        <tr>
           <td><span class="badge bg-danger">Administrador</span></td>
-          <td>Control total del sistema</td>
-          <td>Todos los modulos, configuracion, usuarios, backups, auditoria, importacion</td>
+          <td>Control total del local asignado</td>
+          <td>Todos los modulos dentro de su local: configuracion, usuarios, importacion, auditoria</td>
         </tr>
         <tr>
           <td><span class="badge bg-primary">Vendedor</span></td>
           <td>Operacion comercial diaria</td>
-          <td>Productos (lectura), ventas, POS, clientes, caja, historial de ventas</td>
+          <td>Dashboard, productos (lectura), POS, ventas, clientes, caja, acreedores, deudas, facturas, gastos, reportes</td>
         </tr>
         <tr>
           <td><span class="badge bg-success">Bodeguero</span></td>
           <td>Gestion de almacen e inventario</td>
-          <td>Productos, categorias, inventario (entradas/salidas), proveedores</td>
+          <td>Dashboard, productos, categorias, inventario (entradas/salidas), proveedores, reportes</td>
         </tr>
       </tbody>
     </table>
@@ -311,9 +532,16 @@
   </div>
 
   <div class="guide-step">
+    <div class="guide-step-num"><i class="bi bi-building" style="font-size:0.7rem"></i></div>
+    <div class="guide-step-text">
+      <strong>Aislamiento multi-tenant</strong> &mdash; Cada local (sucursal) opera de forma completamente independiente. Los usuarios de un local no pueden ver ni acceder a los datos de otro local. El Super Administrador puede alternar entre locales para gestion centralizada.
+    </div>
+  </div>
+
+  <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-door-closed" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Sesion obligatoria</strong> &mdash; Todas las paginas del sistema requieren autenticacion. Un usuario que no haya iniciado sesion sera redirigido automaticamente a la pantalla de inicio de sesion. Las sesiones tienen un tiempo de expiracion configurable.
+      <strong>Sesion obligatoria</strong> &mdash; Todas las paginas del sistema requieren autenticacion. Un usuario que no haya iniciado sesion sera redirigido automaticamente a la pantalla de inicio de sesion. Las sesiones expiran automaticamente tras 8 horas de inactividad.
     </div>
   </div>
 
@@ -323,21 +551,21 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════ AUDITORIA ═══════════════════════════ -->
+<!-- ═══════════════════════════ 8. AUDITORIA ═══════════════════════════ -->
 <div class="guide-section" id="auditoria">
-  <h4><i class="bi bi-clock-history me-2 text-info"></i>6. Registro de Auditoria y Trazabilidad</h4>
+  <h4><i class="bi bi-clock-history me-2 text-info"></i>8. Registro de Auditoria y Trazabilidad</h4>
 
   <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-list-check" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Registro completo</strong> &mdash; Cada operacion de creacion, modificacion o eliminacion realizada en el sistema queda registrada automaticamente en el <strong>log de auditoria</strong>, accesible unicamente por el administrador.
+      <strong>Registro completo</strong> &mdash; Cada operacion de creacion, modificacion o eliminacion realizada en el sistema queda registrada automaticamente en el <strong>log de auditoria</strong>, accesible por el administrador y el super administrador.
     </div>
   </div>
 
   <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-card-list" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Datos registrados</strong> &mdash; Cada entrada del log incluye: usuario que realizo la accion, tipo de operacion (CREATE, UPDATE, DELETE), entidad afectada (producto, venta, cliente, etc.), descripcion detallada, direccion IP de origen y fecha/hora exacta.
+      <strong>Datos registrados</strong> &mdash; Cada entrada del log incluye: usuario que realizo la accion, tipo de operacion (CREATE, UPDATE, DELETE), entidad afectada (producto, venta, cliente, etc.), descripcion detallada del cambio, direccion IP de origen, local asociado y fecha/hora exacta.
     </div>
   </div>
 
@@ -350,18 +578,18 @@
 
   <div class="guide-tip">
     <i class="bi bi-info-circle me-1 text-primary"></i>
-    <strong>Finalidad:</strong> El registro de auditoria es un mecanismo de seguridad y cumplimiento normativo. Permite identificar quien realizo cada cambio, cuando y desde donde, garantizando la <strong>trazabilidad total</strong> de las operaciones.
+    <strong>Finalidad:</strong> El registro de auditoria es un mecanismo de seguridad y cumplimiento normativo. Permite identificar quien realizo cada cambio, cuando y desde donde, garantizando la <strong>trazabilidad total</strong> de las operaciones conforme a la Ley 527 de 1999 sobre conservacion de registros electronicos.
   </div>
 </div>
 
-<!-- ═══════════════════════════ RESPALDOS ═══════════════════════════ -->
+<!-- ═══════════════════════════ 9. RESPALDOS ═══════════════════════════ -->
 <div class="guide-section" id="respaldos">
-  <h4><i class="bi bi-hdd-fill me-2 text-success"></i>7. Copias de Seguridad y Recuperacion</h4>
+  <h4><i class="bi bi-hdd-fill me-2 text-success"></i>9. Copias de Seguridad y Recuperacion</h4>
 
   <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-download" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Backup completo</strong> &mdash; El sistema permite generar copias de seguridad completas de la base de datos en formato SQL. Estas copias incluyen toda la estructura y datos del sistema.
+      <strong>Backup completo</strong> &mdash; El sistema permite generar copias de seguridad completas de la base de datos en formato SQL. Estas copias incluyen toda la estructura y datos del sistema, abarcando 19 tablas.
     </div>
   </div>
 
@@ -392,34 +620,36 @@
   </div>
 </div>
 
-<!-- ═══════════════════════════ CUMPLIMIENTO ═══════════════════════════ -->
+<!-- ═══════════════════════════ 10. CUMPLIMIENTO NORMATIVO ═══════════════════════════ -->
 <div class="guide-section" id="cumplimiento">
-  <h4><i class="bi bi-patch-check-fill me-2 text-warning"></i>8. Cumplimiento Normativo</h4>
+  <h4><i class="bi bi-patch-check-fill me-2 text-warning"></i>10. Cumplimiento Normativo</h4>
 
-  <p class="text-muted small mb-3">TechStock ha sido disenado considerando las mejores practicas de proteccion de datos y cumplimiento normativo:</p>
+  <p class="text-muted small mb-3">TechStock ha sido disenado considerando la legislacion colombiana aplicable y las mejores practicas de proteccion de datos:</p>
 
   <div class="row g-3 mb-3">
     <div class="col-md-6">
       <div class="border rounded p-3 h-100">
-        <h6 class="fw-semibold"><i class="bi bi-shield-fill-check text-success me-1"></i> Ley 1581 de 2012 (Colombia)</h6>
+        <h6 class="fw-semibold"><i class="bi bi-shield-fill-check text-success me-1"></i> Ley 1581 de 2012</h6>
         <p class="small text-muted mb-2">Ley Estatutaria de Proteccion de Datos Personales:</p>
         <ul class="small text-muted mb-0">
           <li>Recopilacion de datos con finalidad legitima y definida</li>
-          <li>Derecho de acceso, rectificacion y supresion (ARCO)</li>
-          <li>Seguridad en el almacenamiento de datos personales</li>
+          <li>Derechos de acceso, rectificacion, cancelacion y oposicion</li>
+          <li>Seguridad tecnica y administrativa en el almacenamiento</li>
           <li>No transferencia a terceros sin autorizacion</li>
+          <li>Politica de tratamiento de datos accesible al titular</li>
         </ul>
       </div>
     </div>
     <div class="col-md-6">
       <div class="border rounded p-3 h-100">
         <h6 class="fw-semibold"><i class="bi bi-shield-fill-check text-primary me-1"></i> Decreto 1377 de 2013</h6>
-        <p class="small text-muted mb-2">Reglamentario de proteccion de datos:</p>
+        <p class="small text-muted mb-2">Reglamentario de la Ley 1581 de 2012:</p>
         <ul class="small text-muted mb-0">
-          <li>Politica de tratamiento de datos definida</li>
+          <li>Politica de tratamiento de datos definida y publicada</li>
           <li>Mecanismos para ejercer derechos de los titulares</li>
           <li>Medidas de seguridad tecnicas y administrativas</li>
-          <li>Trazabilidad de las operaciones sobre datos</li>
+          <li>Aviso de privacidad disponible para los titulares</li>
+          <li>Procedimiento de consultas y reclamos</li>
         </ul>
       </div>
     </div>
@@ -437,12 +667,34 @@
     <div class="col-md-6">
       <div class="border rounded p-3 h-100">
         <h6 class="fw-semibold"><i class="bi bi-shield-fill-check text-danger me-1"></i> Ley 1273 de 2009</h6>
-        <p class="small text-muted mb-2">Delitos informaticos:</p>
+        <p class="small text-muted mb-2">Delitos informaticos (modifica Codigo Penal):</p>
         <ul class="small text-muted mb-0">
-          <li>Proteccion contra acceso abusivo a sistemas</li>
+          <li>Proteccion contra acceso abusivo a sistemas informaticos</li>
           <li>Seguridad de datos personales y comerciales</li>
           <li>Registro de auditoria como evidencia digital</li>
           <li>Prevencion de interceptacion de datos</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="border rounded p-3 h-100">
+        <h6 class="fw-semibold"><i class="bi bi-shield-fill-check text-warning me-1"></i> Ley 23 de 1982 y Ley 1915 de 2018</h6>
+        <p class="small text-muted mb-2">Derechos de autor y propiedad intelectual:</p>
+        <ul class="small text-muted mb-0">
+          <li>Proteccion del codigo fuente como obra literaria</li>
+          <li>Derechos morales y patrimoniales del autor</li>
+          <li>Prohibicion de reproduccion no autorizada</li>
+        </ul>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="border rounded p-3 h-100">
+        <h6 class="fw-semibold"><i class="bi bi-shield-fill-check text-secondary me-1"></i> Normativa Tributaria</h6>
+        <p class="small text-muted mb-2">Soporte al cumplimiento fiscal:</p>
+        <ul class="small text-muted mb-0">
+          <li>Registro organizado de ventas, facturas y movimientos</li>
+          <li>Generacion de reportes para obligaciones tributarias</li>
+          <li>Conservacion de informacion financiera historica</li>
         </ul>
       </div>
     </div>
@@ -451,59 +703,115 @@
   <div class="guide-step">
     <div class="guide-step-num"><i class="bi bi-globe-americas" style="font-size:0.7rem"></i></div>
     <div class="guide-step-text">
-      <strong>Estandares internacionales</strong> &mdash; El sistema sigue principios alineados con el <strong>RGPD</strong> (Reglamento General de Proteccion de Datos europeo) y la norma <strong>ISO 27001</strong> en cuanto a: minimizacion de datos, limitacion de proposito, integridad y confidencialidad, y rendicion de cuentas.
-    </div>
-  </div>
-
-  <div class="guide-step">
-    <div class="guide-step-num"><i class="bi bi-receipt" style="font-size:0.7rem"></i></div>
-    <div class="guide-step-text">
-      <strong>Normativa tributaria</strong> &mdash; TechStock permite llevar el registro de ventas, facturas y movimientos financieros de manera organizada, facilitando el cumplimiento de obligaciones tributarias y la generacion de informacion para la DIAN u otras autoridades fiscales.
+      <strong>Estandares internacionales de referencia</strong> &mdash; Adicionalmente, el sistema sigue principios alineados con el <strong>RGPD</strong> (Reglamento General de Proteccion de Datos europeo) y la norma <strong>ISO 27001</strong> en cuanto a: minimizacion de datos, limitacion de proposito, integridad y confidencialidad, y rendicion de cuentas.
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════ RESPONSABILIDADES ═══════════════════════════ -->
+<!-- ═══════════════════════════ 11. RESPONSABILIDADES ═══════════════════════════ -->
 <div class="guide-section" id="responsabilidades">
-  <h4><i class="bi bi-person-check-fill me-2 text-secondary"></i>9. Responsabilidades y Limitaciones</h4>
+  <h4><i class="bi bi-person-check-fill me-2 text-secondary"></i>11. Responsabilidades del Usuario</h4>
 
   <h6 class="fw-bold mt-3 mb-2"><i class="bi bi-person-workspace me-1"></i> Responsabilidades del Administrador</h6>
   <ul class="small text-muted mb-3">
     <li>Mantener las credenciales de acceso al sistema en un lugar seguro.</li>
-    <li>Asignar roles y permisos adecuados a cada usuario.</li>
-    <li>Realizar copias de seguridad de forma periodica.</li>
+    <li>Asignar roles y permisos adecuados a cada usuario, siguiendo el principio de minimo privilegio.</li>
+    <li>Realizar copias de seguridad de forma periodica (minimo semanal).</li>
     <li>Revisar el registro de auditoria ante cualquier incidente o sospecha.</li>
     <li>Mantener el servidor y el sistema operativo actualizados con los parches de seguridad.</li>
-    <li>Configurar acceso HTTPS en entornos de produccion.</li>
+    <li>Configurar acceso HTTPS (SSL/TLS) en entornos de produccion.</li>
+    <li>Garantizar el cumplimiento de la Ley 1581 de 2012 respecto a los datos personales de clientes y proveedores ingresados en el sistema.</li>
   </ul>
 
   <h6 class="fw-bold mb-2"><i class="bi bi-person me-1"></i> Responsabilidades de los Usuarios</h6>
   <ul class="small text-muted mb-3">
     <li>No compartir credenciales de acceso con terceros.</li>
-    <li>Utilizar contrasenas seguras (minimo 8 caracteres).</li>
+    <li>Utilizar contrasenas seguras (minimo 8 caracteres, combinando letras, numeros y simbolos).</li>
     <li>Cerrar sesion al finalizar su turno o al dejar el equipo desatendido.</li>
     <li>Reportar al administrador cualquier actividad sospechosa o acceso no autorizado.</li>
     <li>Utilizar el sistema unicamente para los fines autorizados por la empresa.</li>
+    <li>Ingresar datos veraces y actualizados en el sistema.</li>
   </ul>
+</div>
 
-  <h6 class="fw-bold mb-2"><i class="bi bi-exclamation-diamond me-1"></i> Limitaciones de Responsabilidad</h6>
-  <div class="alert alert-secondary small py-2 mb-0">
+<!-- ═══════════════════════════ 12. LIMITACIONES Y GARANTIAS ═══════════════════════════ -->
+<div class="guide-section" id="limitaciones">
+  <h4><i class="bi bi-exclamation-diamond-fill me-2 text-warning"></i>12. Limitacion de Responsabilidad y Garantias</h4>
+
+  <div class="alert alert-secondary small py-2 mb-3">
+    <h6 class="fw-bold mb-2"><i class="bi bi-exclamation-triangle me-1"></i> Clausula de Exencion de Garantias</h6>
+    <p class="mb-2">
+      TechStock se proporciona <strong>&ldquo;tal cual&rdquo; (as is)</strong> y <strong>&ldquo;segun disponibilidad&rdquo;</strong>. En la medida maxima permitida por la legislacion colombiana, Orionics <strong>no otorga garantias expresas ni implicitas</strong> respecto al software, incluyendo pero no limitado a:
+    </p>
     <ul class="mb-0">
-      <li>TechStock es una herramienta de gestion interna proporcionada por <strong>Orionics</strong>. La exactitud de la informacion depende de los datos ingresados por los usuarios.</li>
-      <li>El sistema no sustituye asesoria legal, contable o tributaria profesional.</li>
-      <li><strong>Orionics</strong> no se responsabiliza por perdidas de datos derivadas de negligencia del administrador en la realizacion de copias de seguridad.</li>
-      <li>El uso indebido del sistema por parte de un usuario autorizado es responsabilidad del mismo.</li>
-      <li>Para cualquier reclamacion o consulta legal, dirigirse a <strong>Sebastian Alexander Pava Lombana</strong> como representante legal de <strong>Orionics</strong>.</li>
+      <li>Garantia de que el software estara libre de errores, defectos o interrupciones.</li>
+      <li>Garantia de resultados financieros, comerciales o de cualquier otra indole derivados del uso del software.</li>
+      <li>Garantia de idoneidad para un proposito particular o de satisfaccion de expectativas especificas del usuario.</li>
+      <li>Garantia de compatibilidad con todo hardware, software de terceros o configuracion de red.</li>
     </ul>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">12.1</div>
+    <div class="guide-step-text">
+      <strong>Precision de los datos</strong> &mdash; La exactitud de la informacion generada por TechStock (reportes, calculos, inventario) depende exclusivamente de los datos ingresados por los usuarios. Orionics no se responsabiliza por decisiones comerciales, financieras o de cualquier otra naturaleza tomadas con base en la informacion del sistema.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">12.2</div>
+    <div class="guide-step-text">
+      <strong>No sustituye asesoria profesional</strong> &mdash; TechStock es una herramienta de gestion interna. El software <strong>no sustituye</strong> asesoria legal, contable, tributaria ni financiera profesional. El usuario es responsable de consultar con profesionales calificados para el cumplimiento de sus obligaciones legales y tributarias.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">12.3</div>
+    <div class="guide-step-text">
+      <strong>Perdida de datos</strong> &mdash; Orionics no se responsabiliza por perdidas de datos derivadas de: (a) negligencia del administrador en la realizacion de copias de seguridad; (b) fallas del hardware o sistema operativo del servidor; (c) ataques informaticos al servidor del usuario; (d) desastres naturales o causas de fuerza mayor; (e) uso indebido del sistema por parte de usuarios autorizados.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">12.4</div>
+    <div class="guide-step-text">
+      <strong>Limite de responsabilidad</strong> &mdash; En todo caso, la responsabilidad total de Orionics frente al usuario, por cualquier concepto derivado del uso del software, estara limitada al monto efectivamente pagado por el usuario como contraprestacion por la licencia del software durante los doce (12) meses anteriores al evento que genere la reclamacion.
+    </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════ CONTACTO ═══════════════════════════ -->
+<!-- ═══════════════════════════ 13. TERMINACION ═══════════════════════════ -->
+<div class="guide-section" id="terminacion">
+  <h4><i class="bi bi-x-circle-fill me-2 text-danger"></i>13. Terminacion de la Licencia</h4>
+
+  <div class="guide-step">
+    <div class="guide-step-num">13.1</div>
+    <div class="guide-step-text">
+      <strong>Terminacion por el usuario</strong> &mdash; El usuario puede dejar de utilizar el software en cualquier momento. Antes de desinstalar, se recomienda generar un backup completo de los datos. Orionics no tiene obligacion de almacenar ni recuperar datos una vez desinstalado el software del servidor del usuario.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">13.2</div>
+    <div class="guide-step-text">
+      <strong>Terminacion por Orionics</strong> &mdash; Orionics podra revocar la licencia de uso del software en caso de: (a) incumplimiento de los Terminos de Servicio; (b) uso del software para fines ilegales; (c) intento de ingenieria inversa, reproduccion o distribucion no autorizada; (d) falta de pago de las obligaciones derivadas del acuerdo comercial. En caso de revocacion, el usuario debera cesar el uso del software y eliminar todas las copias instaladas.
+    </div>
+  </div>
+
+  <div class="guide-step">
+    <div class="guide-step-num">13.3</div>
+    <div class="guide-step-text">
+      <strong>Efectos de la terminacion</strong> &mdash; Tras la terminacion de la licencia: (a) el usuario conserva la propiedad de los datos generados durante el uso del software y podra exportarlos antes de la terminacion; (b) las clausulas de propiedad intelectual, limitacion de responsabilidad y ley aplicable sobreviven a la terminacion; (c) Orionics no tiene obligacion de continuar prestando soporte tecnico.
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════ 14. CONTACTO ═══════════════════════════ -->
 <div class="guide-section" id="contacto">
-  <h4><i class="bi bi-envelope-fill me-2 text-primary"></i>10. Contacto y Soporte</h4>
+  <h4><i class="bi bi-envelope-fill me-2 text-primary"></i>14. Contacto y Soporte</h4>
 
   <!-- Datos de contacto oficiales -->
-  <div class="border rounded p-3 mb-3" style="background: linear-gradient(135deg, #f0f7ff, #e8f4f8);">
+  <div class="border rounded p-3 mb-3">
     <h6 class="fw-bold mb-3"><i class="bi bi-building-fill text-primary me-1"></i> Datos de Contacto Oficial &mdash; Orionics</h6>
     <div class="row g-3">
       <div class="col-md-6">
@@ -561,20 +869,20 @@
     <div class="col-md-6">
       <div class="border rounded p-3 h-100">
         <h6 class="fw-semibold"><i class="bi bi-person-raised-hand text-success me-1"></i> Derechos sobre Datos Personales</h6>
-        <p class="small text-muted mb-0">Para ejercer sus derechos de acceso, rectificacion, cancelacion u oposicion (ARCO) sobre sus datos personales, envie su solicitud a <strong>orionics@outlook.es</strong> indicando su nombre completo y el derecho que desea ejercer.</p>
+        <p class="small text-muted mb-0">Para ejercer sus derechos de acceso, rectificacion, supresion u oposicion sobre sus datos personales (Ley 1581 de 2012), envie su solicitud a <strong>orionics@outlook.es</strong> indicando: nombre completo, documento de identidad y derecho que desea ejercer. Plazo de respuesta: 15 dias habiles.</p>
       </div>
     </div>
     <div class="col-md-6">
       <div class="border rounded p-3 h-100">
         <h6 class="fw-semibold"><i class="bi bi-arrow-repeat text-warning me-1"></i> Actualizaciones de esta Politica</h6>
-        <p class="small text-muted mb-0">Esta politica podra ser actualizada periodicamente por <strong>Orionics</strong>. Los cambios seran comunicados a traves del sistema. Se recomienda revisar esta seccion de forma regular.</p>
+        <p class="small text-muted mb-0">Estos terminos y politicas podran ser actualizados periodicamente por <strong>Orionics</strong>. Los cambios sustanciales seran comunicados a traves del sistema. Se recomienda revisar esta seccion de forma regular.</p>
       </div>
     </div>
   </div>
 
   <div class="guide-tip mt-3">
     <i class="bi bi-info-circle me-1 text-primary"></i>
-    <strong>Version del documento:</strong> 1.0 &mdash; Ultima actualizacion: Marzo 2026. Este documento forma parte integral de la documentacion del sistema TechStock, propiedad de <strong>Orionics</strong>, y aplica a todos los usuarios desde el momento de su primer acceso.
+    <strong>Version del documento:</strong> 2.0 &mdash; Vigente desde: 30 de marzo de 2026 &mdash; Software: <strong>TechStock v3.1</strong>. Este documento forma parte integral de la documentacion del sistema TechStock, propiedad de <strong>Orionics</strong>, y aplica a todos los usuarios desde el momento de su primer acceso al sistema.
   </div>
 </div>
 

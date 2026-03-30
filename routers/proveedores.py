@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Request, Depends, Form
 from templates_config import templates
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
+from datetime import date
 from database import get_db
 from auth import require_auth, log_audit, get_local_id
 import models
@@ -32,6 +33,52 @@ def lista_proveedores(request: Request, db: Session = Depends(get_db),
         "msg": msg,
         "error": error,
     })
+
+
+@router.get("/exportar")
+def exportar_proveedores(
+    request: Request,
+    db: Session = Depends(get_db),
+    buscar: str = None,
+):
+    from utils.excel import generate_excel
+
+    local_id = get_local_id(request)
+    query = db.query(models.Proveedor).filter(models.Proveedor.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Proveedor.local_id == local_id)
+    if buscar:
+        query = query.filter(
+            models.Proveedor.nombre.ilike(f"%{buscar}%") |
+            models.Proveedor.contacto.ilike(f"%{buscar}%") |
+            models.Proveedor.telefono.ilike(f"%{buscar}%") |
+            models.Proveedor.email.ilike(f"%{buscar}%") |
+            models.Proveedor.nit_ruc.ilike(f"%{buscar}%")
+        )
+    proveedores = query.order_by(models.Proveedor.nombre).all()
+
+    headers = ["Nombre", "Contacto", "Telefono", "Email", "NIT / RUC", "Direccion"]
+    rows = []
+    for p in proveedores:
+        rows.append([
+            p.nombre,
+            p.contacto or "",
+            p.telefono or "",
+            p.email or "",
+            p.nit_ruc or "",
+            p.direccion or "",
+        ])
+
+    output = generate_excel(
+        "Listado de Proveedores", headers, rows,
+        col_widths=[24, 20, 16, 24, 16, 30],
+    )
+    filename = f"proveedores_{date.today().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/nuevo")
@@ -158,7 +205,10 @@ def detalle_proveedor(prov_id: int, request: Request, db: Session = Depends(get_
     if not prov:
         return RedirectResponse("/proveedores?error=Proveedor+no+encontrado", status_code=303)
 
-    mov_query = db.query(models.MovimientoInventario).filter(
+    from sqlalchemy.orm import joinedload
+    mov_query = db.query(models.MovimientoInventario).options(
+        joinedload(models.MovimientoInventario.producto)
+    ).filter(
         models.MovimientoInventario.proveedor_id == prov_id
     )
     if local_id is not None:

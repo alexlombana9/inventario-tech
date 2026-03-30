@@ -24,30 +24,31 @@
 </div>
 
 <div class="form-card">
-  <form method="post" action="/inventario/ajuste/registrar">
+  <form method="post" action="/inventario/ajuste/registrar" data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row g-3">
 
       <div class="col-md-8">
         <label class="form-label" for="producto_id">Producto <span class="text-danger">*</span></label>
-        <select id="producto_id" name="producto_id" class="form-select" required>
+        <select id="producto_id" name="producto_id" class="form-select" required
+                data-searchable data-search-placeholder="Buscar por nombre, codigo o referencia...">
           <option value="">-- Seleccionar producto --</option>
           {% for p in productos %}
           <option value="{{ p.id }}"
                   data-stock="{{ p.stock_actual }}"
                   data-unidad="{{ p.unidad_medida }}"
                   data-minimo="{{ p.stock_minimo }}">
-            [{{ p.codigo }}] {{ p.nombre }} — Stock actual: {{ p.stock_actual | round(2) }} {{ p.unidad_medida }}
+            [{{ p.codigo }}] {{ p.nombre }}{% if p.referencia %} ({{ p.referencia }}){% endif %} — Stock actual: {{ p.stock_actual | round(2) }} {{ p.unidad_medida }}
           </option>
           {% endfor %}
         </select>
-        <div id="stock-info" class="mt-2 d-none p-2 rounded" style="background:#f8f9fa; font-size:0.85rem; border:1px solid #dee2e6"></div>
+        <div id="stock-info" class="mt-2 d-none p-2 rounded" style="background:var(--bg-table-header); font-size:0.85rem; border:1px solid var(--border-color)"></div>
       </div>
 
       <div class="col-md-4">
         <label class="form-label" for="nuevo_stock">Nuevo Stock Real <span class="text-danger">*</span></label>
         <input type="number" id="nuevo_stock" name="nuevo_stock" class="form-control" required
-               min="0" step="0.01" placeholder="Stock físico contado">
+               min="0" step="any" placeholder="Stock físico contado">
         <small class="text-muted">Ingresa la cantidad real contada físicamente</small>
       </div>
 

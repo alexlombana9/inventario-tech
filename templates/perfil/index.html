@@ -19,21 +19,21 @@
         <div class="profile-avatar-lg" id="avatarContainer">
           {% if usuario.foto %}
             <img src="/static/uploads/avatars/{{ usuario.foto }}" alt="Foto de perfil" id="avatarPreview"
-                 class="rounded-circle" style="width:100px; height:100px; object-fit:cover; border: 3px solid #e9ecef;">
+                 class="rounded-circle" style="width:80px; height:80px; object-fit:cover; border: 3px solid #e9ecef;">
           {% else %}
             <div class="rounded-circle d-flex align-items-center justify-content-center" id="avatarPlaceholder"
-                 style="width:100px; height:100px; background: linear-gradient(135deg, #1a1a2e, #16213e); color:white; font-size:2.5rem; border: 3px solid #e9ecef;">
+                 style="width:80px; height:80px; background: linear-gradient(135deg, #1a1a2e, #16213e); color:white; font-size:2rem; border: 3px solid #e9ecef;">
               <i class="bi bi-person-fill"></i>
             </div>
             <img src="" alt="Vista previa" id="avatarPreview" class="rounded-circle d-none"
-                 style="width:100px; height:100px; object-fit:cover; border: 3px solid #0d6efd;">
+                 style="width:80px; height:80px; object-fit:cover; border: 3px solid #0d6efd;">
           {% endif %}
         </div>
         <div>
           <form method="POST" action="/perfil/foto" enctype="multipart/form-data" class="d-flex align-items-center gap-2 flex-wrap" id="fotoForm">
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
             <input type="file" name="foto" accept="image/jpeg,image/png,image/gif,image/webp"
-                   class="form-control form-control-sm" style="max-width:280px" required
+                   class="form-control form-control-sm" required
                    id="fotoInput">
             <button type="submit" class="btn btn-sm btn-primary" id="btnSubirFoto">
               <i class="bi bi-upload me-1"></i>Subir Foto

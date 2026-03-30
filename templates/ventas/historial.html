@@ -14,16 +14,13 @@
   </div>
 </div>
 
-{% if msg %}
-<div class="alert alert-success alert-dismissible fade show"><i class="bi bi-check-circle me-1"></i>{{ msg }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
-{% endif %}
 {% if error %}
 <div class="alert alert-danger alert-dismissible fade show"><i class="bi bi-exclamation-triangle me-1"></i>{{ error }}<button type="button" class="btn-close" data-bs-dismiss="alert"></button></div>
 {% endif %}
 
 <!-- Summary -->
 <div class="row g-3 mb-3">
-  <div class="col-sm-4">
+  <div class="col-sm-3">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon bg-primary bg-opacity-10 text-primary"><i class="bi bi-receipt"></i></div>
@@ -31,7 +28,7 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-4">
+  <div class="col-sm-3">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon bg-success bg-opacity-10 text-success"><i class="bi bi-cash-stack"></i></div>
@@ -39,7 +36,15 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-4">
+  <div class="col-sm-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon bg-warning bg-opacity-10 text-warning"><i class="bi bi-box-seam"></i></div>
+        <div><div class="stat-value text-warning">{{ costo_periodo | moneda }}</div><div class="stat-label">Costo</div></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-sm-3">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon" style="background:#d1fae5"><i class="bi bi-graph-up-arrow text-success"></i></div>
@@ -102,25 +107,31 @@
     <table class="table table-hover">
       <thead>
         <tr>
-          <th>N° Venta</th>
-          <th>Fecha</th>
-          <th>Cliente</th>
-          <th>Método</th>
-          <th class="text-end">Total</th>
-          <th class="text-end">Ganancia</th>
+          <th data-sortable>N° Venta</th>
+          <th data-sortable>Fecha</th>
+          <th class="d-mobile-none" data-sortable>Cliente</th>
+          <th class="d-mobile-none">Método</th>
+          <th class="text-end" data-sortable>Total</th>
+          <th class="text-end d-mobile-none" data-sortable>Costo</th>
+          <th class="text-end d-mobile-none" data-sortable>Ganancia</th>
           <th>Estado</th>
           <th class="text-end">Acciones</th>
         </tr>
       </thead>
       <tbody>
         {% for v in ventas %}
-        <tr>
+        <tr data-href="/ventas/{{ v.id }}/detalle" class="{% if v.estado == 'ANULADA' %}row-anulada{% endif %}">
           <td><strong>{{ v.numero_venta }}</strong></td>
           <td>{{ v.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-          <td>{{ v.cliente_nombre }}</td>
-          <td><span class="badge bg-secondary">{{ v.metodo_pago }}</span></td>
+          <td class="d-mobile-none">{{ v.cliente_nombre }}</td>
+          <td class="d-mobile-none"><span class="badge bg-secondary">{{ v.metodo_pago }}</span></td>
           <td class="text-end fw-bold">{{ v.total | moneda }}</td>
-          <td class="text-end">
+          <td class="text-end d-mobile-none">
+            {% if v.estado == 'COMPLETADA' %}
+            <span class="text-warning">{{ v.costo_total | moneda }}</span>
+            {% else %}<span class="text-muted">-</span>{% endif %}
+          </td>
+          <td class="text-end d-mobile-none">
             {% if v.estado == 'COMPLETADA' %}
             <span class="text-success">{{ v.ganancia_total | moneda }}</span>
             {% else %}<span class="text-muted">-</span>{% endif %}
@@ -132,7 +143,10 @@
           <td class="text-end table-actions">
             <a href="/ventas/{{ v.id }}/recibo" class="btn btn-sm btn-outline-info"><i class="bi bi-receipt"></i></a>
             <a href="/ventas/{{ v.id }}/detalle" class="btn btn-sm btn-outline-primary"><i class="bi bi-eye"></i></a>
-            {% if v.estado == 'COMPLETADA' and request.state.user.rol == 'ADMIN' %}
+            {% if v.estado == 'COMPLETADA' and (request.state.user.rol == 'ADMIN' or is_superadmin(request.state.user)) %}
+            <a href="/ventas/{{ v.id }}/editar" class="btn btn-sm btn-outline-warning" title="Editar"><i class="bi bi-pencil"></i></a>
+            {% endif %}
+            {% if v.estado == 'COMPLETADA' and (request.state.user.rol == 'ADMIN' or is_superadmin(request.state.user)) %}
             <form method="POST" action="/ventas/{{ v.id }}/anular" class="d-inline"
                   onsubmit="return confirm('¿Anular venta {{ v.numero_venta }}? Se revertirá el stock.')">
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
@@ -143,7 +157,16 @@
         </tr>
         {% endfor %}
         {% if not ventas %}
-        <tr><td colspan="8" class="text-center text-muted py-4">No se encontraron ventas</td></tr>
+        <tr>
+          <td colspan="9">
+            <div class="empty-state">
+              <i class="bi bi-receipt-cutoff empty-icon"></i>
+              <div class="empty-title">No se encontraron ventas</div>
+              <div class="empty-desc">Ajusta los filtros o registra una nueva venta.</div>
+              <a href="/ventas/pos" class="btn btn-primary btn-sm"><i class="bi bi-cart-plus me-1"></i>Nueva Venta</a>
+            </div>
+          </td>
+        </tr>
         {% endif %}
       </tbody>
     </table>
@@ -156,7 +179,7 @@
   <ul class="pagination pagination-sm justify-content-center">
     {% for p in range(1, total_paginas + 1) %}
     <li class="page-item {% if p == pagina %}active{% endif %}">
-      <a class="page-link" href="?pagina={{ p }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&estado={{ estado }}&buscar={{ buscar }}">{{ p }}</a>
+      <a class="page-link" href="?pagina={{ p }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&estado={{ estado }}&metodo_pago={{ metodo_pago }}&vendedor_id={{ vendedor_id }}&buscar={{ buscar }}">{{ p }}</a>
     </li>
     {% endfor %}
   </ul>

@@ -74,12 +74,16 @@ def lista_facturas(
     facturas = query.order_by(models.Factura.fecha_vencimiento.asc().nullsfirst(),
                               models.Factura.created_at.desc()).all()
 
+    total_facturado = sum(f.monto_total for f in facturas)
+    total_cobrado = sum(f.monto_cobrado for f in facturas)
     total_por_cobrar = sum(f.monto_pendiente for f in facturas if f.estado != "PAGADO")
     total_vencidas = sum(1 for f in facturas if f.esta_vencida)
 
     return templates.TemplateResponse("facturas/lista.html", {
         "request": request,
         "facturas": facturas,
+        "total_facturado": total_facturado,
+        "total_cobrado": total_cobrado,
         "total_por_cobrar": total_por_cobrar,
         "total_vencidas": total_vencidas,
         "estado": estado or "",
@@ -111,6 +115,7 @@ def crear_factura(
     request: Request,
     numero_factura: str = Form(...),
     cliente_nombre: str = Form(...),
+    cliente_empresa: str = Form(""),
     cliente_documento: str = Form(""),
     cliente_telefono: str = Form(""),
     cliente_email: str = Form(""),
@@ -141,6 +146,7 @@ def crear_factura(
     factura = models.Factura(
         numero_factura=numero_factura.strip(),
         cliente_nombre=cliente_nombre.strip(),
+        cliente_empresa=cliente_empresa.strip(),
         cliente_documento=cliente_documento.strip(),
         cliente_telefono=cliente_telefono.strip(),
         cliente_email=cliente_email.strip(),
@@ -187,6 +193,7 @@ def actualizar_factura(
     request: Request,
     numero_factura: str = Form(...),
     cliente_nombre: str = Form(...),
+    cliente_empresa: str = Form(""),
     cliente_documento: str = Form(""),
     cliente_telefono: str = Form(""),
     cliente_email: str = Form(""),
@@ -221,6 +228,7 @@ def actualizar_factura(
 
     factura.numero_factura = numero_factura.strip()
     factura.cliente_nombre = cliente_nombre.strip()
+    factura.cliente_empresa = cliente_empresa.strip()
     factura.cliente_documento = cliente_documento.strip()
     factura.cliente_telefono = cliente_telefono.strip()
     factura.cliente_email = cliente_email.strip()
@@ -277,31 +285,36 @@ def registrar_cobro(
     current_user: models.Usuario = Depends(require_auth),
 ):
     local_id = get_local_id(request)
-    query = db.query(models.Factura).filter(models.Factura.id == factura_id)
-    if local_id is not None:
-        query = query.filter(models.Factura.local_id == local_id)
-    factura = query.first()
-    if not factura:
-        return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
-    if factura.estado == "PAGADO":
-        return RedirectResponse(f"/facturas/{factura_id}/detalle?error=La+factura+ya+está+completamente+cobrada", status_code=303)
     if monto <= 0:
         return RedirectResponse(f"/facturas/{factura_id}/detalle?error=El+monto+debe+ser+mayor+a+cero", status_code=303)
 
-    monto_aplicar = min(monto, factura.monto_pendiente)
-    cobro = models.PagoFactura(
-        factura_id=factura_id,
-        monto=monto_aplicar,
-        fecha_cobro=datetime.strptime(fecha_cobro, "%Y-%m-%d"),
-        metodo_pago=metodo_pago,
-        comprobante=comprobante.strip(),
-        notas=notas.strip(),
-    )
-    cobro.local_id = local_id
-    db.add(cobro)
-    factura.monto_cobrado = round(factura.monto_cobrado + monto_aplicar, 2)
-    _actualizar_estado(factura)
-    db.commit()
+    try:
+        query = db.query(models.Factura).filter(models.Factura.id == factura_id)
+        if local_id is not None:
+            query = query.filter(models.Factura.local_id == local_id)
+        factura = query.with_for_update().first()
+        if not factura:
+            return RedirectResponse("/facturas?error=Factura+no+encontrada", status_code=303)
+        if factura.estado == "PAGADO":
+            return RedirectResponse(f"/facturas/{factura_id}/detalle?error=La+factura+ya+está+completamente+cobrada", status_code=303)
+
+        monto_aplicar = min(monto, factura.monto_pendiente)
+        cobro = models.PagoFactura(
+            factura_id=factura_id,
+            monto=monto_aplicar,
+            fecha_cobro=datetime.strptime(fecha_cobro, "%Y-%m-%d"),
+            metodo_pago=metodo_pago,
+            comprobante=comprobante.strip(),
+            notas=notas.strip(),
+        )
+        cobro.local_id = local_id
+        db.add(cobro)
+        factura.monto_cobrado = round(factura.monto_cobrado + monto_aplicar, 2)
+        _actualizar_estado(factura)
+        db.commit()
+    except Exception:
+        db.rollback()
+        return RedirectResponse(f"/facturas/{factura_id}/detalle?error=Error+al+registrar+el+cobro", status_code=303)
 
     ip = request.client.host if request.client else ""
     log_audit(db, current_user, "CREATE", "cobro_factura", cobro.id,
@@ -338,6 +351,87 @@ def eliminar_cobro(factura_id: int, cobro_id: int, request: Request,
               f"Cobro eliminado: ${monto_cobro:,.2f} de factura #{factura_id}", ip)
 
     return RedirectResponse(f"/facturas/{factura_id}/detalle?msg=Cobro+eliminado+correctamente", status_code=303)
+
+
+# ── Exportar Excel ───────────────────────────────────────────────────────────
+
+@router.get("/exportar")
+def exportar_facturas(
+    request: Request,
+    db: Session = Depends(get_db),
+    estado: str = None,
+    buscar: str = None,
+    fecha_desde: str = None,
+    fecha_hasta: str = None,
+    vencidas: str = None,
+):
+    from utils.excel import generate_excel
+
+    local_id = get_local_id(request)
+    query = db.query(models.Factura)
+    if local_id is not None:
+        query = query.filter(models.Factura.local_id == local_id)
+    if estado:
+        query = query.filter(models.Factura.estado == estado)
+    if buscar:
+        term = f"%{buscar}%"
+        query = query.filter(
+            models.Factura.cliente_nombre.ilike(term) |
+            models.Factura.numero_factura.ilike(term) |
+            models.Factura.concepto.ilike(term) |
+            models.Factura.cliente_documento.ilike(term)
+        )
+    if fecha_desde:
+        try:
+            fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
+            query = query.filter(models.Factura.fecha_emision >= fd)
+        except ValueError:
+            pass
+    if fecha_hasta:
+        try:
+            fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+            query = query.filter(models.Factura.fecha_emision <= fh)
+        except ValueError:
+            pass
+    if vencidas == "1":
+        query = query.filter(
+            models.Factura.fecha_vencimiento < datetime.now(),
+            models.Factura.estado != "PAGADO",
+        )
+
+    facturas = query.order_by(models.Factura.fecha_vencimiento.asc().nullsfirst(),
+                              models.Factura.created_at.desc()).all()
+
+    headers = ["N° Factura", "Cliente", "Empresa", "Documento", "Concepto",
+               "Emision", "Vencimiento", "Total", "Cobrado", "Pendiente", "Estado"]
+    rows = []
+    for f in facturas:
+        estado_txt = "VENCIDA" if f.esta_vencida else f.estado
+        rows.append([
+            f.numero_factura,
+            f.cliente_nombre,
+            f.cliente_empresa or "",
+            f.cliente_documento or "",
+            f.concepto,
+            f.fecha_emision.strftime("%d/%m/%Y") if f.fecha_emision else "",
+            f.fecha_vencimiento.strftime("%d/%m/%Y") if f.fecha_vencimiento else "",
+            f.monto_total,
+            f.monto_cobrado,
+            f.monto_pendiente,
+            estado_txt,
+        ])
+
+    output = generate_excel(
+        "Listado de Facturas", headers, rows,
+        col_widths=[14, 22, 18, 16, 28, 14, 14, 14, 14, 14, 12],
+        money_cols=[7, 8, 9],
+    )
+    filename = f"facturas_{date.today().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 # ── Reporte HTML ─────────────────────────────────────────────────────────────

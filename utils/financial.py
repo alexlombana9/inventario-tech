@@ -27,7 +27,7 @@ def siguiente_numero(db: Session, model, campo_numero: str, prefijo: str, local_
     query = db.query(model)
     if local_id is not None and hasattr(model, "local_id"):
         query = query.filter(model.local_id == local_id)
-    ultimo = query.order_by(model.id.desc()).first()
+    ultimo = query.order_by(model.id.desc()).with_for_update().first()
     if not ultimo:
         return f"{prefijo}-0001"
     try:

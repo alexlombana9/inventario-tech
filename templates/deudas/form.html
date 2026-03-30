@@ -23,7 +23,8 @@
 
 <div class="form-card">
   <form method="post"
-        action="{% if deuda %}/deudas/{{ deuda.id }}/editar{% else %}/deudas/nueva{% endif %}">
+        action="{% if deuda %}/deudas/{{ deuda.id }}/editar{% else %}/deudas/nueva{% endif %}"
+        data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
 
     <!-- Acreedor -->
@@ -37,7 +38,7 @@
           <option value="">— Escribir manualmente —</option>
           {% for a in acreedores %}
           <option value="{{ a.id }}"
-            data-nombre="{{ a.nombre }}" data-tipo="{{ a.tipo }}"
+            data-nombre="{{ a.nombre }}" data-empresa="{{ a.empresa or '' }}" data-tipo="{{ a.tipo }}"
             {% if deuda and deuda.acreedor_id == a.id %}selected{% endif %}>
             {{ a.nombre }} ({{ a.tipo | capitalize }})
           </option>
@@ -45,12 +46,18 @@
         </select>
         <div class="form-text">Seleccione un acreedor o escriba el nombre manualmente.</div>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
         <label class="form-label">Nombre del Acreedor <span class="text-danger">*</span></label>
         <input type="text" name="acreedor_nombre" class="form-control" id="acreedorNombre"
                value="{{ deuda.acreedor_nombre if deuda else '' }}"
-               placeholder="Ej: Distribuidora XYZ, Almacén El Éxito…" required>
-        <div class="form-text">Empresa, local o persona a quien se le debe.</div>
+               placeholder="Ej: Juan Pérez, Almacén El Éxito…" required>
+        <div class="form-text">Persona o contacto a quien se le debe.</div>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label">Empresa del Acreedor</label>
+        <input type="text" name="acreedor_empresa" class="form-control" id="acreedorEmpresa"
+               value="{{ deuda.acreedor_empresa if deuda else '' }}"
+               placeholder="Ej: Distribuidora XYZ S.A.S.">
       </div>
       <div class="col-md-2">
         <label class="form-label">Tipo de Acreedor <span class="text-danger">*</span></label>
@@ -95,7 +102,7 @@
         <label class="form-label">Monto Total <span class="text-danger">*</span></label>
         <div class="input-group">
           <span class="input-group-text">$</span>
-          <input type="number" name="monto_total" class="form-control" step="0.01" min="0.01"
+          <input type="number" name="monto_total" class="form-control" step="any" min="0.01"
                  value="{{ '%.2f' | format(deuda.monto_total) if deuda else '' }}" required>
         </div>
       </div>
@@ -134,6 +141,7 @@ document.addEventListener('DOMContentLoaded', function () {
   const proveedorField = document.getElementById('proveedorField');
   const acreedorSelect = document.getElementById('acreedorSelect');
   const acreedorNombre = document.getElementById('acreedorNombre');
+  const acreedorEmpresa = document.getElementById('acreedorEmpresa');
 
   function toggleProveedor() {
     proveedorField.style.display = tipoSelect.value === 'PROVEEDOR' ? '' : 'none';
@@ -145,6 +153,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const opt = this.options[this.selectedIndex];
     if (this.value) {
       acreedorNombre.value = opt.dataset.nombre || '';
+      acreedorEmpresa.value = opt.dataset.empresa || '';
       tipoSelect.value = opt.dataset.tipo || 'OTRO';
       toggleProveedor();
     }

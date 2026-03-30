@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
+from datetime import date
 from database import get_db
 from templates_config import templates
 from auth import require_auth, log_audit, get_local_id
@@ -29,6 +30,7 @@ def lista_acreedores(
         term = f"%{buscar}%"
         query = query.filter(
             models.Acreedor.nombre.ilike(term)
+            | models.Acreedor.empresa.ilike(term)
             | models.Acreedor.documento.ilike(term)
             | models.Acreedor.telefono.ilike(term)
             | models.Acreedor.email.ilike(term)
@@ -48,6 +50,59 @@ def lista_acreedores(
     })
 
 
+@router.get("/exportar")
+def exportar_acreedores(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: models.Usuario = Depends(require_auth),
+    buscar: str = None,
+    tipo: str = None,
+):
+    from utils.excel import generate_excel
+
+    local_id = get_local_id(request)
+    query = db.query(models.Acreedor).filter(models.Acreedor.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Acreedor.local_id == local_id)
+    if buscar:
+        term = f"%{buscar}%"
+        query = query.filter(
+            models.Acreedor.nombre.ilike(term)
+            | models.Acreedor.empresa.ilike(term)
+            | models.Acreedor.documento.ilike(term)
+            | models.Acreedor.telefono.ilike(term)
+            | models.Acreedor.email.ilike(term)
+        )
+    if tipo:
+        query = query.filter(models.Acreedor.tipo == tipo)
+    acreedores = query.order_by(models.Acreedor.nombre).all()
+
+    headers = ["Nombre", "Empresa", "Tipo", "Documento", "Telefono", "Email", "Direccion", "Notas"]
+    rows = []
+    for a in acreedores:
+        rows.append([
+            a.nombre,
+            a.empresa or "",
+            a.tipo,
+            a.documento or "",
+            a.telefono or "",
+            a.email or "",
+            a.direccion or "",
+            a.notas or "",
+        ])
+
+    output = generate_excel(
+        "Listado de Acreedores", headers, rows,
+        col_widths=[24, 20, 14, 16, 16, 24, 30, 24],
+    )
+    filename = f"acreedores_{date.today().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
+
+
 @router.get("/nuevo")
 def nuevo_acreedor_form(
     request: Request,
@@ -65,6 +120,7 @@ def nuevo_acreedor_form(
 def crear_acreedor(
     request: Request,
     nombre: str = Form(...),
+    empresa: str = Form(""),
     tipo: str = Form("OTRO"),
     documento: str = Form(""),
     telefono: str = Form(""),
@@ -77,6 +133,7 @@ def crear_acreedor(
     local_id = get_local_id(request)
     acreedor = models.Acreedor(
         nombre=nombre.strip(),
+        empresa=empresa.strip(),
         tipo=tipo,
         documento=documento.strip(),
         telefono=telefono.strip(),
@@ -122,6 +179,7 @@ def actualizar_acreedor(
     acreedor_id: int,
     request: Request,
     nombre: str = Form(...),
+    empresa: str = Form(""),
     tipo: str = Form("OTRO"),
     documento: str = Form(""),
     telefono: str = Form(""),
@@ -140,6 +198,7 @@ def actualizar_acreedor(
         return RedirectResponse("/acreedores?error=Acreedor+no+encontrado", status_code=303)
 
     acreedor.nombre = nombre.strip()
+    acreedor.empresa = empresa.strip()
     acreedor.tipo = tipo
     acreedor.documento = documento.strip()
     acreedor.telefono = telefono.strip()

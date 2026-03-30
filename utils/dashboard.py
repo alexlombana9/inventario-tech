@@ -41,7 +41,7 @@ def get_general_metrics(db: Session, local_id: int = None):
     P = models.Producto
     q_prod = db.query(func.count(P.id)).filter(P.activo == True)
     q_prov = db.query(func.count(models.Proveedor.id)).filter(models.Proveedor.activo == True)
-    q_cat = db.query(func.count(models.Categoria.id))
+    q_cat = db.query(func.count(models.Categoria.id)).filter(models.Categoria.activo == True)
     q_cli = db.query(func.count(models.Cliente.id)).filter(models.Cliente.activo == True)
     q_stock = db.query(func.count(P.id)).filter(P.activo == True, P.stock_actual <= P.stock_minimo)
     q_valor = db.query(func.sum(P.stock_actual * P.precio_costo)).filter(P.activo == True)
@@ -83,23 +83,30 @@ def get_period_metrics(db: Session, fd_dt: datetime, fh_dt: datetime, local_id: 
     q_gan = db.query(func.sum(DV.subtotal - DV.precio_costo * DV.cantidad)).join(V).filter(
         V.fecha >= fd_dt, V.fecha <= fh_dt, V.estado == "COMPLETADA"
     )
+    G = models.Gasto
+    q_gas = db.query(func.sum(G.monto)).filter(
+        G.activo == True, G.fecha >= fd_dt, G.fecha <= fh_dt
+    )
 
     if local_id is not None:
         q_mov = q_mov.filter(MI.local_id == local_id)
         q_ven = q_ven.filter(V.local_id == local_id)
         q_num = q_num.filter(V.local_id == local_id)
         q_gan = q_gan.filter(V.local_id == local_id)
+        q_gas = q_gas.filter(G.local_id == local_id)
 
     movimientos_periodo = q_mov.scalar() or 0
     ventas_periodo = q_ven.scalar() or 0.0
     num_ventas_periodo = q_num.scalar() or 0
     ganancia_periodo = q_gan.scalar() or 0.0
+    gastos_periodo = q_gas.scalar() or 0.0
 
     return {
         "movimientos_periodo": movimientos_periodo,
         "ventas_periodo": ventas_periodo,
         "num_ventas_periodo": num_ventas_periodo,
         "ganancia_periodo": round(ganancia_periodo, 2),
+        "gastos_periodo": round(gastos_periodo, 2),
     }
 
 
@@ -109,20 +116,20 @@ def get_financial_metrics(db: Session, local_id: int = None):
 
     q_deudas = db.query(
         func.sum(models.Deuda.monto_total - models.Deuda.monto_pagado)
-    ).filter(models.Deuda.estado != "PAGADO")
+    ).filter(models.Deuda.estado.in_(["PENDIENTE", "PARCIAL"]))
 
     q_dv = db.query(func.count(models.Deuda.id)).filter(
-        models.Deuda.estado != "PAGADO",
+        models.Deuda.estado.in_(["PENDIENTE", "PARCIAL"]),
         models.Deuda.fecha_vencimiento != None,
         models.Deuda.fecha_vencimiento < ahora
     )
 
     q_fact = db.query(
         func.sum(models.Factura.monto_total - models.Factura.monto_cobrado)
-    ).filter(models.Factura.estado != "PAGADO")
+    ).filter(models.Factura.estado.in_(["PENDIENTE", "PARCIAL"]))
 
     q_fv = db.query(func.count(models.Factura.id)).filter(
-        models.Factura.estado != "PAGADO",
+        models.Factura.estado.in_(["PENDIENTE", "PARCIAL"]),
         models.Factura.fecha_vencimiento != None,
         models.Factura.fecha_vencimiento < ahora
     )

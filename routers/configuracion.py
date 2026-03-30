@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from database import get_db
 from templates_config import templates
 from auth import require_role, log_audit, get_local_id
+from utils.upload_validation import validate_file_content
 import models
 
 router = APIRouter(prefix="/configuracion", tags=["configuracion"])
@@ -96,15 +97,33 @@ async def subir_logo(
     if len(content) > 2 * 1024 * 1024:
         return RedirectResponse("/configuracion?error=La+imagen+no+debe+superar+2MB", status_code=303)
 
+    # Validar magic bytes del archivo
+    if not validate_file_content(content, ["jpg", "jpeg", "png", "webp"]):
+        return RedirectResponse("/configuracion?error=El+archivo+no+es+una+imagen+valida.+Verifica+el+formato.", status_code=303)
+
+    local_id = get_local_id(request)
+    config = _get_config(db, local_id=local_id)
+
     os.makedirs(UPLOAD_DIR, exist_ok=True)
-    filename = f"logo{ext}"
+    suffix = f"_{local_id}" if local_id is not None else ""
+    filename = f"logo{suffix}{ext}"
     filepath = os.path.join(UPLOAD_DIR, filename)
+
+    # Remove old logo file if it exists and differs from the new one
+    if config.logo_path:
+        old_file = os.path.join(
+            os.path.dirname(os.path.dirname(__file__)),
+            config.logo_path.lstrip("/"),
+        )
+        if os.path.isfile(old_file) and os.path.abspath(old_file) != os.path.abspath(filepath):
+            try:
+                os.remove(old_file)
+            except OSError:
+                pass
 
     with open(filepath, "wb") as f:
         f.write(content)
 
-    local_id = get_local_id(request)
-    config = _get_config(db, local_id=local_id)
     config.logo_path = f"/static/uploads/{filename}"
     db.commit()
 

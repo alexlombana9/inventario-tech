@@ -15,6 +15,7 @@
   <div class="col-md-4">
     <div class="form-card">
       <h6 class="fw-bold mb-3">Información del Cliente</h6>
+      <p><strong>Empresa:</strong> {{ cliente.empresa or '—' }}</p>
       <p><strong>Documento:</strong> {{ cliente.tipo_documento }} {{ cliente.documento or '—' }}</p>
       <p><strong>Teléfono:</strong> {{ cliente.telefono or '—' }}</p>
       <p><strong>Email:</strong> {{ cliente.email or '—' }}</p>

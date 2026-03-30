@@ -12,12 +12,6 @@
   </a>
 </div>
 
-{% if msg %}
-<div class="alert alert-success alert-dismissible fade show" role="alert">
-  <i class="bi bi-check-circle me-1"></i>{{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 {% if error %}
 <div class="alert alert-danger alert-dismissible fade show" role="alert">
   <i class="bi bi-exclamation-triangle me-1"></i>{{ error }}
@@ -62,9 +56,9 @@
     <table class="table table-hover">
       <thead>
         <tr>
-          <th>Usuario</th>
-          <th>Nombre Completo</th>
-          <th>Rol</th>
+          <th data-sortable>Usuario</th>
+          <th data-sortable>Nombre Completo</th>
+          <th data-sortable>Rol</th>
           <th>Estado</th>
           <th>Último Login</th>
           <th class="text-end">Acciones</th>
@@ -72,7 +66,7 @@
       </thead>
       <tbody>
         {% for u in usuarios %}
-        <tr>
+        <tr data-href="/usuarios/{{ u.id }}/editar">
           <td>
             <strong>{{ u.username }}</strong>
           </td>
@@ -120,7 +114,13 @@
         {% endfor %}
         {% if not usuarios %}
         <tr>
-          <td colspan="6" class="text-center text-muted py-4">No se encontraron usuarios</td>
+          <td colspan="6">
+            <div class="empty-state">
+              <i class="bi bi-people empty-icon"></i>
+              <div class="empty-title">No se encontraron usuarios</div>
+              <div class="empty-desc"></div>
+            </div>
+          </td>
         </tr>
         {% endif %}
       </tbody>

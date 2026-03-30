@@ -80,10 +80,16 @@ def lista_auditoria(
     acciones_disponibles = ["LOGIN", "LOGOUT", "CREATE", "UPDATE", "DELETE"]
     entidades_disponibles = [r[0] for r in db.query(models.AuditLog.entidad).distinct().all() if r[0]]
 
-    # Estadisticas rapidas
-    total_hoy = db.query(models.AuditLog).filter(
-        func.date(models.AuditLog.created_at) == date.today()
-    ).count()
+    # Estadisticas rapidas — usar rango de fechas en vez de func.date() para aprovechar indice
+    _hoy_inicio = datetime.combine(date.today(), datetime.min.time())
+    _hoy_fin = datetime.combine(date.today(), datetime.max.time())
+    total_hoy_q = db.query(func.count(models.AuditLog.id)).filter(
+        models.AuditLog.created_at >= _hoy_inicio,
+        models.AuditLog.created_at <= _hoy_fin,
+    )
+    if local_id is not None:
+        total_hoy_q = total_hoy_q.filter(models.AuditLog.local_id == local_id)
+    total_hoy = total_hoy_q.scalar() or 0
 
     return templates.TemplateResponse("auditoria/lista.html", {
         "request": request,

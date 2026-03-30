@@ -62,6 +62,7 @@ class AuditLog(Base):
     __tablename__ = "audit_log"
     __table_args__ = (
         Index("ix_audit_log_entidad_created", "entidad", "created_at"),
+        Index("ix_audit_log_local_created", "local_id", "created_at"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -83,6 +84,7 @@ class Categoria(Base):
     __tablename__ = "categorias"
     __table_args__ = (
         UniqueConstraint("nombre", "local_id", name="uq_categorias_nombre_local"),
+        Index("ix_categorias_local_activo", "local_id", "activo"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -100,6 +102,9 @@ class Categoria(Base):
 
 class Proveedor(Base):
     __tablename__ = "proveedores"
+    __table_args__ = (
+        Index("ix_proveedores_local_activo", "local_id", "activo"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(200), nullable=False)
@@ -124,6 +129,8 @@ class Producto(Base):
     __tablename__ = "productos"
     __table_args__ = (
         Index("ix_productos_activo_stock", "activo", "stock_actual"),
+        Index("ix_productos_local_activo", "local_id", "activo"),
+        Index("ix_productos_local_activo_stock", "local_id", "activo", "stock_actual"),
         UniqueConstraint("codigo", "local_id", name="uq_productos_codigo_local"),
     )
 
@@ -167,6 +174,7 @@ class MovimientoInventario(Base):
     __tablename__ = "movimientos_inventario"
     __table_args__ = (
         Index("ix_mov_inv_fecha_tipo", "fecha", "tipo"),
+        Index("ix_mov_inv_local_fecha", "local_id", "fecha"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -196,9 +204,13 @@ class MovimientoInventario(Base):
 
 class Acreedor(Base):
     __tablename__ = "acreedores"
+    __table_args__ = (
+        Index("ix_acreedores_local_activo", "local_id", "activo"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(200), nullable=False)
+    empresa = Column(String(200), default="")
     tipo = Column(String(20), default="OTRO")
     documento = Column(String(50), default="")
     telefono = Column(String(50), default="")
@@ -224,11 +236,13 @@ class Deuda(Base):
     __tablename__ = "deudas"
     __table_args__ = (
         Index("ix_deudas_estado_vencimiento", "estado", "fecha_vencimiento"),
+        Index("ix_deudas_local_estado", "local_id", "estado"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
     concepto = Column(String(300), nullable=False)
     acreedor_nombre = Column(String(200), nullable=False)
+    acreedor_empresa = Column(String(200), default="")
     acreedor_tipo = Column(String(20), default="OTRO")
     acreedor_id = Column(Integer, ForeignKey("acreedores.id"), nullable=True, index=True)
     proveedor_id = Column(Integer, ForeignKey("proveedores.id"), nullable=True, index=True)
@@ -294,12 +308,14 @@ class Factura(Base):
     __tablename__ = "facturas"
     __table_args__ = (
         Index("ix_facturas_estado_vencimiento", "estado", "fecha_vencimiento"),
+        Index("ix_facturas_local_estado", "local_id", "estado"),
         UniqueConstraint("numero_factura", "local_id", name="uq_facturas_numero_local"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
     numero_factura = Column(String(100), nullable=False)
     cliente_nombre = Column(String(200), nullable=False)
+    cliente_empresa = Column(String(200), default="")
     cliente_documento = Column(String(50), default="")
     cliente_telefono = Column(String(50), default="")
     cliente_email = Column(String(100), default="")
@@ -364,6 +380,7 @@ class Gasto(Base):
     __tablename__ = "gastos"
     __table_args__ = (
         Index("ix_gastos_activo_fecha", "activo", "fecha"),
+        Index("ix_gastos_local_activo_fecha", "local_id", "activo", "fecha"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
@@ -418,9 +435,13 @@ class Configuracion(Base):
 
 class Cliente(Base):
     __tablename__ = "clientes"
+    __table_args__ = (
+        Index("ix_clientes_local_activo", "local_id", "activo"),
+    )
 
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(200), nullable=False)
+    empresa = Column(String(200), default="")
     tipo_documento = Column(String(20), default="CC")
     documento = Column(String(50), default="", index=True)
     telefono = Column(String(50), default="")
@@ -447,6 +468,7 @@ class Venta(Base):
     __tablename__ = "ventas"
     __table_args__ = (
         Index("ix_ventas_fecha_estado", "fecha", "estado"),
+        Index("ix_ventas_local_fecha_estado", "local_id", "fecha", "estado"),
         UniqueConstraint("numero_venta", "local_id", name="uq_ventas_numero_local"),
     )
 
@@ -475,6 +497,10 @@ class Venta(Base):
     caja = relationship("Caja", back_populates="ventas")
 
     @property
+    def costo_total(self):
+        return round(sum(d.precio_costo * d.cantidad for d in self.detalles), 2)
+
+    @property
     def ganancia_total(self):
         return round(sum(d.ganancia for d in self.detalles), 2)
 
@@ -490,6 +516,7 @@ class DetalleVenta(Base):
     producto_id = Column(Integer, ForeignKey("productos.id"), nullable=False, index=True)
     producto_nombre = Column(String(200), default="")
     producto_codigo = Column(String(50), default="")
+    producto_referencia = Column(String(100), default="")
     cantidad = Column(Float, nullable=False)
     precio_unitario = Column(Float, nullable=False)
     precio_costo = Column(Float, default=0.0)

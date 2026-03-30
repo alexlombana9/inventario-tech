@@ -319,6 +319,40 @@ def run_migrations(engine):
                 migrations_applied += 1
                 print("  [Migration] usuarios: primer admin actualizado a SUPERADMIN")
 
+        # ── Agregar logo_path a configuracion ──
+        if table_exists(conn, "configuracion"):
+            columns = get_table_columns(conn, "configuracion")
+            if "logo_path" not in columns:
+                conn.execute(text("ALTER TABLE configuracion ADD COLUMN logo_path VARCHAR(255) DEFAULT ''"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] configuracion: agregada columna logo_path")
+
+        # ── Agregar campo empresa a acreedores, clientes, deudas, facturas ──
+        _empresa_migrations = [
+            ("acreedores", "empresa"),
+            ("clientes", "empresa"),
+            ("deudas", "acreedor_empresa"),
+            ("facturas", "cliente_empresa"),
+        ]
+        for tbl, col in _empresa_migrations:
+            if table_exists(conn, tbl):
+                columns = get_table_columns(conn, tbl)
+                if col not in columns:
+                    conn.execute(text(f"ALTER TABLE {tbl} ADD COLUMN {col} VARCHAR(200) DEFAULT ''"))
+                    conn.commit()
+                    migrations_applied += 1
+                    print(f"  [Migration] {tbl}: agregada columna {col}")
+
+        # ── Agregar producto_referencia a detalle_venta ──
+        if table_exists(conn, "detalle_venta"):
+            columns = get_table_columns(conn, "detalle_venta")
+            if "producto_referencia" not in columns:
+                conn.execute(text("ALTER TABLE detalle_venta ADD COLUMN producto_referencia VARCHAR(100) DEFAULT ''"))
+                conn.commit()
+                migrations_applied += 1
+                print("  [Migration] detalle_venta: agregada columna producto_referencia")
+
         # ── Crear índices de rendimiento ──
         _perf_indexes = [
             ("ix_productos_categoria_id", "productos", "categoria_id"),
@@ -363,6 +397,35 @@ def run_migrations(engine):
         if migrations_applied > 0:
             conn.commit()
             print(f"  [Migration] Índices de rendimiento creados")
+
+        # ── Índices compuestos para queries multi-tenant frecuentes ──
+        _composite_indexes = [
+            ("ix_categorias_local_activo", "categorias", "local_id, activo"),
+            ("ix_proveedores_local_activo", "proveedores", "local_id, activo"),
+            ("ix_productos_local_activo", "productos", "local_id, activo"),
+            ("ix_productos_local_activo_stock", "productos", "local_id, activo, stock_actual"),
+            ("ix_mov_inv_local_fecha", "movimientos_inventario", "local_id, fecha"),
+            ("ix_acreedores_local_activo", "acreedores", "local_id, activo"),
+            ("ix_deudas_local_estado", "deudas", "local_id, estado"),
+            ("ix_facturas_local_estado", "facturas", "local_id, estado"),
+            ("ix_ventas_local_fecha_estado", "ventas", "local_id, fecha, estado"),
+            ("ix_clientes_local_activo", "clientes", "local_id, activo"),
+            ("ix_gastos_local_activo_fecha", "gastos", "local_id, activo, fecha"),
+            ("ix_audit_log_local_created", "audit_log", "local_id, created_at"),
+        ]
+        _composite_count = 0
+        for idx_name, tbl, cols in _composite_indexes:
+            if table_exists(conn, tbl):
+                exists = conn.execute(text(
+                    "SELECT 1 FROM pg_indexes WHERE indexname = :name"
+                ), {"name": idx_name}).first()
+                if not exists:
+                    conn.execute(text(f"CREATE INDEX {idx_name} ON {tbl} ({cols})"))
+                    _composite_count += 1
+                    migrations_applied += 1
+        if _composite_count > 0:
+            conn.commit()
+            print(f"  [Migration] {_composite_count} índice(s) compuesto(s) multi-tenant creados")
 
     if migrations_applied > 0:
         print(f"  [Migration] {migrations_applied} migración(es) aplicada(s)")

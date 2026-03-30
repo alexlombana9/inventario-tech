@@ -4,12 +4,6 @@
 
 {% block content %}
 
-{% if msg %}
-<div class="alert alert-success alert-dismissible alert-auto-hide" role="alert">
-  <i class="bi bi-check-circle-fill me-2"></i>{{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 {% if error %}
 <div class="alert alert-danger alert-dismissible" role="alert">
   <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
@@ -19,7 +13,7 @@
 
 <!-- Resumen -->
 <div class="row g-3 mb-4">
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon bg-danger bg-opacity-10">
@@ -32,7 +26,7 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon bg-warning bg-opacity-10">
@@ -45,28 +39,41 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon bg-primary bg-opacity-10">
-          <i class="bi bi-cash-stack text-primary"></i>
+        <div class="stat-icon bg-secondary bg-opacity-10">
+          <i class="bi bi-cash-stack text-secondary"></i>
         </div>
         <div>
-          <div class="stat-value" style="font-size:1.3rem">{{ total_pendiente | moneda }}</div>
-          <div class="stat-label">Total por pagar</div>
+          <div class="stat-value" style="font-size:1.2rem">{{ total_deuda | moneda }}</div>
+          <div class="stat-label">Total Deudas</div>
         </div>
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon bg-success bg-opacity-10">
           <i class="bi bi-check2-circle text-success"></i>
         </div>
         <div>
-          <div class="stat-value">{{ deudas | selectattr("estado", "eq", "PAGADO") | list | length }}</div>
-          <div class="stat-label">Pagadas</div>
+          <div class="stat-value text-success" style="font-size:1.2rem">{{ total_pagado | moneda }}</div>
+          <div class="stat-label">Total Pagado</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon bg-primary bg-opacity-10">
+          <i class="bi bi-exclamation-circle text-primary"></i>
+        </div>
+        <div>
+          <div class="stat-value text-danger" style="font-size:1.2rem">{{ total_pendiente | moneda }}</div>
+          <div class="stat-label">Por Pagar</div>
         </div>
       </div>
     </div>
@@ -78,9 +85,13 @@
   <h1><i class="bi bi-credit-card-2-back me-2 text-danger"></i>Deudas y Cuentas por Pagar
     <button class="btn btn-sm btn-outline-secondary ms-2 btn-help-trigger" data-help="deudas" title="Ayuda"><i class="bi bi-question-circle"></i></button>
   </h1>
-  <a href="/deudas/nueva" class="btn btn-danger">
-    <i class="bi bi-plus-lg me-1"></i>Registrar Deuda
-  </a>
+  <div class="d-flex gap-2">
+    <a href="/deudas/exportar?buscar={{ buscar }}&estado={{ estado }}&acreedor_tipo={{ acreedor_tipo }}"
+       class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="/deudas/nueva" class="btn btn-danger">
+      <i class="bi bi-plus-lg me-1"></i>Registrar Deuda
+    </a>
+  </div>
 </div>
 
 <!-- Filtros -->
@@ -125,39 +136,40 @@
   <table class="table table-hover">
     <thead>
       <tr>
-        <th>Acreedor</th>
-        <th>Concepto</th>
-        <th class="text-end">Total</th>
-        <th class="text-end">Pagado</th>
+        <th data-sortable>Acreedor</th>
+        <th class="d-mobile-none" data-sortable>Concepto</th>
+        <th class="text-end" data-sortable>Total</th>
+        <th class="text-end d-mobile-none">Pagado</th>
         <th class="text-end">Pendiente</th>
-        <th>Avance</th>
-        <th>Vencimiento</th>
-        <th>Estado</th>
+        <th class="d-mobile-none">Avance</th>
+        <th class="d-mobile-none" data-sortable>Vencimiento</th>
+        <th data-sortable>Estado</th>
         <th class="table-actions">Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for d in deudas %}
-      <tr class="{% if d.esta_vencida %}table-danger{% endif %}">
+      <tr class="{% if d.esta_vencida %}table-danger{% endif %}" data-href="/deudas/{{ d.id }}/detalle">
         <td>
           <div class="fw-semibold">{{ d.acreedor_nombre }}</div>
           <small class="text-muted">
+            {% if d.acreedor_empresa %}<span class="me-1">{{ d.acreedor_empresa }}</span>{% endif %}
             <span class="badge bg-secondary bg-opacity-25 text-secondary">{{ d.acreedor_tipo }}</span>
           </small>
         </td>
-        <td class="text-truncate-2" style="max-width:200px">{{ d.concepto }}</td>
+        <td class="text-truncate-2 d-mobile-none" style="max-width:200px">{{ d.concepto }}</td>
         <td class="text-end fw-semibold">{{ d.monto_total | moneda }}</td>
-        <td class="text-end text-success">{{ d.monto_pagado | moneda }}</td>
+        <td class="text-end text-success d-mobile-none">{{ d.monto_pagado | moneda }}</td>
         <td class="text-end fw-bold {% if d.monto_pendiente > 0 %}text-danger{% else %}text-success{% endif %}">
           {{ d.monto_pendiente | moneda }}
         </td>
-        <td style="min-width:90px">
+        <td class="d-mobile-none" style="min-width:90px">
           <div class="progress progress-pago">
             <div class="progress-bar bg-success" style="width:{{ d.porcentaje_pagado }}%"></div>
           </div>
           <small class="text-muted">{{ d.porcentaje_pagado }}%</small>
         </td>
-        <td>
+        <td class="d-mobile-none">
           {% if d.fecha_vencimiento %}
             <span class="{% if d.esta_vencida %}text-danger fw-semibold{% else %}text-muted{% endif %}">
               {% if d.esta_vencida %}<i class="bi bi-exclamation-triangle-fill me-1"></i>{% endif %}
@@ -203,14 +215,11 @@
     </tbody>
   </table>
   {% else %}
-  <div class="text-center py-5 text-muted">
-    <i class="bi bi-credit-card-2-back fs-1 d-block mb-3 opacity-25"></i>
-    <p class="mb-1">No hay deudas registradas{% if buscar or estado or acreedor_tipo %} con esos filtros{% endif %}.</p>
-    {% if not buscar and not estado %}
-    <a href="/deudas/nueva" class="btn btn-danger mt-2">
-      <i class="bi bi-plus-lg me-1"></i>Registrar primera deuda
-    </a>
-    {% endif %}
+  <div class="empty-state">
+    <i class="bi bi-credit-card-2-back empty-icon"></i>
+    <div class="empty-title">No se encontraron deudas</div>
+    <div class="empty-desc">No hay deudas registradas.</div>
+    <a href="/deudas/nueva" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nueva Deuda</a>
   </div>
   {% endif %}
 </div>

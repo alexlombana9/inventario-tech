@@ -1,14 +1,29 @@
 <!DOCTYPE html>
 <html lang="es">
+<script>
+  (function(){var t=localStorage.getItem('techstock_theme');
+  if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+  document.documentElement.setAttribute('data-theme','dark');})();
+</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}TechStock{% endblock %} — Sistema de Inventario</title>
+  <meta name="theme-color" content="#0d6efd">
+  <link rel="manifest" href="/static/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link href="/static/vendor/bootstrap/bootstrap.min.css" rel="stylesheet">
   <link href="/static/vendor/bootstrap-icons/bootstrap-icons.css" rel="stylesheet">
   <link href="/static/css/style.css" rel="stylesheet">
 </head>
 <body>
+
+<!-- Skip to content (accessibility) -->
+<a href="#mainContent" class="skip-link">Saltar al contenido</a>
+
+<!-- Toast notifications -->
+<div class="toast-container" id="toastContainer" aria-live="polite" aria-atomic="true"></div>
 
 <!-- Backdrop (mobile overlay) -->
 <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
@@ -16,16 +31,22 @@
 <!-- ══════════════════════ SIDEBAR ══════════════════════ -->
 <nav class="sidebar" id="sidebar">
 
-  <div class="sidebar-brand">
-    <i class="bi bi-cpu-fill"></i>
-    <span>TechStock</span>
-  </div>
+  <a href="/" class="sidebar-brand">
+    <div class="sidebar-brand-icon">
+      <i class="bi bi-boxes icon-main"></i>
+      <i class="bi bi-cpu icon-accent"></i>
+    </div>
+    <div class="sidebar-brand-text">
+      <span class="brand-name">TechStock</span>
+      <span class="brand-tagline">Inventario & POS</span>
+    </div>
+  </a>
 
   <ul class="sidebar-nav">
 
     <!-- Dashboard -->
     <li class="nav-item">
-      <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}">
+      <a href="/" class="nav-link {% if request.url.path == '/' %}active{% endif %}" {% if request.url.path == '/' %}aria-current="page"{% endif %}>
         <i class="bi bi-speedometer2"></i>
         <span>Dashboard</span>
       </a>
@@ -300,6 +321,34 @@
     </button>
     <div class="topbar-title">{% block page_title %}{% endblock %}</div>
     <div class="topbar-actions">
+      <!-- Command palette shortcut -->
+      <button class="btn btn-sm btn-outline-secondary d-none d-md-flex align-items-center gap-1" id="openCommandPalette" style="font-size:0.78rem; padding: 4px 10px;">
+        <i class="bi bi-search" style="font-size:0.72rem"></i>
+        <span>Buscar...</span>
+        <kbd style="font-size:0.6rem; padding:1px 4px; border-radius:3px; background:var(--bg-table-header); border:1px solid var(--border-color); margin-left:4px;">Ctrl+K</kbd>
+      </button>
+
+      <!-- Indicador de movimientos del dia -->
+      {% if request.state.user and has_permiso(request.state.user, 'inventario') %}
+      {% set _mov = movimientos_hoy(request) %}
+      <div class="d-none d-md-flex align-items-center gap-1 topbar-mov-indicator" title="Movimientos de inventario hoy">
+        <span class="badge-mov badge-mov-entrada" title="Entradas hoy">
+          <i class="bi bi-arrow-down-circle-fill"></i> {{ _mov.entradas }}
+        </span>
+        <span class="badge-mov badge-mov-salida" title="Salidas hoy">
+          <i class="bi bi-arrow-up-circle-fill"></i> {{ _mov.salidas }}
+        </span>
+      </div>
+      {% endif %}
+
+      <!-- Acceso rapido: Nueva Venta -->
+      {% if request.state.user and has_permiso(request.state.user, 'ventas_pos') %}
+      <a href="/ventas/pos" class="btn btn-success btn-sm d-flex align-items-center gap-1" title="Nueva Venta">
+        <i class="bi bi-cart-plus"></i>
+        <span class="d-none d-lg-inline">Nueva Venta</span>
+      </a>
+      {% endif %}
+
       {% if request.state.user and has_permiso(request.state.user, 'inventario') %}
       <a href="/inventario/entrada" class="btn btn-primary btn-sm">
         <i class="bi bi-plus-lg"></i>
@@ -310,6 +359,11 @@
         <span class="d-none d-sm-inline ms-1">Salida</span>
       </a>
       {% endif %}
+
+      <!-- Theme toggle -->
+      <button class="btn-theme-toggle" id="themeToggle" aria-label="Cambiar tema">
+        <i class="bi bi-moon-fill"></i>
+      </button>
 
       <!-- User dropdown -->
       {% if request.state.user %}
@@ -371,15 +425,88 @@
     </div>
   </div>
 
-  <!-- Flash messages -->
-  {% if flash %}
-  <div class="content-area" style="padding-bottom:0">
-    <div class="alert alert-{{ 'success' if flash.category == 'success' else 'danger' }} alert-dismissible fade show" role="alert">
-      <i class="bi bi-{{ 'check-circle' if flash.category == 'success' else 'exclamation-triangle' }} me-1"></i>
-      {{ flash.message }}
-      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+  <!-- ══════ BARRA DE CONTEXTO DE LOCAL ══════ -->
+  {% set _u = request.state.user %}
+  {% set _ln = request.state.local_name|default(None) %}
+  {% set _sa = _u and _u.rol == 'SUPERADMIN' %}
+  {% if _u %}
+  <div class="local-bar {{ 'local-bar-super' if _sa and _ln else ('local-bar-global' if _sa else 'local-bar-user') }}">
+    <div class="local-bar-inner">
+      {% if _sa and _ln %}
+        {# SUPERADMIN con local seleccionado #}
+        <div class="local-bar-info">
+          <i class="bi bi-building-fill me-1"></i>
+          <span>Trabajando en: <strong>{{ _ln }}</strong></span>
+        </div>
+        <div class="local-bar-actions">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-light dropdown-toggle py-0" type="button"
+                    data-bs-toggle="dropdown" aria-expanded="false" style="font-size:.78rem">
+              <i class="bi bi-arrow-left-right me-1"></i>Cambiar local
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              {% for loc in request.state.all_locales|default([]) %}
+              <li>
+                <a class="dropdown-item {{ 'active' if loc.id == request.state.selected_local_id else '' }}"
+                   href="/locales/seleccionar/{{ loc.id }}">
+                  <i class="bi bi-{{ 'check-circle-fill' if loc.id == request.state.selected_local_id else 'building' }} me-1"></i>
+                  {{ loc.nombre }} <small class="text-muted">({{ loc.codigo }})</small>
+                </a>
+              </li>
+              {% endfor %}
+              <li><hr class="dropdown-divider"></li>
+              <li>
+                <a class="dropdown-item text-primary" href="/locales/deseleccionar">
+                  <i class="bi bi-grid-3x3-gap me-1"></i>Ver todos (Super Dashboard)
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      {% elif _sa and not _ln %}
+        {# SUPERADMIN sin local seleccionado — vista global #}
+        <div class="local-bar-info">
+          <i class="bi bi-globe-americas me-1"></i>
+          <span>Vista global — <strong>Super Administrador</strong></span>
+        </div>
+        <div class="local-bar-actions">
+          <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle py-0" type="button"
+                    data-bs-toggle="dropdown" aria-expanded="false" style="font-size:.78rem">
+              <i class="bi bi-building me-1"></i>Seleccionar local
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+              {% for loc in request.state.all_locales|default([]) %}
+              <li>
+                <a class="dropdown-item" href="/locales/seleccionar/{{ loc.id }}">
+                  <i class="bi bi-building me-1"></i>{{ loc.nombre }} <small class="text-muted">({{ loc.codigo }})</small>
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+          </div>
+        </div>
+      {% elif _ln %}
+        {# Usuario regular con local asignado #}
+        <div class="local-bar-info">
+          <i class="bi bi-building me-1"></i>
+          <span>{{ _ln }}</span>
+        </div>
+      {% endif %}
     </div>
   </div>
+  {% endif %}
+
+  <!-- Flash messages → toast notifications -->
+  {% set _flash = get_flash(request) if get_flash is defined else flash %}
+  {% if _flash %}
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.showToast) {
+        window.showToast({{ _flash.message|tojson }}, {{ _flash.category|tojson }});
+      }
+    });
+  </script>
   {% endif %}
 
   <!-- Content -->
@@ -407,9 +534,84 @@
   </div>
 </div>
 
-<script src="/static/vendor/bootstrap/bootstrap.bundle.min.js"></script>
-<script src="/static/js/main.js"></script>
-<script src="/static/js/help.js"></script>
+<!-- ══════════════════════ COMMAND PALETTE (Ctrl+K) ══════════════════════ -->
+<div class="command-palette-overlay" id="commandPaletteOverlay">
+  <div class="command-palette">
+    <input type="text" class="command-palette-input" placeholder="Buscar paginas, acciones..." autocomplete="off">
+    <div class="command-palette-results"></div>
+    <div class="command-palette-footer">
+      <span><kbd>↑↓</kbd> Navegar</span>
+      <span><kbd>Enter</kbd> Ir</span>
+      <span><kbd>Esc</kbd> Cerrar</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ DELETE CONFIRMATION MODAL ══════════════════════ -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-body text-center py-4">
+        <div class="confirm-modal-icon danger">
+          <i class="bi bi-trash3"></i>
+        </div>
+        <div class="confirm-modal-title">Confirmar eliminacion</div>
+        <div class="confirm-modal-desc">
+          Se desactivara <strong class="confirm-item-name">este elemento</strong>. Esta accion se puede revertir desde el sistema.
+        </div>
+        <div class="d-flex gap-2 justify-content-center">
+          <button type="button" class="btn btn-sm btn-secondary px-3" data-bs-dismiss="modal">Cancelar</button>
+          <button type="button" class="btn btn-sm btn-danger px-3 btn-confirm-delete">
+            <i class="bi bi-trash3 me-1"></i>Eliminar
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════ CHATBOT ASISTENTE ══════════════════════ -->
+{% if request.state.user %}
+<button class="chatbot-toggle" id="chatbotToggle" aria-label="Abrir asistente de ayuda" title="Asistente de ayuda">
+  <span class="chatbot-badge">?</span>
+  <i class="bi bi-chat-dots-fill chatbot-toggle-icon-open"></i>
+  <i class="bi bi-x-lg chatbot-toggle-icon-close"></i>
+</button>
+
+<div class="chatbot-panel" id="chatbotPanel" role="dialog" aria-label="Asistente de ayuda TechStock">
+  <div class="chatbot-header">
+    <div class="chatbot-header-info">
+      <div class="chatbot-header-avatar">
+        <i class="bi bi-robot"></i>
+      </div>
+      <div class="chatbot-header-texto">
+        <h6><span class="chatbot-status-dot offline" id="chatbotStatusDot"></span>Asistente TechStock</h6>
+        <small id="chatbotModoTexto">Ayuda interactiva</small>
+      </div>
+    </div>
+    <button class="chatbot-header-cerrar" id="chatbotCerrar" aria-label="Cerrar asistente">
+      <i class="bi bi-x-lg"></i>
+    </button>
+  </div>
+  <div class="chatbot-mensajes" id="chatbotMensajes"></div>
+  <div class="chatbot-footer">
+    <input type="text" id="chatbotInput" placeholder="Preguntame lo que necesites..." autocomplete="off">
+    <button id="chatbotEnviar" aria-label="Enviar" title="Enviar">
+      <i class="bi bi-send-fill"></i>
+    </button>
+  </div>
+</div>
+{% endif %}
+
+<script src="/static/vendor/bootstrap/bootstrap.bundle.min.js" defer></script>
+<script src="/static/js/main.js" defer></script>
+<script src="/static/js/help.js" defer></script>
+<script src="/static/js/chatbot.js" defer></script>
 {% block scripts %}{% endblock %}
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(function(){});
+}
+</script>
 </body>
 </html>

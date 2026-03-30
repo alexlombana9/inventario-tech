@@ -53,7 +53,10 @@
     <tbody>
       {% for d in venta.detalles %}
       <tr>
-        <td>{{ d.producto_nombre }}</td>
+        <td>
+          {{ d.producto_nombre }}
+          {% if d.producto_referencia %}<br><small style="color:#666">Ref: {{ d.producto_referencia }}</small>{% endif %}
+        </td>
         <td class="text-center">{{ d.cantidad|numero }}</td>
         <td class="text-end">{{ d.subtotal | moneda }}</td>
       </tr>

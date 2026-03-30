@@ -23,7 +23,8 @@
 
 <div class="form-card">
   <form method="post"
-        action="{% if factura %}/facturas/{{ factura.id }}/editar{% else %}/facturas/nueva{% endif %}">
+        action="{% if factura %}/facturas/{{ factura.id }}/editar{% else %}/facturas/nueva{% endif %}"
+        data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
 
     <!-- Número y cliente -->
@@ -37,13 +38,19 @@
                value="{{ numero_sugerido }}" required>
         <div class="form-text">Identificador único de la factura.</div>
       </div>
-      <div class="col-md-5">
+      <div class="col-md-3">
         <label class="form-label">Nombre del Cliente <span class="text-danger">*</span></label>
         <input type="text" name="cliente_nombre" class="form-control"
                value="{{ factura.cliente_nombre if factura else '' }}"
-               placeholder="Nombre completo o razón social" required>
+               placeholder="Nombre completo" required>
       </div>
-      <div class="col-md-4">
+      <div class="col-md-3">
+        <label class="form-label">Empresa</label>
+        <input type="text" name="cliente_empresa" class="form-control"
+               value="{{ factura.cliente_empresa if factura else '' }}"
+               placeholder="Razón social o empresa">
+      </div>
+      <div class="col-md-3">
         <label class="form-label">Documento (NIT / CC)</label>
         <input type="text" name="cliente_documento" class="form-control"
                value="{{ factura.cliente_documento if factura else '' }}"
@@ -79,7 +86,7 @@
         <label class="form-label">Monto Total <span class="text-danger">*</span></label>
         <div class="input-group">
           <span class="input-group-text">$</span>
-          <input type="number" name="monto_total" class="form-control" step="0.01" min="0.01"
+          <input type="number" name="monto_total" class="form-control" step="any" min="0.01"
                  value="{{ '%.2f' | format(factura.monto_total) if factura else '' }}" required>
         </div>
       </div>

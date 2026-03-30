@@ -4,12 +4,6 @@
 
 {% block content %}
 
-{% if msg %}
-<div class="alert alert-success alert-dismissible alert-auto-hide" role="alert">
-  <i class="bi bi-check-circle-fill me-2"></i>{{ msg }}
-  <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-</div>
-{% endif %}
 {% if error %}
 <div class="alert alert-danger alert-dismissible" role="alert">
   <i class="bi bi-exclamation-triangle-fill me-2"></i>{{ error }}
@@ -19,7 +13,7 @@
 
 <!-- Resumen -->
 <div class="row g-3 mb-4">
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon bg-primary bg-opacity-10">
@@ -32,7 +26,7 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon bg-danger bg-opacity-10">
@@ -45,28 +39,41 @@
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
-        <div class="stat-icon bg-success bg-opacity-10">
-          <i class="bi bi-cash-stack text-success"></i>
+        <div class="stat-icon bg-secondary bg-opacity-10">
+          <i class="bi bi-cash-stack text-secondary"></i>
         </div>
         <div>
-          <div class="stat-value" style="font-size:1.3rem">{{ total_por_cobrar | moneda }}</div>
-          <div class="stat-label">Total por cobrar</div>
+          <div class="stat-value" style="font-size:1.2rem">{{ total_facturado | moneda }}</div>
+          <div class="stat-label">Total Facturado</div>
         </div>
       </div>
     </div>
   </div>
-  <div class="col-sm-6 col-lg-3">
+  <div class="col-6 col-lg">
     <div class="stat-card">
       <div class="d-flex align-items-center gap-3">
         <div class="stat-icon bg-success bg-opacity-10">
           <i class="bi bi-check2-circle text-success"></i>
         </div>
         <div>
-          <div class="stat-value">{{ facturas | selectattr("estado", "eq", "PAGADO") | list | length }}</div>
-          <div class="stat-label">Cobradas</div>
+          <div class="stat-value text-success" style="font-size:1.2rem">{{ total_cobrado | moneda }}</div>
+          <div class="stat-label">Total Cobrado</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-lg">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon bg-primary bg-opacity-10">
+          <i class="bi bi-exclamation-circle text-primary"></i>
+        </div>
+        <div>
+          <div class="stat-value text-danger" style="font-size:1.2rem">{{ total_por_cobrar | moneda }}</div>
+          <div class="stat-label">Por Cobrar</div>
         </div>
       </div>
     </div>
@@ -78,9 +85,13 @@
   <h1><i class="bi bi-receipt me-2 text-primary"></i>Facturas y Cuentas por Cobrar
     <button class="btn btn-sm btn-outline-secondary ms-2 btn-help-trigger" data-help="facturas" title="Ayuda"><i class="bi bi-question-circle"></i></button>
   </h1>
-  <a href="/facturas/nueva" class="btn btn-primary">
-    <i class="bi bi-plus-lg me-1"></i>Nueva Factura
-  </a>
+  <div class="d-flex gap-2">
+    <a href="/facturas/exportar?buscar={{ buscar }}&estado={{ estado }}&fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&vencidas={{ vencidas }}"
+       class="btn btn-success btn-sm"><i class="bi bi-file-earmark-excel me-1"></i>Excel</a>
+    <a href="/facturas/nueva" class="btn btn-primary">
+      <i class="bi bi-plus-lg me-1"></i>Nueva Factura
+    </a>
+  </div>
 </div>
 
 <!-- Filtros -->
@@ -132,43 +143,45 @@
   <table class="table table-hover">
     <thead>
       <tr>
-        <th>N° Factura</th>
-        <th>Cliente</th>
-        <th>Concepto</th>
-        <th class="text-end">Total</th>
-        <th class="text-end">Cobrado</th>
+        <th data-sortable>N° Factura</th>
+        <th data-sortable>Cliente</th>
+        <th class="d-mobile-none">Concepto</th>
+        <th class="text-end" data-sortable>Total</th>
+        <th class="text-end d-mobile-none">Cobrado</th>
         <th class="text-end">Por cobrar</th>
-        <th>Avance</th>
-        <th>Vencimiento</th>
-        <th>Estado</th>
+        <th class="d-mobile-none">Avance</th>
+        <th class="d-mobile-none" data-sortable>Vencimiento</th>
+        <th data-sortable>Estado</th>
         <th class="table-actions">Acciones</th>
       </tr>
     </thead>
     <tbody>
       {% for f in facturas %}
-      <tr class="{% if f.esta_vencida %}table-danger{% endif %}">
+      <tr class="{% if f.esta_vencida %}table-danger{% endif %}" data-href="/facturas/{{ f.id }}/detalle">
         <td>
           <span class="badge bg-light text-dark border">{{ f.numero_factura }}</span>
         </td>
         <td>
           <div class="fw-semibold">{{ f.cliente_nombre }}</div>
-          {% if f.cliente_documento %}
-          <small class="text-muted">{{ f.cliente_documento }}</small>
-          {% endif %}
+          <small class="text-muted">
+            {% if f.cliente_empresa %}{{ f.cliente_empresa }}{% endif %}
+            {% if f.cliente_empresa and f.cliente_documento %} · {% endif %}
+            {% if f.cliente_documento %}{{ f.cliente_documento }}{% endif %}
+          </small>
         </td>
-        <td class="text-truncate-2" style="max-width:180px">{{ f.concepto }}</td>
+        <td class="text-truncate-2 d-mobile-none" style="max-width:180px">{{ f.concepto }}</td>
         <td class="text-end fw-semibold">{{ f.monto_total | moneda }}</td>
-        <td class="text-end text-success">{{ f.monto_cobrado | moneda }}</td>
+        <td class="text-end text-success d-mobile-none">{{ f.monto_cobrado | moneda }}</td>
         <td class="text-end fw-bold {% if f.monto_pendiente > 0 %}text-danger{% else %}text-success{% endif %}">
           {{ f.monto_pendiente | moneda }}
         </td>
-        <td style="min-width:90px">
+        <td class="d-mobile-none" style="min-width:90px">
           <div class="progress progress-pago">
             <div class="progress-bar bg-primary" style="width:{{ f.porcentaje_cobrado }}%"></div>
           </div>
           <small class="text-muted">{{ f.porcentaje_cobrado }}%</small>
         </td>
-        <td>
+        <td class="d-mobile-none">
           {% if f.fecha_vencimiento %}
             <span class="{% if f.esta_vencida %}text-danger fw-semibold{% else %}text-muted{% endif %}">
               {% if f.esta_vencida %}<i class="bi bi-exclamation-triangle-fill me-1"></i>{% endif %}
@@ -214,14 +227,11 @@
     </tbody>
   </table>
   {% else %}
-  <div class="text-center py-5 text-muted">
-    <i class="bi bi-receipt fs-1 d-block mb-3 opacity-25"></i>
-    <p class="mb-1">No hay facturas registradas{% if buscar or estado or fecha_desde or fecha_hasta or vencidas %} con esos filtros{% endif %}.</p>
-    {% if not buscar and not estado and not fecha_desde and not fecha_hasta and not vencidas %}
-    <a href="/facturas/nueva" class="btn btn-primary mt-2">
-      <i class="bi bi-plus-lg me-1"></i>Crear primera factura
-    </a>
-    {% endif %}
+  <div class="empty-state">
+    <i class="bi bi-receipt empty-icon"></i>
+    <div class="empty-title">No se encontraron facturas</div>
+    <div class="empty-desc">No hay facturas registradas.</div>
+    <a href="/facturas/nueva" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg me-1"></i>Nueva Factura</a>
   </div>
   {% endif %}
 </div>

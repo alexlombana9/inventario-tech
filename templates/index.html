@@ -42,7 +42,7 @@
           <i class="bi bi-box-seam text-primary"></i>
         </div>
         <div>
-          <div class="stat-value">{{ total_productos }}</div>
+          <div class="stat-value" data-count-to="{{ total_productos }}">{{ total_productos }}</div>
           <div class="stat-label">Productos</div>
         </div>
       </div>
@@ -55,7 +55,7 @@
           <i class="bi bi-exclamation-triangle text-danger"></i>
         </div>
         <div>
-          <div class="stat-value text-{{ 'danger' if stock_bajo > 0 else 'success' }}">{{ stock_bajo }}</div>
+          <div class="stat-value text-{{ 'danger' if stock_bajo > 0 else 'success' }}" data-count-to="{{ stock_bajo }}">{{ stock_bajo }}</div>
           <div class="stat-label">Stock Bajo</div>
         </div>
       </div>
@@ -81,7 +81,7 @@
           <i class="bi bi-arrow-left-right text-warning"></i>
         </div>
         <div>
-          <div class="stat-value">{{ movimientos_periodo }}</div>
+          <div class="stat-value" data-count-to="{{ movimientos_periodo }}">{{ movimientos_periodo }}</div>
           <div class="stat-label">Movimientos</div>
         </div>
       </div>
@@ -111,10 +111,10 @@
       <div class="stat-card">
         <div class="d-flex align-items-center gap-3">
           <div class="stat-icon" style="background:#e0e7ff">
-            <i class="bi bi-graph-up-arrow" style="color:#4f46e5"></i>
+            <i class="bi bi-graph-up-arrow text-indigo"></i>
           </div>
           <div>
-            <div class="stat-value" style="font-size:1.15rem; color:#4f46e5">{{ ganancia_periodo | moneda }}</div>
+            <div class="stat-value text-indigo" style="font-size:1.15rem">{{ ganancia_periodo | moneda }}</div>
             <div class="stat-label">Ganancia</div>
           </div>
         </div>
@@ -129,7 +129,7 @@
             <i class="bi bi-person-vcard text-warning"></i>
           </div>
           <div>
-            <div class="stat-value">{{ total_clientes }}</div>
+            <div class="stat-value" data-count-to="{{ total_clientes }}">{{ total_clientes }}</div>
             <div class="stat-label">Clientes</div>
           </div>
         </div>
@@ -137,15 +137,15 @@
     </a>
   </div>
   <div class="col-6 col-md-3">
-    <a href="/caja" class="text-decoration-none">
+    <a href="/gastos" class="text-decoration-none">
       <div class="stat-card">
         <div class="d-flex align-items-center gap-3">
           <div class="stat-icon" style="background:#fce4ec">
-            <i class="bi bi-cash-stack" style="color:#e91e63"></i>
+            <i class="bi bi-wallet2 text-pink"></i>
           </div>
           <div>
-            <div class="stat-value" style="font-size:1.15rem; color:#e91e63">{{ valor_inventario | moneda }}</div>
-            <div class="stat-label">Valor Inventario</div>
+            <div class="stat-value text-pink" style="font-size:1.15rem">{{ gastos_periodo | moneda }}</div>
+            <div class="stat-label">Gastos</div>
           </div>
         </div>
       </div>
@@ -200,7 +200,7 @@
       <div class="stat-card">
         <div class="d-flex align-items-center gap-3">
           <div class="stat-icon" style="background:#f3e8ff">
-            <i class="bi bi-truck" style="color:#6f42c1"></i>
+            <i class="bi bi-truck text-purple"></i>
           </div>
           <div>
             <div class="stat-value">{{ total_proveedores }}</div>
@@ -260,7 +260,7 @@
       <div class="chart-title">
         <i class="bi bi-graph-up me-1 text-primary"></i>Movimientos — Últimos 7 días
       </div>
-      <div style="position:relative; height:220px;">
+      <div class="chart-container">
         <canvas id="chartMovimientos"></canvas>
       </div>
     </div>
@@ -273,7 +273,7 @@
         <i class="bi bi-pie-chart me-1 text-primary"></i>Inventario por Categoría
       </div>
       {% if chart_cat_valores != '[]' %}
-      <div style="position:relative; height:220px; display:flex; align-items:center; justify-content:center;">
+      <div class="chart-container" style="display:flex; align-items:center; justify-content:center;">
         <canvas id="chartCategorias"></canvas>
       </div>
       {% else %}
@@ -294,7 +294,7 @@
         <span><i class="bi bi-cash-coin me-1 text-success"></i>Ventas — Últimos 7 días</span>
         <a href="/ventas" class="btn btn-sm btn-outline-success" style="font-size:.72rem">Historial</a>
       </div>
-      <div style="position:relative; height:220px;">
+      <div class="chart-container">
         <canvas id="chartVentas7d"></canvas>
       </div>
     </div>
@@ -338,7 +338,7 @@
         <span><i class="bi bi-credit-card-2-back me-1 text-danger"></i>Estado de Deudas</span>
         <a href="/deudas" class="btn btn-sm btn-outline-danger" style="font-size:.72rem">Ver todas</a>
       </div>
-      <div style="position:relative; height:140px;">
+      <div class="chart-container-sm">
         <canvas id="chartDeudas"></canvas>
       </div>
     </div>
@@ -351,7 +351,7 @@
         <span><i class="bi bi-receipt me-1 text-primary"></i>Estado de Facturas</span>
         <a href="/facturas" class="btn btn-sm btn-outline-primary" style="font-size:.72rem">Ver todas</a>
       </div>
-      <div style="position:relative; height:140px;">
+      <div class="chart-container-sm">
         <canvas id="chartFacturas"></canvas>
       </div>
     </div>

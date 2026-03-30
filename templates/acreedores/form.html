@@ -15,15 +15,28 @@
 
 <div class="form-card">
   <form method="post"
-        action="{% if acreedor %}/acreedores/{{ acreedor.id }}/editar{% else %}/acreedores/nuevo{% endif %}">
+        action="{% if acreedor %}/acreedores/{{ acreedor.id }}/editar{% else %}/acreedores/nuevo{% endif %}"
+        data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
 
     <div class="row g-3">
-      <div class="col-md-6">
+      <div class="col-md-4">
         <label class="form-label">Nombre <span class="text-danger">*</span></label>
         <input type="text" name="nombre" class="form-control"
                value="{{ acreedor.nombre if acreedor else '' }}"
-               placeholder="Ej: Distribuidora XYZ, Banco Nacional..." required>
+               placeholder="Ej: Juan Pérez, Banco Nacional..." required>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Empresa</label>
+        <input type="text" name="empresa" class="form-control"
+               value="{{ acreedor.empresa if acreedor else '' }}"
+               placeholder="Ej: Distribuidora XYZ S.A.S.">
+      </div>
+      <div class="col-md-4">
+        <label class="form-label">Documento / NIT</label>
+        <input type="text" name="documento" class="form-control"
+               value="{{ acreedor.documento if acreedor else '' }}"
+               placeholder="Ej: 900123456-1">
       </div>
       <div class="col-md-3">
         <label class="form-label">Tipo</label>
@@ -36,12 +49,6 @@
           </option>
           {% endfor %}
         </select>
-      </div>
-      <div class="col-md-3">
-        <label class="form-label">Documento / NIT</label>
-        <input type="text" name="documento" class="form-control"
-               value="{{ acreedor.documento if acreedor else '' }}"
-               placeholder="Ej: 900123456-1">
       </div>
       <div class="col-md-4">
         <label class="form-label">Telefono</label>

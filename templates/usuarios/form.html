@@ -21,7 +21,7 @@
 {% endif %}
 
 <div class="form-card">
-  <form method="POST" action="/usuarios{% if usuario %}/{{ usuario.id }}/editar{% else %}/nuevo{% endif %}">
+  <form method="POST" action="/usuarios{% if usuario %}/{{ usuario.id }}/editar{% else %}/nuevo{% endif %}" data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
 
     {% if not usuario %}

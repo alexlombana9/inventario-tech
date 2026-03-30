@@ -4,7 +4,9 @@
 
 {% block content %}
 <div class="page-header">
-  <h1><i class="bi bi-clock-history me-2"></i>Registro de Actividad</h1>
+  <h1><i class="bi bi-clock-history me-2"></i>Registro de Actividad
+    <button class="btn btn-sm btn-outline-secondary ms-2 btn-help-trigger" data-help="auditoria" title="Ayuda"><i class="bi bi-question-circle"></i></button>
+  </h1>
 </div>
 
 <!-- Estadisticas rapidas -->
@@ -108,12 +110,12 @@
     <table class="table table-hover mb-0" style="font-size: 0.85rem;">
       <thead>
         <tr>
-          <th style="width:140px">Fecha / Hora</th>
+          <th>Fecha / Hora</th>
           <th>Usuario</th>
-          <th style="width:90px">Accion</th>
-          <th style="width:100px">Entidad</th>
+          <th>Accion</th>
+          <th>Entidad</th>
           <th>Detalle</th>
-          <th style="width:110px">IP</th>
+          <th class="d-mobile-none">IP</th>
         </tr>
       </thead>
       <tbody>
@@ -149,7 +151,7 @@
             {% endif %}
           </td>
           <td>{{ r.detalle or '-' }}</td>
-          <td><code class="small">{{ r.ip_address or '-' }}</code></td>
+          <td class="d-mobile-none"><code class="small">{{ r.ip_address or '-' }}</code></td>
         </tr>
         {% endfor %}
         {% if not registros %}

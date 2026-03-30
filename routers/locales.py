@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from database import get_db
 from templates_config import templates
-from auth import require_superadmin, log_audit, set_flash
+from auth import require_superadmin, log_audit, set_flash, encode_selected_local, cookie_kwargs, SELECTED_LOCAL_COOKIE
 import models
 
 router = APIRouter(prefix="/locales", tags=["locales"])
@@ -202,7 +202,7 @@ def seleccionar_local(
         return RedirectResponse("/locales?error=Local+no+encontrado", status_code=303)
 
     resp = RedirectResponse("/", status_code=303)
-    resp.set_cookie("techstock_selected_local", str(local.id), httponly=True, samesite="lax", max_age=8 * 3600)
+    resp.set_cookie(SELECTED_LOCAL_COOKIE, encode_selected_local(local.id), **cookie_kwargs(), max_age=8 * 3600)
     set_flash(resp, f"Trabajando en: {local.nombre}", "info")
     return resp
 
@@ -214,5 +214,5 @@ def deseleccionar_local(
 ):
     """SUPERADMIN vuelve al super dashboard."""
     resp = RedirectResponse("/super", status_code=303)
-    resp.delete_cookie("techstock_selected_local")
+    resp.delete_cookie(SELECTED_LOCAL_COOKIE)
     return resp

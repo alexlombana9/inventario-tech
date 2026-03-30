@@ -104,8 +104,16 @@ def get_serializer() -> URLSafeTimedSerializer:
     return _serializer
 
 
+# ── Cookie hardening ─────────────────────────────────────
+
+def cookie_kwargs() -> dict:
+    """Retorna kwargs base para cookies seguras."""
+    secure = os.environ.get("COOKIE_SECURE", "false").lower() == "true"
+    return {"httponly": True, "samesite": "lax", "secure": secure}
+
+
 # ── CSRF Protection ──────────────────────────────────────
-CSRF_MAX_AGE = 3600  # 1 hora
+CSRF_MAX_AGE = SESSION_MAX_AGE  # Misma duracion que la sesion
 
 
 def generate_csrf_token(session_cookie: str) -> str:
@@ -149,7 +157,7 @@ def set_flash(response: RedirectResponse, message: str, category: str = "success
     """Agrega un flash message a la respuesta como cookie."""
     s = get_serializer()
     value = s.dumps({"message": message, "category": category})
-    response.set_cookie(FLASH_COOKIE, value, httponly=True, samesite="lax", max_age=60)
+    response.set_cookie(FLASH_COOKIE, value, **cookie_kwargs(), max_age=60)
     return response
 
 
@@ -269,6 +277,28 @@ def require_permiso(modulo: str):
     return dependency
 
 
+# ── Signed local selector (SUPERADMIN) ───────────────────
+SELECTED_LOCAL_COOKIE = "techstock_selected_local"
+
+
+def encode_selected_local(local_id: int) -> str:
+    """Firma el local_id seleccionado por SUPERADMIN."""
+    s = get_serializer()
+    return s.dumps({"local_id": local_id})
+
+
+def decode_selected_local(cookie_value: str) -> int | None:
+    """Decodifica el local_id firmado. Retorna None si inválido/expirado."""
+    if not cookie_value:
+        return None
+    s = get_serializer()
+    try:
+        data = s.loads(cookie_value, max_age=SESSION_MAX_AGE)
+        return data.get("local_id")
+    except (BadSignature, SignatureExpired):
+        return None
+
+
 # ── Multi-account session management ─────────────────────
 ACCOUNTS_COOKIE = "techstock_accounts"
 
@@ -291,7 +321,7 @@ def save_accounts_cookie(response, accounts: list):
     value = s.dumps(accounts)
     response.set_cookie(
         ACCOUNTS_COOKIE, value,
-        httponly=True, samesite="lax", max_age=SESSION_MAX_AGE,
+        **cookie_kwargs(), max_age=SESSION_MAX_AGE,
     )
     return response
 

@@ -452,6 +452,106 @@ class TestImportarFacturas:
         assert fac.numero_factura.startswith("FAC-")
 
 
+# ── Plantillas adicionales ──────────────────────────────────────────────────
+
+class TestDescargarPlantillasAdicionales:
+    def test_plantilla_clientes(self, admin_client):
+        resp = admin_client.get("/importar/plantilla/clientes")
+        assert resp.status_code == 200
+        assert "spreadsheetml" in resp.headers.get("content-type", "")
+
+    def test_plantilla_proveedores(self, admin_client):
+        resp = admin_client.get("/importar/plantilla/proveedores")
+        assert resp.status_code == 200
+        assert "spreadsheetml" in resp.headers.get("content-type", "")
+
+    def test_plantilla_acreedores(self, admin_client):
+        resp = admin_client.get("/importar/plantilla/acreedores")
+        assert resp.status_code == 200
+        assert "spreadsheetml" in resp.headers.get("content-type", "")
+
+    def test_plantilla_deudas(self, admin_client):
+        resp = admin_client.get("/importar/plantilla/deudas")
+        assert resp.status_code == 200
+        assert "spreadsheetml" in resp.headers.get("content-type", "")
+
+    def test_plantilla_facturas(self, admin_client):
+        resp = admin_client.get("/importar/plantilla/facturas")
+        assert resp.status_code == 200
+        assert "spreadsheetml" in resp.headers.get("content-type", "")
+
+
+# ── Campos empresa (cliente_empresa, acreedor_empresa) ─────────────────────
+
+class TestImportarCamposEmpresa:
+    def test_importar_factura_con_cliente_empresa(self, admin_client, db):
+        """Factura importada incluye campo cliente_empresa."""
+        content = _make_excel(
+            ["numero_factura", "cliente_nombre", "cliente_empresa", "concepto", "monto_total"],
+            [["FAC-EMP-001", "Juan Perez", "Orionics S.A.S.", "Servicio web", 500000]]
+        )
+        resp = _post_import(admin_client, "facturas", content)
+        assert resp.status_code == 303
+        assert "msg" in resp.headers["location"].lower()
+
+        fac = db.query(models.Factura).filter(models.Factura.numero_factura == "FAC-EMP-001").first()
+        assert fac is not None
+        assert fac.cliente_empresa == "Orionics S.A.S."
+
+    def test_importar_deuda_con_acreedor_empresa(self, admin_client, db):
+        """Deuda importada incluye campo acreedor_empresa."""
+        content = _make_excel(
+            ["concepto", "acreedor_nombre", "acreedor_empresa", "acreedor_tipo", "monto_total"],
+            [["Compra equipo", "Pedro Garcia", "Tech Corp", "PROVEEDOR", 300000]]
+        )
+        resp = _post_import(admin_client, "deudas", content)
+        assert resp.status_code == 303
+        assert "msg" in resp.headers["location"].lower()
+
+        deuda = db.query(models.Deuda).filter(models.Deuda.concepto == "Compra equipo").first()
+        assert deuda is not None
+        assert deuda.acreedor_empresa == "Tech Corp"
+
+    def test_importar_cliente_con_empresa(self, admin_client, db):
+        """Cliente importado incluye campo empresa."""
+        content = _make_excel(
+            ["nombre", "empresa", "documento", "telefono"],
+            [["Maria Lopez", "Distribuidora XYZ", "9876543210", "3007654321"]]
+        )
+        resp = _post_import(admin_client, "clientes", content)
+        assert resp.status_code == 303
+        assert "msg" in resp.headers["location"].lower()
+
+        cli = db.query(models.Cliente).filter(models.Cliente.documento == "9876543210").first()
+        assert cli is not None
+        assert cli.empresa == "Distribuidora XYZ"
+
+
+# ── Auto-numeracion de facturas ────────────────────────────────────────────
+
+class TestFacturasAutoNumeracion:
+    def test_importar_multiples_facturas_sin_numero_secuencia_correcta(self, admin_client, db):
+        """Multiples facturas sin numero generan secuencia continua (sin saltos)."""
+        content = _make_excel(
+            ["cliente_nombre", "concepto", "monto_total"],
+            [
+                ["Cliente A", "Servicio A", 100000],
+                ["Cliente B", "Servicio B", 200000],
+                ["Cliente C", "Servicio C", 300000],
+            ]
+        )
+        resp = _post_import(admin_client, "facturas", content)
+        assert resp.status_code == 303
+
+        facturas = db.query(models.Factura).order_by(models.Factura.id).all()
+        assert len(facturas) == 3
+        nums = [f.numero_factura for f in facturas]
+        # Verificar que los numeros son consecutivos
+        assert nums[0] == "FAC-0001"
+        assert nums[1] == "FAC-0002"
+        assert nums[2] == "FAC-0003"
+
+
 # ── Funciones auxiliares (_parse_date, _col_index, etc.) ─────────────────────
 
 class TestFuncionesAuxiliares:

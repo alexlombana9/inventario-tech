@@ -61,9 +61,9 @@ def descargar_plantilla(
                         "TechDistribuidor", 45000, 89000, 75000, 25, 5, "UND"],
         },
         "clientes": {
-            "headers": ["nombre", "tipo_documento", "documento", "telefono", "email", "direccion", "notas"],
-            "widths": [25, 18, 18, 15, 25, 30, 30],
-            "ejemplo": ["Juan Perez", "CC", "1234567890", "3001234567",
+            "headers": ["nombre", "empresa", "tipo_documento", "documento", "telefono", "email", "direccion", "notas"],
+            "widths": [25, 22, 18, 18, 15, 25, 30, 30],
+            "ejemplo": ["Juan Perez", "Orionics S.A.S.", "CC", "1234567890", "3001234567",
                         "juan@email.com", "Calle 123 #45-67", "Cliente frecuente"],
         },
         "proveedores": {
@@ -79,10 +79,10 @@ def descargar_plantilla(
                         "cobros@xyz.com", "Av. Industrial 456", "Pago a 30 dias"],
         },
         "deudas": {
-            "headers": ["concepto", "acreedor_nombre", "acreedor_tipo",
+            "headers": ["concepto", "acreedor_nombre", "acreedor_empresa", "acreedor_tipo",
                         "monto_total", "monto_pagado", "fecha_deuda", "fecha_vencimiento", "notas"],
-            "widths": [35, 25, 16, 16, 16, 16, 18, 30],
-            "ejemplo": ["Compra mercancia Factura #1234", "Distribuidora XYZ", "PROVEEDOR",
+            "widths": [35, 25, 22, 16, 16, 16, 16, 18, 30],
+            "ejemplo": ["Compra mercancia Factura #1234", "Distribuidora XYZ", "XYZ Corp", "PROVEEDOR",
                         500000, 150000, "2026-01-15", "2026-04-15", "Pago en 3 cuotas"],
         },
         "categorias": {
@@ -91,11 +91,11 @@ def descargar_plantilla(
             "ejemplo": ["Perifericos", "Teclados, mouse, audífonos y otros perifericos"],
         },
         "facturas": {
-            "headers": ["numero_factura", "cliente_nombre", "cliente_documento", "cliente_telefono",
-                        "cliente_email", "concepto", "monto_total", "monto_cobrado",
+            "headers": ["numero_factura", "cliente_nombre", "cliente_empresa", "cliente_documento",
+                        "cliente_telefono", "cliente_email", "concepto", "monto_total", "monto_cobrado",
                         "fecha_emision", "fecha_vencimiento", "notas"],
-            "widths": [16, 25, 18, 15, 22, 35, 16, 16, 16, 18, 30],
-            "ejemplo": ["FAC-0001", "Juan Perez", "1234567890", "3001234567",
+            "widths": [16, 25, 22, 18, 15, 22, 35, 16, 16, 16, 18, 30],
+            "ejemplo": ["FAC-0001", "Juan Perez", "Orionics S.A.S.", "1234567890", "3001234567",
                         "juan@email.com", "Servicio de mantenimiento", 500000, 0,
                         "2026-01-15", "2026-02-15", "Cobro a 30 dias"],
         },
@@ -386,6 +386,7 @@ def _importar_productos(db: Session, headers: list, data_rows: list, user, reque
 
 def _importar_clientes(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_nombre = _col_index(headers, "nombre")
+    col_empresa = _col_index(headers, "empresa")
     col_tipodoc = _col_index(headers, "tipo_documento")
     col_doc = _col_index(headers, "documento")
     col_tel = _col_index(headers, "telefono")
@@ -424,6 +425,7 @@ def _importar_clientes(db: Session, headers: list, data_rows: list, user, reques
 
         cliente = models.Cliente(
             nombre=nombre,
+            empresa=_cell_str(row, col_empresa),
             tipo_documento=_cell_str(row, col_tipodoc) or "CC",
             documento=documento,
             telefono=_cell_str(row, col_tel),
@@ -580,6 +582,7 @@ def _importar_acreedores(db: Session, headers: list, data_rows: list, user, requ
 def _importar_deudas(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_concepto = _col_index(headers, "concepto")
     col_acr_nombre = _col_index(headers, "acreedor_nombre")
+    col_acr_empresa = _col_index(headers, "acreedor_empresa")
     col_acr_tipo = _col_index(headers, "acreedor_tipo")
     col_monto = _col_index(headers, "monto_total")
     col_pagado = _col_index(headers, "monto_pagado")
@@ -643,6 +646,7 @@ def _importar_deudas(db: Session, headers: list, data_rows: list, user, request:
         deuda = models.Deuda(
             concepto=concepto,
             acreedor_nombre=acr_nombre,
+            acreedor_empresa=_cell_str(row, col_acr_empresa),
             acreedor_tipo=acr_tipo,
             acreedor_id=acreedor_id,
             monto_total=monto_total,
@@ -727,6 +731,7 @@ def _importar_categorias(db: Session, headers: list, data_rows: list, user, requ
 def _importar_facturas(db: Session, headers: list, data_rows: list, user, request: Request, local_id=None):
     col_num = _col_index(headers, "numero_factura")
     col_cliente = _col_index(headers, "cliente_nombre")
+    col_empresa = _col_index(headers, "cliente_empresa")
     col_doc = _col_index(headers, "cliente_documento")
     col_tel = _col_index(headers, "cliente_telefono")
     col_email = _col_index(headers, "cliente_email")
@@ -768,7 +773,7 @@ def _importar_facturas(db: Session, headers: list, data_rows: list, user, reques
             errores += 1
             continue
 
-        # Numero de factura
+        # Numero de factura (auto-generar si no se proporciona)
         num_factura = _cell_str(row, col_num)
         if not num_factura:
             num_factura = f"FAC-{next_num:04d}"
@@ -804,6 +809,7 @@ def _importar_facturas(db: Session, headers: list, data_rows: list, user, reques
         factura = models.Factura(
             numero_factura=num_factura,
             cliente_nombre=cliente,
+            cliente_empresa=_cell_str(row, col_empresa),
             cliente_documento=_cell_str(row, col_doc),
             cliente_telefono=_cell_str(row, col_tel),
             cliente_email=_cell_str(row, col_email),
@@ -818,7 +824,6 @@ def _importar_facturas(db: Session, headers: list, data_rows: list, user, reques
         )
         db.add(factura)
         creados += 1
-        next_num += 1
 
     db.commit()
 

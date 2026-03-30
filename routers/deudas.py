@@ -51,12 +51,16 @@ def lista_deudas(
     deudas = query.order_by(models.Deuda.fecha_vencimiento.asc().nullsfirst(),
                             models.Deuda.created_at.desc()).all()
 
+    total_deuda = sum(d.monto_total for d in deudas)
+    total_pagado = sum(d.monto_pagado for d in deudas)
     total_pendiente = sum(d.monto_pendiente for d in deudas if d.estado != "PAGADO")
     total_vencidas = sum(1 for d in deudas if d.esta_vencida)
 
     return templates.TemplateResponse("deudas/lista.html", {
         "request": request,
         "deudas": deudas,
+        "total_deuda": total_deuda,
+        "total_pagado": total_pagado,
         "total_pendiente": total_pendiente,
         "total_vencidas": total_vencidas,
         "estado": estado or "",
@@ -91,6 +95,7 @@ def crear_deuda(
     request: Request,
     concepto: str = Form(...),
     acreedor_nombre: str = Form(...),
+    acreedor_empresa: str = Form(""),
     acreedor_tipo: str = Form("OTRO"),
     acreedor_id: str = Form(""),
     proveedor_id: str = Form(""),
@@ -109,6 +114,7 @@ def crear_deuda(
     deuda = models.Deuda(
         concepto=concepto.strip(),
         acreedor_nombre=acreedor_nombre.strip(),
+        acreedor_empresa=acreedor_empresa.strip(),
         acreedor_tipo=acreedor_tipo,
         acreedor_id=acr_id,
         proveedor_id=prov_id,
@@ -158,6 +164,7 @@ def actualizar_deuda(
     request: Request,
     concepto: str = Form(...),
     acreedor_nombre: str = Form(...),
+    acreedor_empresa: str = Form(""),
     acreedor_tipo: str = Form("OTRO"),
     acreedor_id: str = Form(""),
     proveedor_id: str = Form(""),
@@ -178,6 +185,7 @@ def actualizar_deuda(
 
     deuda.concepto = concepto.strip()
     deuda.acreedor_nombre = acreedor_nombre.strip()
+    deuda.acreedor_empresa = acreedor_empresa.strip()
     deuda.acreedor_tipo = acreedor_tipo
     deuda.acreedor_id = int(acreedor_id) if acreedor_id.strip() else None
     deuda.proveedor_id = int(proveedor_id) if proveedor_id.strip() else None
@@ -233,31 +241,36 @@ def registrar_pago(
     current_user: models.Usuario = Depends(require_auth),
 ):
     local_id = get_local_id(request)
-    query = db.query(models.Deuda).filter(models.Deuda.id == deuda_id)
-    if local_id is not None:
-        query = query.filter(models.Deuda.local_id == local_id)
-    deuda = query.first()
-    if not deuda:
-        return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
-    if deuda.estado == "PAGADO":
-        return RedirectResponse(f"/deudas/{deuda_id}/detalle?error=La+deuda+ya+está+completamente+pagada", status_code=303)
     if monto <= 0:
         return RedirectResponse(f"/deudas/{deuda_id}/detalle?error=El+monto+debe+ser+mayor+a+cero", status_code=303)
 
-    monto_aplicar = min(monto, deuda.monto_pendiente)
-    pago = models.PagoDeuda(
-        deuda_id=deuda_id,
-        monto=monto_aplicar,
-        fecha_pago=datetime.strptime(fecha_pago, "%Y-%m-%d"),
-        metodo_pago=metodo_pago,
-        comprobante=comprobante.strip(),
-        notas=notas.strip(),
-    )
-    pago.local_id = local_id
-    db.add(pago)
-    deuda.monto_pagado = round(deuda.monto_pagado + monto_aplicar, 2)
-    _actualizar_estado(deuda)
-    db.commit()
+    try:
+        query = db.query(models.Deuda).filter(models.Deuda.id == deuda_id)
+        if local_id is not None:
+            query = query.filter(models.Deuda.local_id == local_id)
+        deuda = query.with_for_update().first()
+        if not deuda:
+            return RedirectResponse("/deudas?error=Deuda+no+encontrada", status_code=303)
+        if deuda.estado == "PAGADO":
+            return RedirectResponse(f"/deudas/{deuda_id}/detalle?error=La+deuda+ya+está+completamente+pagada", status_code=303)
+
+        monto_aplicar = min(monto, deuda.monto_pendiente)
+        pago = models.PagoDeuda(
+            deuda_id=deuda_id,
+            monto=monto_aplicar,
+            fecha_pago=datetime.strptime(fecha_pago, "%Y-%m-%d"),
+            metodo_pago=metodo_pago,
+            comprobante=comprobante.strip(),
+            notas=notas.strip(),
+        )
+        pago.local_id = local_id
+        db.add(pago)
+        deuda.monto_pagado = round(deuda.monto_pagado + monto_aplicar, 2)
+        _actualizar_estado(deuda)
+        db.commit()
+    except Exception:
+        db.rollback()
+        return RedirectResponse(f"/deudas/{deuda_id}/detalle?error=Error+al+registrar+el+pago", status_code=303)
 
     ip = request.client.host if request.client else ""
     log_audit(db, current_user, "CREATE", "pago_deuda", pago.id,
@@ -294,6 +307,66 @@ def eliminar_pago(deuda_id: int, pago_id: int, request: Request,
               f"Pago eliminado: ${monto_pago:,.2f} de deuda #{deuda_id}", ip)
 
     return RedirectResponse(f"/deudas/{deuda_id}/detalle?msg=Pago+eliminado+correctamente", status_code=303)
+
+
+# ── Exportar Excel ───────────────────────────────────────────────────────────
+
+@router.get("/exportar")
+def exportar_deudas(
+    request: Request,
+    db: Session = Depends(get_db),
+    estado: str = None,
+    acreedor_tipo: str = None,
+    buscar: str = None,
+):
+    from utils.excel import generate_excel
+
+    local_id = get_local_id(request)
+    query = db.query(models.Deuda)
+    if local_id is not None:
+        query = query.filter(models.Deuda.local_id == local_id)
+    if estado:
+        query = query.filter(models.Deuda.estado == estado)
+    if acreedor_tipo:
+        query = query.filter(models.Deuda.acreedor_tipo == acreedor_tipo)
+    if buscar:
+        term = f"%{buscar}%"
+        query = query.filter(
+            models.Deuda.acreedor_nombre.ilike(term)
+            | models.Deuda.concepto.ilike(term)
+        )
+    deudas = query.order_by(models.Deuda.fecha_vencimiento.asc().nullsfirst(),
+                            models.Deuda.created_at.desc()).all()
+
+    headers = ["Acreedor", "Empresa", "Tipo", "Concepto", "Fecha Deuda",
+               "Vencimiento", "Total", "Pagado", "Pendiente", "Estado"]
+    rows = []
+    for d in deudas:
+        estado_txt = "VENCIDA" if d.esta_vencida else d.estado
+        rows.append([
+            d.acreedor_nombre,
+            d.acreedor_empresa or "",
+            d.acreedor_tipo,
+            d.concepto,
+            d.fecha_deuda.strftime("%d/%m/%Y") if d.fecha_deuda else "",
+            d.fecha_vencimiento.strftime("%d/%m/%Y") if d.fecha_vencimiento else "",
+            d.monto_total,
+            d.monto_pagado,
+            d.monto_pendiente,
+            estado_txt,
+        ])
+
+    output = generate_excel(
+        "Listado de Deudas", headers, rows,
+        col_widths=[22, 18, 14, 28, 14, 14, 14, 14, 14, 12],
+        money_cols=[6, 7, 8],
+    )
+    filename = f"deudas_{date.today().strftime('%Y%m%d')}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 # ── Reporte HTML ─────────────────────────────────────────────────────────────

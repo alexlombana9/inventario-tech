@@ -11,7 +11,7 @@
 </div>
 
 <div class="form-card">
-  <form method="post" action="/proveedores/{{ proveedor.id ~ '/editar' if proveedor else 'nuevo' }}">
+  <form method="post" action="/proveedores/{{ proveedor.id ~ '/editar' if proveedor else 'nuevo' }}" data-validate>
         <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
     <div class="row g-3">
 

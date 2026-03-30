@@ -180,6 +180,58 @@ class TestAuthMiddleware:
             monkeypatch.setattr(middleware, "_TESTING", True)
 
 
+class TestExtractCsrfTokenMultipart:
+    """Verifica que _extract_csrf_token extrae tokens completos de multipart."""
+
+    def test_multipart_token_with_hyphens(self):
+        """Tokens itsdangerous contienen guiones — la regex no debe truncarlos."""
+        from middleware import _extract_csrf_token
+        token = "eyJjc3JmIjp0cnVl.ZxY2Nk-abc_def.sig-na-ture"
+        body = (
+            b"------boundary\r\n"
+            b'Content-Disposition: form-data; name="csrf_token"\r\n'
+            b"\r\n"
+            + token.encode()
+            + b"\r\n------boundary--"
+        )
+        result = _extract_csrf_token(body, "multipart/form-data; boundary=----boundary")
+        assert result == token
+
+    def test_multipart_token_without_hyphens(self):
+        from middleware import _extract_csrf_token
+        token = "simpleTokenNoHyphens.abc123"
+        body = (
+            b"------boundary\r\n"
+            b'Content-Disposition: form-data; name="csrf_token"\r\n'
+            b"\r\n"
+            + token.encode()
+            + b"\r\n------boundary--"
+        )
+        result = _extract_csrf_token(body, "multipart/form-data; boundary=----boundary")
+        assert result == token
+
+    def test_multipart_real_csrf_token(self):
+        """Token CSRF real generado por itsdangerous debe extraerse completo."""
+        from auth import create_session_cookie, generate_csrf_token
+        from middleware import _extract_csrf_token
+        cookie = create_session_cookie(1, "admin")
+        token = generate_csrf_token(cookie)
+        body = (
+            b"------WebKitFormBoundary\r\n"
+            b'Content-Disposition: form-data; name="csrf_token"\r\n'
+            b"\r\n"
+            + token.encode()
+            + b"\r\n------WebKitFormBoundary\r\n"
+            b'Content-Disposition: form-data; name="archivo"; filename="backup.sql"\r\n'
+            b"Content-Type: application/octet-stream\r\n"
+            b"\r\n"
+            b"SQL DATA HERE\r\n"
+            b"------WebKitFormBoundary--"
+        )
+        result = _extract_csrf_token(body, "multipart/form-data; boundary=----WebKitFormBoundary")
+        assert result == token
+
+
 # ── Tests directos de funciones de auth ───────────────────────────────────────
 
 class TestDecodeSessionCookie:

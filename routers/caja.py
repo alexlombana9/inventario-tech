@@ -68,18 +68,29 @@ def abrir_caja(
     current_user: models.Usuario = Depends(require_auth),
 ):
     local_id = get_local_id(request)
-    existente = _caja_abierta(db, current_user.id, local_id)
-    if existente:
-        return RedirectResponse("/caja?error=Ya+tienes+una+caja+abierta", status_code=303)
 
-    caja = models.Caja(
-        usuario_id=current_user.id,
-        monto_apertura=monto_apertura,
-        fecha_apertura=datetime.now(),
-    )
-    caja.local_id = local_id
-    db.add(caja)
-    db.commit()
+    try:
+        # Lock del usuario para serializar apertura de caja y evitar duplicados
+        db.query(models.Usuario).filter(
+            models.Usuario.id == current_user.id
+        ).with_for_update().first()
+
+        existente = _caja_abierta(db, current_user.id, local_id)
+        if existente:
+            db.rollback()
+            return RedirectResponse("/caja?error=Ya+tienes+una+caja+abierta", status_code=303)
+
+        caja = models.Caja(
+            usuario_id=current_user.id,
+            monto_apertura=monto_apertura,
+            fecha_apertura=datetime.now(),
+        )
+        caja.local_id = local_id
+        db.add(caja)
+        db.commit()
+    except Exception:
+        db.rollback()
+        return RedirectResponse("/caja?error=Error+al+abrir+la+caja", status_code=303)
 
     ip = request.client.host if request.client else ""
     log_audit(db, current_user, "CREATE", "caja", caja.id,
@@ -165,6 +176,10 @@ def registrar_movimiento_caja(
     mov.local_id = local_id
     db.add(mov)
     db.commit()
+
+    ip = request.client.host if request.client else ""
+    log_audit(db, current_user, "CREATE", "movimiento_caja", mov.id,
+              f"{tipo} manual en caja #{caja.id}: ${monto:,.2f} - {concepto.strip()}", ip)
 
     return RedirectResponse(f"/caja?msg=Movimiento+registrado+correctamente", status_code=303)
 

@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Request, Depends, Form
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime, date, timedelta
@@ -112,6 +112,78 @@ def lista_gastos(
         "msg": msg,
         "error": error,
     })
+
+
+# ── Exportar Excel ─────────────────────────────────────────────
+
+@router.get("/exportar")
+def exportar_gastos(
+    request: Request,
+    db: Session = Depends(get_db),
+    tipo: str = None,
+    categoria_gasto: str = None,
+    fecha_desde: str = None,
+    fecha_hasta: str = None,
+    buscar: str = None,
+):
+    from utils.excel import generate_excel
+
+    local_id = get_local_id(request)
+
+    if not fecha_desde:
+        fecha_desde = (date.today() - timedelta(days=30)).strftime("%Y-%m-%d")
+    if not fecha_hasta:
+        fecha_hasta = date.today().strftime("%Y-%m-%d")
+
+    query = db.query(models.Gasto).filter(models.Gasto.activo == True)
+    if local_id is not None:
+        query = query.filter(models.Gasto.local_id == local_id)
+
+    try:
+        fd = datetime.strptime(fecha_desde, "%Y-%m-%d")
+        fh = datetime.strptime(fecha_hasta, "%Y-%m-%d").replace(hour=23, minute=59, second=59)
+        query = query.filter(models.Gasto.fecha >= fd, models.Gasto.fecha <= fh)
+    except ValueError:
+        pass
+
+    if tipo and tipo.strip():
+        query = query.filter(models.Gasto.tipo == tipo)
+    if categoria_gasto and categoria_gasto.strip():
+        query = query.filter(models.Gasto.categoria_gasto == categoria_gasto)
+    if buscar:
+        query = query.filter(
+            models.Gasto.concepto.ilike(f"%{buscar}%") |
+            models.Gasto.comprobante.ilike(f"%{buscar}%")
+        )
+
+    gastos = query.order_by(models.Gasto.fecha.desc()).all()
+
+    headers = ["Fecha", "Concepto", "Tipo", "Categoria", "Monto",
+               "Metodo Pago", "Comprobante", "Notas"]
+    rows = []
+    for g in gastos:
+        rows.append([
+            g.fecha.strftime("%d/%m/%Y") if g.fecha else "",
+            g.concepto,
+            g.tipo,
+            g.categoria_gasto or "",
+            g.monto,
+            g.metodo_pago,
+            g.comprobante or "",
+            g.notas or "",
+        ])
+
+    output = generate_excel(
+        "Listado de Gastos", headers, rows,
+        col_widths=[14, 30, 14, 18, 14, 16, 16, 24],
+        money_cols=[4],
+    )
+    filename = f"gastos_{fecha_desde}_{fecha_hasta}.xlsx"
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 # ── Nuevo ─────────────────────────────────────────────────────

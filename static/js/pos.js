@@ -94,17 +94,20 @@ function renderCart() {
     html += '<div class="cart-item" data-idx="' + idx + '">' +
       '<div class="qty-control">' +
         '<button class="btn btn-sm btn-outline-secondary" data-action="qty-down">-</button>' +
-        '<input type="number" value="' + item.cantidad + '" min="1" max="' + item.stock + '" step="1" data-action="qty-input">' +
+        '<input type="number" value="' + item.cantidad + '" min="0.01" max="' + item.stock + '" step="any" data-action="qty-input">' +
         '<button class="btn btn-sm btn-outline-secondary" data-action="qty-up">+</button>' +
       '</div>' +
       '<div class="item-info">' +
         '<div class="item-name">' + _escapeHtml(item.nombre) + '</div>' +
+        '<div class="item-meta">' + _escapeHtml(item.codigo) +
+          (item.referencia ? ' | Ref: ' + _escapeHtml(item.referencia) : '') +
+        '</div>' +
         '<div class="item-price-edit">' +
           '<i class="bi bi-pencil-fill price-edit-icon"></i>' +
           precioOrigLabel +
           '<input type="number" class="form-control form-control-sm price-input' +
                  (precioModificado ? ' price-modified' : '') + '" ' +
-                 'value="' + item.precio_unitario + '" min="0" step="100" ' +
+                 'value="' + item.precio_unitario + '" min="0" step="any" ' +
                  'data-action="price-input" title="Precio de venta — click para editar">' +
           '<span class="price-unit">c/u</span>' +
         '</div>' +
@@ -204,7 +207,7 @@ document.addEventListener('DOMContentLoaded', function() {
   // Client name sync
   document.getElementById('clienteSelect').addEventListener('change', function() {
     var opt = this.options[this.selectedIndex];
-    document.getElementById('clienteNombre').value = opt.text || 'Consumidor Final';
+    document.getElementById('clienteNombre').value = opt.dataset.nombre || opt.text || 'Consumidor Final';
   });
 
   // Form submit

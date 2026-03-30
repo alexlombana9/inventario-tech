@@ -1,5 +1,10 @@
 <!DOCTYPE html>
 <html lang="es">
+<script>
+  (function(){var t=localStorage.getItem('techstock_theme');
+  if(t==='dark'||(!t&&window.matchMedia('(prefers-color-scheme: dark)').matches))
+  document.documentElement.setAttribute('data-theme','dark');})();
+</script>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -28,30 +33,56 @@
       padding: 40px 36px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     }
+    [data-theme="dark"] body { background: linear-gradient(135deg, #141725 0%, #191d2b 50%, #1b2040 100%); }
+    [data-theme="dark"] .login-card { background: #232839; box-shadow: 0 20px 60px rgba(0,0,0,0.45); }
+    [data-theme="dark"] .login-brand h1 { color: #e2e8f0; }
+    [data-theme="dark"] .login-brand p { color: #94a3b8; }
+    [data-theme="dark"] .form-label { color: #9ca3b4; }
+    [data-theme="dark"] .form-control { background: #1b1f2e; border-color: #3d4459; color: #dce1eb; }
+    [data-theme="dark"] .form-control:focus { border-color: #5b8dea; box-shadow: 0 0 0 3px rgba(91,141,234,0.2); }
+    [data-theme="dark"] .form-control::placeholder { color: #5c6378; }
+    [data-theme="dark"] .input-group-text { background: #282d3f; border-color: #3d4459; color: #9ca3b4; }
+    [data-theme="dark"] .alert-danger { background-color: #2f1c22; color: #f47067; }
     .login-brand {
       text-align: center;
       margin-bottom: 32px;
     }
     .login-brand .icon {
-      width: 64px; height: 64px;
-      background: linear-gradient(135deg, #0d6efd, #4fc3f7);
-      border-radius: 16px;
+      width: 68px; height: 68px;
+      background: linear-gradient(135deg, #3b82f6, #06b6d4);
+      border-radius: 18px;
       display: inline-flex;
       align-items: center; justify-content: center;
-      font-size: 1.8rem;
       color: #fff;
       margin-bottom: 16px;
-      box-shadow: 0 8px 24px rgba(13,110,253,0.3);
+      box-shadow: 0 8px 28px rgba(59,130,246,0.35);
+      position: relative;
+    }
+    .login-brand .icon .icon-main { font-size: 2rem; }
+    .login-brand .icon .icon-accent {
+      position: absolute;
+      bottom: 5px;
+      right: 5px;
+      font-size: 0.75rem;
+      background: rgba(0,0,0,0.2);
+      border-radius: 4px;
+      padding: 2px 3px;
+      line-height: 1;
     }
     .login-brand h1 {
-      font-size: 1.5rem;
-      font-weight: 700;
+      font-size: 1.6rem;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
       color: #212529;
       margin: 0 0 4px;
     }
     .login-brand p {
-      font-size: 0.85rem;
+      font-size: 0.78rem;
+      font-weight: 600;
       color: #6c757d;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
       margin: 0;
     }
     .form-label {
@@ -109,20 +140,53 @@
       font-size: 0.75rem;
       color: rgba(255,255,255,0.4);
     }
+    .btn-theme-login {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.15);
+      background: rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.7);
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      z-index: 100;
+      backdrop-filter: blur(4px);
+    }
+    .btn-theme-login:hover {
+      background: rgba(255,255,255,0.15);
+      color: #fff;
+      transform: scale(1.08);
+    }
+    [data-theme="dark"] .btn-theme-login {
+      border-color: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.05);
+    }
     @media (max-width: 480px) {
       .login-card { padding: 28px 24px; }
-      .login-brand .icon { width: 52px; height: 52px; font-size: 1.4rem; }
+      .login-brand .icon { width: 56px; height: 56px; }
+      .login-brand .icon .icon-main { font-size: 1.6rem; }
       .login-brand h1 { font-size: 1.3rem; }
+      .btn-theme-login { top: 12px; right: 12px; width: 36px; height: 36px; font-size: 1rem; }
     }
   </style>
 </head>
 <body>
+  <button class="btn-theme-login" id="themeToggle" title="Cambiar tema">
+    <i class="bi bi-moon-fill"></i>
+  </button>
+
   <div class="login-container">
     <div class="login-card">
       <div class="login-brand">
-        <div class="icon"><i class="bi bi-cpu-fill"></i></div>
+        <div class="icon"><i class="bi bi-boxes icon-main"></i><i class="bi bi-cpu icon-accent"></i></div>
         <h1>TechStock</h1>
-        <p>Sistema de Inventario</p>
+        <p>Inventario & POS</p>
       </div>
 
       {% if error %}
@@ -171,7 +235,31 @@
       </div>
       {% endif %}
     </div>
-    <p class="footer-text">TechStock v2.0 &mdash; Gestión de Inventario</p>
+    <p class="footer-text">TechStock v3.1 &mdash; Sistema de Inventario</p>
   </div>
+
+  <script>
+    (function(){
+      var btn = document.getElementById('themeToggle');
+      if (!btn) return;
+      function update() {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        btn.innerHTML = dark ? '<i class="bi bi-sun-fill"></i>' : '<i class="bi bi-moon-fill"></i>';
+        btn.title = dark ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro';
+      }
+      update();
+      btn.addEventListener('click', function() {
+        var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+        if (dark) {
+          document.documentElement.removeAttribute('data-theme');
+          localStorage.setItem('techstock_theme', 'light');
+        } else {
+          document.documentElement.setAttribute('data-theme', 'dark');
+          localStorage.setItem('techstock_theme', 'dark');
+        }
+        update();
+      });
+    })();
+  </script>
 </body>
 </html>
