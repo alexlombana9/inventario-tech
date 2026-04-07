@@ -65,6 +65,13 @@
     </tbody>
   </table>
 
+  {% if venta.notas %}
+  <div class="recibo-divider"></div>
+  <table class="w-100 recibo-table">
+    <tr><td><strong>Nota:</strong></td><td class="text-end">{{ venta.notas }}</td></tr>
+  </table>
+  {% endif %}
+
   <div class="recibo-divider"></div>
 
   <table class="w-100 recibo-table">

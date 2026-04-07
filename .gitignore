@@ -65,6 +65,6 @@ build/
 *.exe
 *.zip
 
-# ===== PostgreSQL portable (descargado por build_installer.bat) =====
+# ===== PostgreSQL portable (descargado por quickstart.py --build) =====
 pgsql/
 postgresql-*-binaries.zip

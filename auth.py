@@ -227,6 +227,7 @@ MODULOS_DISPONIBLES = [
     ("deudas", "Cuentas por Pagar"),
     ("facturas", "Cuentas por Cobrar"),
     ("gastos", "Gastos"),
+    ("contabilidad", "Contabilidad"),
     ("reportes", "Reportes"),
 ]
 

@@ -110,6 +110,7 @@
           <th data-sortable>N° Venta</th>
           <th data-sortable>Fecha</th>
           <th class="d-mobile-none" data-sortable>Cliente</th>
+          <th class="d-mobile-none">Nota</th>
           <th class="d-mobile-none">Método</th>
           <th class="text-end" data-sortable>Total</th>
           <th class="text-end d-mobile-none" data-sortable>Costo</th>
@@ -124,6 +125,7 @@
           <td><strong>{{ v.numero_venta }}</strong></td>
           <td>{{ v.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
           <td class="d-mobile-none">{{ v.cliente_nombre }}</td>
+          <td class="d-mobile-none"><small class="text-muted">{{ v.notas or '—' }}</small></td>
           <td class="d-mobile-none"><span class="badge bg-secondary">{{ v.metodo_pago }}</span></td>
           <td class="text-end fw-bold">{{ v.total | moneda }}</td>
           <td class="text-end d-mobile-none">
@@ -158,7 +160,7 @@
         {% endfor %}
         {% if not ventas %}
         <tr>
-          <td colspan="9">
+          <td colspan="10">
             <div class="empty-state">
               <i class="bi bi-receipt-cutoff empty-icon"></i>
               <div class="empty-title">No se encontraron ventas</div>

@@ -42,6 +42,11 @@
         {% if venta.estado == 'COMPLETADA' %}<span class="badge bg-success">Completada</span>
         {% else %}<span class="badge bg-danger">Anulada</span>{% endif %}
       </p>
+      {% if venta.notas %}
+      <hr>
+      <p><strong>Notas:</strong></p>
+      <p class="text-muted">{{ venta.notas }}</p>
+      {% endif %}
     </div>
   </div>
 

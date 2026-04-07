@@ -152,7 +152,7 @@
     {% endif %}
 
     <!-- ── FINANZAS ── -->
-    {% if u and (has_permiso(u, 'acreedores') or has_permiso(u, 'deudas') or has_permiso(u, 'facturas') or has_permiso(u, 'gastos')) %}
+    {% if u and (has_permiso(u, 'acreedores') or has_permiso(u, 'deudas') or has_permiso(u, 'facturas') or has_permiso(u, 'gastos') or has_permiso(u, 'contabilidad')) %}
     <li class="nav-section">Finanzas</li>
 
     {% if has_permiso(u, 'acreedores') %}
@@ -184,6 +184,14 @@
       <a href="/gastos" class="nav-link {% if '/gastos' in request.url.path %}active{% endif %}">
         <i class="bi bi-wallet2"></i>
         <span>Gastos</span>
+      </a>
+    </li>
+    {% endif %}
+    {% if has_permiso(u, 'contabilidad') %}
+    <li class="nav-item">
+      <a href="/contabilidad" class="nav-link {% if '/contabilidad' in request.url.path %}active{% endif %}">
+        <i class="bi bi-journal-text"></i>
+        <span>Contabilidad</span>
       </a>
     </li>
     {% endif %}

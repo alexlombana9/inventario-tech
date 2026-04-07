@@ -924,7 +924,7 @@ class TechStockLauncher:
     def _pg_check_port_in_use(self):
         """Verifica si el puerto PG ya esta en uso."""
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(2)
+            s.settimeout(0.5)
             result = s.connect_ex(("127.0.0.1", int(PG_PORT)))
             return result == 0  # True = puerto en uso
 
@@ -1173,18 +1173,24 @@ class TechStockLauncher:
             self.root.after(0, self._set_pg_status, "Error PostgreSQL", DANGER)
             return False
 
-        # Esperar a que PG responda en el puerto (polling propio)
+        # Esperar a que PG acepte conexiones SQL (un solo loop unificado)
         self.root.after(0, self._log, "Esperando que PostgreSQL acepte conexiones...", "INFO")
-        for i in range(_max_wait):  # Max 30-45 segundos
+        _started = False
+        for i in range(_max_wait):
+            # Primero verificar puerto (rapido)
             if self._pg_check_port_in_use():
-                break
+                # Luego verificar SQL real (solo si puerto responde)
+                if self._pg_check_connection():
+                    _started = True
+                    break
             if i > 0 and i % 5 == 0:
                 self.root.after(0, self._set_pg_status,
                     f"Iniciando PostgreSQL... ({i}s)", WARNING)
-            time.sleep(1)
-        else:
+            time.sleep(0.5)
+
+        if not _started:
             self.root.after(0, self._log,
-                f"PostgreSQL no respondio en {_max_wait}s en puerto {PG_PORT}", "ERROR")
+                f"PostgreSQL no respondio en {_max_wait // 2}s en puerto {PG_PORT}", "ERROR")
             log_tail = self._pg_read_log_tail()
             if log_tail:
                 self.root.after(0, self._log, "--- pg.log ---", "WARN")
@@ -1196,13 +1202,6 @@ class TechStockLauncher:
         self.pg_running = True
         self.root.after(0, self._set_pg_status, "PostgreSQL activo", SUCCESS)
         self.root.after(0, self._log, f"PostgreSQL iniciado en puerto {PG_PORT}.", "OK")
-
-        # Esperar a que PG acepte SQL real antes de crear usuario/DB
-        self.root.after(0, self._log, "Verificando que PostgreSQL acepte consultas...", "INFO")
-        for _i in range(15):
-            if self._pg_check_connection():
-                break
-            time.sleep(1)
 
         self._pg_ensure_db()
         return True
@@ -1408,7 +1407,7 @@ class TechStockLauncher:
     # ────────────────────────────────────────────────────────
 
     def _check_db_connection(self):
-        """Verifica la conexion a la DB: socket rapido + SQLAlchemy."""
+        """Verifica la conexion a la DB: socket + psql SELECT 1."""
         pg_port = int(PG_PORT)
 
         # Paso 1: check rapido de socket (max 3s)
@@ -1416,7 +1415,7 @@ class TechStockLauncher:
         try:
             with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
                 s.settimeout(3)
-                result = s.connect_ex(("localhost", pg_port))
+                result = s.connect_ex(("127.0.0.1", pg_port))
                 if result != 0:
                     self.root.after(0, self._log,
                         f"Puerto {pg_port} no responde \u2014 PostgreSQL no esta disponible", "ERROR")
@@ -1429,40 +1428,44 @@ class TechStockLauncher:
 
         self.root.after(0, self._log, f"Puerto {pg_port} responde. Verificando conexion SQL...", "INFO")
 
-        # Paso 2: conexion real con SQLAlchemy (timeout 5s)
-        try:
-            from sqlalchemy import create_engine, text as sa_text
+        # Paso 2: verificar conexion real con psql (disponible en PG portable y sistema)
+        psql = _pg_cmd("psql")
+        if os.path.exists(psql):
+            try:
+                r = subprocess.run(
+                    [psql, "-U", PG_USER, "-p", str(pg_port), "-d", PG_DB,
+                     "-c", "SELECT 1", "-t", "-A"],
+                    capture_output=True, text=True, timeout=5,
+                    creationflags=_SUBPROCESS_FLAGS,
+                    env={**os.environ, "PGPASSWORD": PG_PASSWORD},
+                )
+                if r.returncode == 0:
+                    return True
+                err_msg = (r.stderr or r.stdout or "").strip()
+                if "does not exist" in err_msg:
+                    self.root.after(0, self._log,
+                        f"La base de datos '{PG_DB}' no existe. Se creara al iniciar.", "WARN")
+                    return True
+                if "password authentication failed" in err_msg:
+                    self.root.after(0, self._log,
+                        "Error de autenticacion \u2014 verifique usuario y password en Configuracion", "ERROR")
+                elif "Connection refused" in err_msg:
+                    self.root.after(0, self._log,
+                        "Conexion rechazada \u2014 PostgreSQL no acepta conexiones", "ERROR")
+                else:
+                    self.root.after(0, self._log, f"Error de conexion: {err_msg[:200]}", "ERROR")
+                return False
+            except subprocess.TimeoutExpired:
+                self.root.after(0, self._log, "Timeout verificando conexion SQL", "WARN")
+                return True  # PG responde en socket, psql timeout — asumir OK
+            except FileNotFoundError:
+                pass  # psql no encontrado, caer al fallback
 
-            db_url = os.environ.get("DATABASE_URL",
-                f"postgresql://{PG_USER}:{PG_PASSWORD}@127.0.0.1:{PG_PORT}/{PG_DB}")
-
-            test_engine = create_engine(
-                db_url,
-                pool_pre_ping=True,
-                pool_size=1,
-                max_overflow=0,
-                connect_args={"connect_timeout": 5},
-            )
-            with test_engine.connect() as conn:
-                conn.execute(sa_text("SELECT 1"))
-            test_engine.dispose()
-            return True
-        except Exception as e:
-            err_msg = str(e)
-            # Mensaje amigable para errores comunes
-            if "does not exist" in err_msg:
-                self.root.after(0, self._log,
-                    f"La base de datos '{PG_DB}' no existe. Se creara al iniciar.", "WARN")
-                return True  # DB no existe pero PG responde — main.py la creara
-            if "password authentication failed" in err_msg:
-                self.root.after(0, self._log,
-                    "Error de autenticacion \u2014 verifique usuario y password en Configuracion", "ERROR")
-            elif "Connection refused" in err_msg:
-                self.root.after(0, self._log,
-                    "Conexion rechazada \u2014 PostgreSQL no acepta conexiones", "ERROR")
-            else:
-                self.root.after(0, self._log, f"Error de conexion: {err_msg[:200]}", "ERROR")
-            return False
+        # Fallback: si psql no esta disponible, el socket check es suficiente
+        # PG respondio en el puerto — la conexion funciona
+        self.root.after(0, self._log,
+            "Socket OK. psql no disponible para verificacion SQL completa.", "INFO")
+        return True
 
     # ────────────────────────────────────────────────────────
     #  Server control — NON-BLOCKING

@@ -1,0 +1,553 @@
+{% extends "base.html" %}
+{% block title %}Contabilidad{% endblock %}
+{% block page_title %}Contabilidad &rsaquo; Estado Financiero{% endblock %}
+
+{% block content %}
+
+<!-- ════════════════════════ FILTRO DE FECHAS ════════════════════════ -->
+<div class="page-header">
+  <div>
+    <h1><i class="bi bi-journal-text me-2 text-primary"></i>Contabilidad</h1>
+    <small class="text-muted">Estado financiero del periodo</small>
+  </div>
+</div>
+
+<div class="search-bar mb-3">
+  <form method="GET" action="/contabilidad" id="filterForm" class="row g-2 align-items-end">
+    <div class="col-12 col-md-auto mb-1">
+      <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="hoy">Hoy</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="semana">Semana</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="mes">Mes</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="mes_ant">Mes Ant.</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="trimestre">Trimestre</button>
+        <button type="button" class="btn btn-outline-primary btn-periodo" data-periodo="anio">Anual</button>
+      </div>
+    </div>
+    <div class="col-auto">
+      <label class="form-label small mb-0">Desde</label>
+      <input type="date" name="fecha_desde" id="fecha_desde" class="form-control form-control-sm" value="{{ fecha_desde }}">
+    </div>
+    <div class="col-auto">
+      <label class="form-label small mb-0">Hasta</label>
+      <input type="date" name="fecha_hasta" id="fecha_hasta" class="form-control form-control-sm" value="{{ fecha_hasta }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Filtrar</button>
+    </div>
+    <div class="col-auto">
+      <a href="/contabilidad" class="btn btn-outline-secondary btn-sm">Limpiar</a>
+    </div>
+  </form>
+  <small class="text-muted mt-1 d-block">
+    <i class="bi bi-calendar-range me-1"></i>Periodo: {{ periodo_label }}
+  </small>
+</div>
+
+<!-- ════════════════════════ FILA 1: INDICADORES PRINCIPALES ════════════════════════ -->
+<div class="row g-3 mb-3">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#d1fae5">
+          <i class="bi bi-cash-stack text-success"></i>
+        </div>
+        <div>
+          <div class="stat-value text-success" style="font-size:1.15rem">{{ total_ventas | moneda }}</div>
+          <div class="stat-label">Ingresos ({{ cantidad_ventas }} ventas)</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#fce4ec">
+          <i class="bi bi-wallet2 text-danger"></i>
+        </div>
+        <div>
+          <div class="stat-value text-danger" style="font-size:1.15rem">{{ total_gastos | moneda }}</div>
+          <div class="stat-label">Gastos del periodo</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:#e0e7ff">
+          <i class="bi bi-graph-up-arrow text-primary"></i>
+        </div>
+        <div>
+          <div class="stat-value {% if utilidad_neta >= 0 %}text-primary{% else %}text-danger{% endif %}" style="font-size:1.15rem">{{ utilidad_neta | moneda }}</div>
+          <div class="stat-label">Utilidad Neta</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div class="d-flex align-items-center gap-3">
+        <div class="stat-icon" style="background:{% if margen_neto >= 0 %}#d1fae5{% else %}#fce4ec{% endif %}">
+          <i class="bi bi-percent {% if margen_neto >= 0 %}text-success{% else %}text-danger{% endif %}"></i>
+        </div>
+        <div>
+          <div class="stat-value {% if margen_neto >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-size:1.15rem">{{ margen_neto }}%</div>
+          <div class="stat-label">Margen Neto</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ FILA 2: ESTADO DE RESULTADOS ════════════════════════ -->
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-file-earmark-spreadsheet me-2 text-primary"></i>Estado de Resultados
+        </h6>
+        <span class="text-muted" style="font-size:.8rem">{{ periodo_label }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table mb-0" style="font-size:.88rem">
+          <tbody>
+            <tr>
+              <td class="ps-4"><span class="text-success"><i class="bi bi-plus-circle me-1"></i></span> Ventas brutas</td>
+              <td class="text-end pe-4 fw-bold">{{ total_ventas | moneda }}</td>
+            </tr>
+            <tr>
+              <td class="ps-4"><span class="text-danger"><i class="bi bi-dash-circle me-1"></i></span> Costo de ventas</td>
+              <td class="text-end pe-4">{{ costo_ventas | moneda }}</td>
+            </tr>
+            <tr style="border-top: 2px solid var(--border-color)">
+              <td class="ps-4 fw-bold"><span class="text-primary"><i class="bi bi-arrow-right me-1"></i></span> GANANCIA BRUTA</td>
+              <td class="text-end pe-4 fw-bold">
+                {{ ganancia_bruta | moneda }}
+                {% if margen_bruto > 0 %}
+                <small class="text-muted ms-1">({{ margen_bruto }}%)</small>
+                {% endif %}
+              </td>
+            </tr>
+            <tr><td colspan="2" style="height: 8px; border: none;"></td></tr>
+            <tr>
+              <td class="ps-4"><span class="text-danger"><i class="bi bi-dash-circle me-1"></i></span> Gastos operativos</td>
+              <td class="text-end pe-4">{{ total_gastos | moneda }}</td>
+            </tr>
+            <tr>
+              <td class="ps-5 text-muted" style="font-size:.82rem">Directos</td>
+              <td class="text-end pe-4 text-muted" style="font-size:.82rem">{{ gastos_directos | moneda }}</td>
+            </tr>
+            <tr>
+              <td class="ps-5 text-muted" style="font-size:.82rem">Indirectos</td>
+              <td class="text-end pe-4 text-muted" style="font-size:.82rem">{{ gastos_indirectos | moneda }}</td>
+            </tr>
+            <tr style="border-top: 2px solid var(--border-color)">
+              <td class="ps-4 fw-bold">
+                <span class="{% if utilidad_neta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                  <i class="bi bi-arrow-right me-1"></i>
+                </span> UTILIDAD NETA
+              </td>
+              <td class="text-end pe-4 fw-bold {% if utilidad_neta >= 0 %}text-success{% else %}text-danger{% endif %}">
+                {{ utilidad_neta | moneda }}
+                {% if margen_neto != 0 %}
+                <small class="ms-1">({{ margen_neto }}%)</small>
+                {% endif %}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ FILA 3: CxC + CxP + BALANCE ════════════════════════ -->
+<div class="row g-3 mb-3">
+
+  <!-- Cuentas por Cobrar -->
+  <div class="col-md-4">
+    <div class="table-card h-100">
+      <div class="p-3 border-bottom">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-receipt me-2 text-primary"></i>Cuentas por Cobrar
+        </h6>
+      </div>
+      <div class="p-3">
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Total pendiente</span>
+          <span class="fw-bold" style="font-size:.85rem">{{ facturas_pendientes_monto | moneda }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Facturas pendientes</span>
+          <span class="fw-bold" style="font-size:.85rem">{{ facturas_pendientes_count }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Monto vencido</span>
+          <span class="fw-bold" style="font-size:.85rem">
+            {{ facturas_vencidas_monto | moneda }}
+            {% if facturas_vencidas_count > 0 %}
+            <span class="badge bg-danger ms-1" style="font-size:.65rem">{{ facturas_vencidas_count }} vencida{{ 's' if facturas_vencidas_count != 1 }}</span>
+            {% endif %}
+          </span>
+        </div>
+        <hr style="margin: 8px 0; border-color: var(--border-color)">
+        <div class="d-flex justify-content-between">
+          <span style="font-size:.85rem">Cobrado en el periodo</span>
+          <span class="fw-bold text-success" style="font-size:.85rem">{{ total_cobrado_periodo | moneda }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cuentas por Pagar -->
+  <div class="col-md-4">
+    <div class="table-card h-100">
+      <div class="p-3 border-bottom">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-credit-card-2-back me-2 text-danger"></i>Cuentas por Pagar
+        </h6>
+      </div>
+      <div class="p-3">
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Total pendiente</span>
+          <span class="fw-bold" style="font-size:.85rem">{{ deudas_pendientes_monto | moneda }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Deudas pendientes</span>
+          <span class="fw-bold" style="font-size:.85rem">{{ deudas_pendientes_count }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Monto vencido</span>
+          <span class="fw-bold" style="font-size:.85rem">
+            {{ deudas_vencidas_monto | moneda }}
+            {% if deudas_vencidas_count > 0 %}
+            <span class="badge bg-danger ms-1" style="font-size:.65rem">{{ deudas_vencidas_count }} vencida{{ 's' if deudas_vencidas_count != 1 }}</span>
+            {% endif %}
+          </span>
+        </div>
+        <hr style="margin: 8px 0; border-color: var(--border-color)">
+        <div class="d-flex justify-content-between">
+          <span style="font-size:.85rem">Pagado en el periodo</span>
+          <span class="fw-bold text-danger" style="font-size:.85rem">{{ total_pagado_periodo | moneda }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Balance General -->
+  <div class="col-md-4">
+    <div class="table-card h-100">
+      <div class="p-3 border-bottom">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-bank me-2 text-info"></i>Balance General
+        </h6>
+      </div>
+      <div class="p-3">
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Valor inventario</span>
+          <span class="fw-bold" style="font-size:.85rem">{{ valor_inventario | moneda }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Cuentas por cobrar</span>
+          <span class="fw-bold" style="font-size:.85rem">{{ facturas_pendientes_monto | moneda }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span style="font-size:.85rem">Efectivo en caja</span>
+          <span class="fw-bold" style="font-size:.85rem">{{ efectivo_caja | moneda }}</span>
+        </div>
+        <hr style="margin: 8px 0; border-color: var(--border-color)">
+        <div class="d-flex justify-content-between mb-2">
+          <span class="fw-bold" style="font-size:.85rem">Activos totales</span>
+          <span class="fw-bold text-success" style="font-size:.85rem">{{ activos | moneda }}</span>
+        </div>
+        <div class="d-flex justify-content-between mb-2">
+          <span class="fw-bold" style="font-size:.85rem">Pasivos totales</span>
+          <span class="fw-bold text-danger" style="font-size:.85rem">{{ pasivos | moneda }}</span>
+        </div>
+        <hr style="margin: 8px 0; border-color: var(--border-color)">
+        <div class="d-flex justify-content-between">
+          <span class="fw-bold" style="font-size:.88rem">Patrimonio estimado</span>
+          <span class="fw-bold {% if patrimonio_estimado >= 0 %}text-success{% else %}text-danger{% endif %}" style="font-size:.88rem">{{ patrimonio_estimado | moneda }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════ FILA 4: GRAFICAS ════════════════════════ -->
+<div class="row g-3 mb-3">
+
+  <!-- Flujo de Caja -->
+  <div class="col-lg-6">
+    <div class="chart-card h-100">
+      <div class="chart-title">
+        <i class="bi bi-bar-chart-line me-1 text-primary"></i>Flujo de Caja — Ingresos vs Egresos
+      </div>
+      <div class="chart-container">
+        <canvas id="chartFlujoCaja"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distribucion de Gastos -->
+  <div class="col-lg-6">
+    <div class="chart-card h-100">
+      <div class="chart-title">
+        <i class="bi bi-pie-chart me-1 text-primary"></i>Distribucion de Gastos por Categoria
+      </div>
+      <div class="chart-container" style="display:flex; align-items:center; justify-content:center;">
+        <canvas id="chartGastosCategoria"></canvas>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════════════════════════ FILA 5: TABLA GASTOS POR CATEGORIA ════════════════════════ -->
+{% if gastos_por_categoria %}
+<div class="row g-3 mb-3">
+  <div class="col-12">
+    <div class="table-card">
+      <div class="d-flex align-items-center justify-content-between p-3 border-bottom">
+        <h6 class="mb-0 fw-bold">
+          <i class="bi bi-list-columns-reverse me-2 text-primary"></i>Detalle de Gastos por Categoria
+        </h6>
+        <a href="/gastos" class="btn btn-sm btn-outline-primary" style="font-size:.72rem">Ver todos los gastos</a>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover mb-0">
+          <thead>
+            <tr>
+              <th>Categoria</th>
+              <th>Tipo</th>
+              <th class="text-end">Total</th>
+              <th class="text-end">% del total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for g in gastos_por_categoria %}
+            <tr>
+              <td class="fw-medium">{{ g.categoria }}</td>
+              <td>
+                <span class="badge {% if g.tipo == 'DIRECTO' %}bg-primary{% else %}bg-secondary{% endif %}" style="font-size:.72rem">
+                  {{ g.tipo }}
+                </span>
+              </td>
+              <td class="text-end">{{ g.total | moneda }}</td>
+              <td class="text-end">
+                <div class="d-flex align-items-center justify-content-end gap-2">
+                  <div class="progress" style="width: 60px; height: 6px;">
+                    <div class="progress-bar" style="width: {{ g.porcentaje }}%"></div>
+                  </div>
+                  <span style="font-size:.82rem; min-width: 40px;">{{ g.porcentaje }}%</span>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+          <tfoot>
+            <tr style="border-top: 2px solid var(--border-color)">
+              <td class="fw-bold" colspan="2">TOTAL</td>
+              <td class="text-end fw-bold">{{ total_gastos | moneda }}</td>
+              <td class="text-end fw-bold">100%</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/vendor/chartjs/chart.umd.min.js"></script>
+<script>
+(function(){
+  // ── Filtro de periodo rapido ──
+  var form = document.getElementById('filterForm');
+  var fd = document.getElementById('fecha_desde');
+  var fh = document.getElementById('fecha_hasta');
+
+  function pad(n){ return n.toString().padStart(2,'0'); }
+  function fmt(d){ return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+
+  document.querySelectorAll('.btn-periodo').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var hoy = new Date();
+      var desde, hasta = hoy;
+      switch(this.dataset.periodo){
+        case 'hoy':
+          desde = hoy; break;
+        case 'semana':
+          desde = new Date(hoy); desde.setDate(hoy.getDate() - hoy.getDay() + 1); break;
+        case 'mes':
+          desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1); break;
+        case 'mes_ant':
+          desde = new Date(hoy.getFullYear(), hoy.getMonth()-1, 1);
+          hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0); break;
+        case 'trimestre':
+          desde = new Date(hoy); desde.setDate(hoy.getDate()-90); break;
+        case 'anio':
+          desde = new Date(hoy.getFullYear(), 0, 1); break;
+      }
+      fd.value = fmt(desde);
+      fh.value = fmt(hasta);
+      form.submit();
+    });
+  });
+
+  // ── Dark mode detection ──
+  var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+
+  function tooltipBg()    { return isDark ? '#353b50' : '#1a1a2e'; }
+  function tooltipTitle()  { return isDark ? '#dce1eb' : '#fff'; }
+  function tooltipBody()   { return isDark ? '#dce1eb' : '#fff'; }
+  function gridColor()     { return isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)'; }
+  function doughnutBorder(){ return isDark ? '#232839' : '#fff'; }
+
+  var GREEN  = 'rgba(25, 135, 84, 0.85)';
+  var RED    = 'rgba(220, 53, 69, 0.85)';
+  var PALETTE = [
+    '#0d6efd','#198754','#fd7e14','#6f42c1',
+    '#20c997','#dc3545','#ffc107','#0dcaf0',
+    '#6c757d','#d63384','#adb5bd','#495057'
+  ];
+
+  // ── Parametros de fecha actuales ──
+  var params = 'fecha_desde=' + encodeURIComponent(fd.value) + '&fecha_hasta=' + encodeURIComponent(fh.value);
+
+  // ── Grafica 1: Flujo de Caja ──
+  fetch('/contabilidad/api/flujo?' + params)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var ctx = document.getElementById('chartFlujoCaja');
+      if (!ctx) return;
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: data.labels,
+          datasets: [
+            {
+              label: 'Ingresos',
+              data: data.ingresos,
+              backgroundColor: isDark ? 'rgba(25, 135, 84, 0.8)' : 'rgba(25, 135, 84, 0.7)',
+              borderColor: GREEN,
+              borderWidth: 1,
+              borderRadius: 4,
+              borderSkipped: false,
+            },
+            {
+              label: 'Egresos',
+              data: data.egresos,
+              backgroundColor: isDark ? 'rgba(220, 53, 69, 0.8)' : 'rgba(220, 53, 69, 0.7)',
+              borderColor: RED,
+              borderWidth: 1,
+              borderRadius: 4,
+              borderSkipped: false,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          interaction: { intersect: false, mode: 'index' },
+          plugins: {
+            legend: { position: 'top', labels: { boxWidth: 12, padding: 14 } },
+            tooltip: {
+              backgroundColor: tooltipBg(),
+              titleColor: tooltipTitle(),
+              bodyColor: tooltipBody(),
+              padding: 10,
+              cornerRadius: 8,
+              callbacks: {
+                label: function(ctx) { return ' ' + ctx.dataset.label + ': $' + ctx.parsed.y.toLocaleString('es-CO'); }
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { size: 10 }, maxRotation: 45, minRotation: 0 } },
+            y: {
+              beginAtZero: true,
+              grid: { color: gridColor() },
+              ticks: { callback: function(v) { return '$' + v.toLocaleString('es-CO'); } }
+            }
+          }
+        }
+      });
+    })
+    .catch(function(err){ console.error('Error cargando flujo de caja:', err); });
+
+  // ── Grafica 2: Distribucion de Gastos ──
+  fetch('/contabilidad/api/gastos-categoria?' + params)
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      var ctx = document.getElementById('chartGastosCategoria');
+      if (!ctx) return;
+      if (!data.labels || data.labels.length === 0) {
+        ctx.parentElement.innerHTML = '<div class="text-center text-muted py-5"><i class="bi bi-pie-chart fs-2 opacity-25 d-block mb-2"></i>Sin gastos registrados en este periodo</div>';
+        return;
+      }
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: data.labels,
+          datasets: [{
+            data: data.valores,
+            backgroundColor: PALETTE.slice(0, data.labels.length),
+            borderWidth: 2,
+            borderColor: doughnutBorder(),
+            hoverOffset: 6,
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '58%',
+          plugins: {
+            legend: {
+              position: 'right',
+              labels: {
+                boxWidth: 12, padding: 8,
+                font: { size: 11 },
+                generateLabels: function(chart) {
+                  var ds = chart.data.datasets[0];
+                  var total = ds.data.reduce(function(a, b){ return a + b; }, 0);
+                  return chart.data.labels.map(function(lbl, i){
+                    var pct = total > 0 ? ((ds.data[i] / total) * 100).toFixed(1) : 0;
+                    return {
+                      text: lbl + ' (' + pct + '%)',
+                      fillStyle: ds.backgroundColor[i],
+                      strokeStyle: doughnutBorder(),
+                      lineWidth: 2,
+                      index: i
+                    };
+                  });
+                }
+              }
+            },
+            tooltip: {
+              backgroundColor: tooltipBg(),
+              titleColor: tooltipTitle(),
+              bodyColor: tooltipBody(),
+              callbacks: {
+                label: function(ctx) {
+                  var total = ctx.dataset.data.reduce(function(a, b){ return a + b; }, 0);
+                  var pct = total > 0 ? ((ctx.parsed / total) * 100).toFixed(1) : 0;
+                  return ' $' + ctx.parsed.toLocaleString('es-CO') + ' (' + pct + '%)';
+                }
+              }
+            }
+          }
+        }
+      });
+    })
+    .catch(function(err){ console.error('Error cargando gastos por categoria:', err); });
+
+})();
+</script>
+{% endblock %}

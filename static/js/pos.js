@@ -56,7 +56,7 @@ function setPrice(idx, val) {
   renderCart();
 }
 
-function clearCart() { cart.length = 0; renderCart(); }
+function clearCart() { cart.length = 0; renderCart(); localStorage.removeItem('techstock_pos_draft'); }
 
 function _escapeHtml(text) {
   var div = document.createElement('div');
@@ -129,6 +129,14 @@ function renderCart() {
     gananciaEl.className = 'amount ' + (gananciaTotal >= 0 ? 'text-success' : 'text-danger');
   }
   updateCambio();
+  // Persistir borrador en localStorage (incluye notas)
+  var notasEl = document.getElementById('ventaNotas');
+  var draftData = { cart: cart, notas: notasEl ? notasEl.value : '' };
+  if (cart.length > 0) {
+    localStorage.setItem('techstock_pos_draft', JSON.stringify(draftData));
+  } else {
+    localStorage.removeItem('techstock_pos_draft');
+  }
 }
 
 function updateCambio() {
@@ -140,6 +148,43 @@ function updateCambio() {
 
 // ── Event Listeners (initialized on DOMContentLoaded) ──
 document.addEventListener('DOMContentLoaded', function() {
+  // Restaurar borrador desde localStorage
+  var draftRaw = localStorage.getItem('techstock_pos_draft');
+  if (draftRaw) {
+    try {
+      var draft = JSON.parse(draftRaw);
+      var savedCart = Array.isArray(draft) ? draft : (draft.cart || []);
+      var savedNotas = (!Array.isArray(draft) && draft.notas) ? draft.notas : '';
+      if (savedCart.length > 0) {
+        savedCart.forEach(function(item) { cart.push(item); });
+        var notasEl = document.getElementById('ventaNotas');
+        if (notasEl && savedNotas) { notasEl.value = savedNotas; }
+        renderCart();
+        // Indicador visual de borrador restaurado
+        var header = document.querySelector('.cart-header span');
+        if (header) {
+          var badge = document.createElement('span');
+          badge.className = 'badge bg-warning text-dark ms-2';
+          badge.style.fontSize = '0.7rem';
+          badge.textContent = 'Borrador recuperado';
+          header.appendChild(badge);
+          setTimeout(function() { badge.remove(); }, 3000);
+        }
+      }
+    } catch(e) { localStorage.removeItem('techstock_pos_draft'); }
+  }
+
+  // Guardar notas en borrador al escribir
+  var ventaNotasEl = document.getElementById('ventaNotas');
+  if (ventaNotasEl) {
+    ventaNotasEl.addEventListener('input', function() {
+      if (cart.length > 0) {
+        var draftData = { cart: cart, notas: ventaNotasEl.value };
+        localStorage.setItem('techstock_pos_draft', JSON.stringify(draftData));
+      }
+    });
+  }
+
   // Cart event delegation — handles all cart item interactions
   var cartContainer = document.getElementById('cartItems');
   if (cartContainer) {
@@ -214,6 +259,7 @@ document.addEventListener('DOMContentLoaded', function() {
   document.getElementById('saleForm').addEventListener('submit', function(e) {
     if (cart.length === 0) { e.preventDefault(); return; }
     document.getElementById('itemsJson').value = JSON.stringify(cart);
+    localStorage.removeItem('techstock_pos_draft');
   });
 
   // Keyboard shortcuts

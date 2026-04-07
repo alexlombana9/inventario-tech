@@ -147,6 +147,7 @@ async def readiness_check(db: Session = Depends(get_db)):
 # ── Routers ──
 from routers import productos, categorias, proveedores, inventario, reportes, deudas, facturas, acreedores, gastos
 from routers import auth_router, usuarios, configuracion, clientes, ventas, caja, backup, importar, perfil, auditoria
+from routers import contabilidad as contabilidad_router
 from routers import locales as locales_router
 from routers import super_dashboard as super_dashboard_router
 from routers import chatbot as chatbot_router
@@ -170,6 +171,7 @@ app.include_router(deudas.router)
 app.include_router(facturas.router)
 app.include_router(acreedores.router)
 app.include_router(gastos.router)
+app.include_router(contabilidad_router.router)
 app.include_router(locales_router.router)
 app.include_router(super_dashboard_router.router)
 app.include_router(chatbot_router.router)

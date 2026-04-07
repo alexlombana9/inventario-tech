@@ -28,8 +28,6 @@ hidden = [
     "routers.perfil", "routers.auditoria",
     "routers.locales", "routers.super_dashboard",
     "routers.chatbot",
-    # Services
-    "services", "services.chatbot_service",
     # Utils
     "utils", "utils.constants", "utils.financial", "utils.pagination",
     "utils.excel", "utils.queries", "utils.dashboard", "utils.pdf",
@@ -100,7 +98,7 @@ datas += collect_data_files("httpcore")
 datas += collect_data_files("pydantic")
 datas += collect_data_files("pydantic_settings")
 
-# PostgreSQL portable is copied by build_installer.bat (too large for datas)
+# PostgreSQL portable is copied by quickstart.py --build (too large for datas)
 
 # ── Analysis ──────────────────────────────────────────────────────
 a = Analysis(

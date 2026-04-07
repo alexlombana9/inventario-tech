@@ -244,7 +244,6 @@ inventario-tech/
 │   └── ci.yml               # GitHub Actions: pytest en Python 3.10/3.11/3.12
 │
 ├── techstock.spec           # PyInstaller spec (launcher.py entry point)
-├── build_installer.bat      # Automatizacion: PyInstaller + PG portable + Inno Setup
 ├── Dockerfile               # python:3.11-slim + psycopg2
 ├── docker-compose.yml       # postgres:16-alpine + app web
 ├── requirements.txt         # 11 dependencias de produccion
@@ -588,7 +587,7 @@ docker-compose logs -f web     # Ver logs
 
 ### Opcion 2: Instalador Windows (.exe)
 ```bash
-build_installer.bat            # Genera dist/installer/TechStock_Setup_v3.0.exe
+python quickstart.py --build   # Genera dist/installer/TechStock_Setup_v4.0.exe
 ```
 Incluye: app empaquetada + PostgreSQL 16 portable + Inno Setup installer.
 
@@ -618,7 +617,7 @@ pytest -k "test_crear_venta"              # Test especifico
 pytest --cov --cov-report=html            # Cobertura HTML en htmlcov/
 
 # ── Build ──
-build_installer.bat                       # PyInstaller + PG portable + Inno Setup
+python quickstart.py --build              # PyInstaller + PG portable + Inno Setup
 pyinstaller techstock.spec --clean        # Solo PyInstaller
 
 # ── Docker ──

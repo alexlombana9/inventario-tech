@@ -198,8 +198,8 @@ docker-compose up -d
 ### Opcion 2: Instalador Windows (usuarios finales)
 ```bash
 # Desde la raiz del proyecto (requiere PyInstaller + Inno Setup 6 instalados)
-build_installer.bat
-# Output: dist/installer/TechStock_Setup_v2.0.exe (~48 MB)
+python quickstart.py --build
+# Output: dist/installer/TechStock_Setup_v4.0.exe (~48 MB)
 ```
 
 El instalador incluye:
@@ -259,7 +259,7 @@ inventario-tech/
 ├── .github/workflows/   # CI: GitHub Actions
 │
 ├── techstock.spec       # PyInstaller spec
-├── build_installer.bat  # Automatizacion build
+├── quickstart.py        # Centro de control (dev, build, deploy)
 ├── Dockerfile           # Docker image
 ├── docker-compose.yml   # PostgreSQL + app
 ├── requirements.txt     # Dependencias produccion (11)
