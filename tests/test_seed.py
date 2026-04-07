@@ -87,17 +87,21 @@ class TestSeedConfig:
 
 
 class TestRunSeed:
-    def test_run_seed_creates_local_and_config(self, db):
-        """run_seed crea el local por defecto y la configuracion."""
+    def test_run_seed_creates_local_admin_and_config(self, db):
+        """run_seed crea el local por defecto, SUPERADMIN y la configuracion."""
         run_seed(db)
-        assert db.query(models.Usuario).count() == 0
-        assert db.query(models.Configuracion).count() == 1
         assert db.query(models.Local).count() == 1
+        assert db.query(models.Usuario).count() == 1
+        assert db.query(models.Configuracion).count() == 1
+        admin = db.query(models.Usuario).first()
+        assert admin.rol == "SUPERADMIN"
+        assert admin.local_id is None
+        assert admin.activo is True
 
     def test_run_seed_idempotent(self, db):
         """run_seed es idempotente: ejecutar dos veces no duplica datos."""
         run_seed(db)
         run_seed(db)
-        assert db.query(models.Usuario).count() == 0
-        assert db.query(models.Configuracion).count() == 1
         assert db.query(models.Local).count() == 1
+        assert db.query(models.Usuario).count() == 1
+        assert db.query(models.Configuracion).count() == 1

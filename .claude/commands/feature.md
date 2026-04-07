@@ -1,36 +1,18 @@
-# Skill: Implementar Feature
+# Implementar Feature
 
-Flujo profesional para implementar una nueva funcionalidad en TechStock.
+Flujo completo para implementar una nueva funcionalidad en TechStock.
+
+## Agente: developer
+## Skills: crud-pattern.md, checklist-techstock.md
 
 ## Instrucciones
+- Analizar el pedido y leer codigo relacionado para entender el contexto
+- Presentar plan al usuario antes de implementar (archivos a crear/modificar)
+- Implementar en orden: modelo → migracion → router → templates → sidebar/auth/main
+- Seguir el patron CRUD estandar del proyecto (ver skills/crud-pattern.md)
+- Crear tests en tests/test_<modulo>.py con fixtures de conftest.py
+- Ejecutar `pytest --tb=short -q` y verificar 100% verde
+- Validar checklist: CSRF, log_audit, soft delete, local_id, PRG 303
 
-Sigue este flujo estricto de desarrollo:
-
-### 1. Analisis (Plan)
-- Lee CLAUDE.md para entender convenciones y patrones
-- Usa agente Explore para investigar codigo relacionado
-- Identifica archivos a modificar/crear
-- Presenta el plan al usuario antes de implementar
-
-### 2. Implementacion (por orden)
-- **Modelo** (models.py): agregar/modificar modelo SQLAlchemy
-- **Migracion** (migrations.py): agregar migracion idempotente si se cambia schema
-- **Router** (routers/<modulo>.py): seguir patron CRUD estandar del proyecto
-- **Templates** (templates/<modulo>/): seguir patron de herencia base.html
-- **Sidebar** (templates/base.html): agregar enlace si es modulo nuevo
-- **Auth** (auth.py): agregar modulo a MODULOS_DISPONIBLES si es nuevo
-- **Main** (main.py): registrar router si es nuevo
-
-### 3. Testing
-- Crear tests en tests/test_<modulo>.py
-- Agregar fixtures necesarias en tests/conftest.py
-- Ejecutar `pytest` y verificar 100% verde
-
-### 4. Verificacion
-- Ejecutar /simplify para revisar calidad
-- Verificar que CSRF esta en todos los formularios POST
-- Verificar que log_audit() esta en todos los CREATE/UPDATE/DELETE
-- Verificar soft delete (nunca db.delete())
-
-## Feature solicitada
+## Argumentos
 $ARGUMENTS
